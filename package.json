@@ -17,6 +17,7 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/ms": "^2.1.0",
+    "@types/multer": "^2.0.0",
     "@types/node": "^24.0.15",
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
@@ -25,6 +26,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@azure/cognitiveservices-computervision": "^8.2.0",
+    "@azure/ms-rest-js": "^2.7.0",
     "@logtail/node": "^0.5.5",
     "@logtail/winston": "^0.5.5",
     "compression": "^1.8.1",
@@ -39,8 +42,10 @@
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
     "mongoose": "^8.16.4",
+    "multer": "^2.0.2",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
+    "uuidv4": "^6.2.13",
     "winston": "^3.17.0"
   }
 }

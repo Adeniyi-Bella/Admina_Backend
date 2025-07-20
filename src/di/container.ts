@@ -9,12 +9,19 @@
 import { container } from 'tsyringe';
 
 /**
- * Services and Interfaces
+ * Services
+ */
+import { UserService } from '@/services/users/user.service';
+import { DocumentService } from '@/services/document/document.service';
+import { AzureService } from '@/services/azure/azure.service';
+
+/**
+ * Interfaces
  */
 import { IUserService } from '@/services/users/user.interface';
-import { UserService } from '@/services/users/user.service';
 import { IDocumentService } from '@/services/document/document.interface';
-import { DocumentService } from '@/services/document/document.service';
+import { IAzureService } from '@/services/azure/azure.interface';
+
 
 // Register the interface with its implementation
 container.register<IUserService>('IUserService', {
@@ -22,4 +29,7 @@ container.register<IUserService>('IUserService', {
 });
 container.register<IDocumentService>('IDocumentService', {
   useClass: DocumentService,
+});
+container.register<IAzureService>('IAzureService', {
+  useClass: AzureService,
 });

@@ -18,7 +18,6 @@ dotenv.config();
 const config = {
   PORT: process.env.PORT || 3000,
   NODE_ENV: process.env.NODE_ENV,
-  WHITELIST_ORIGINS: ['https://docs.blog-api.Adeniyi Bella.com'],
   MONGO_URI: process.env.MONGO_URI,
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET!,
@@ -27,9 +26,11 @@ const config = {
   REFRESH_TOKEN_EXPIRY: process.env.REFRESH_TOKEN_EXPIRY as ms.StringValue,
   AZURE_TENANT_ID: process.env.AZURE_TENANT_ID!,
   AZURE_CLIENT_ID: process.env.AZURE_CLIENT_ID!,
-  WHITELIST_ADMINS_MAIL: [
-    'adeniyibella@gmail.com',
-  ],
+  VISION_KEY: process.env.VISION_KEY!,
+  VISION_ENDPOINT: process.env.VISION_ENDPOINT!,
+  TRANSLATOR_KEY: process.env.TRANSLATOR_KEY,
+  TRANSLATOR_ENDPOINT: process.env.TRANSLATOR_ENDPOINT,
+  TRANSLATOR_LOCATION: process.env.TRANSLATOR_LOCATION,
   defaultResLimit: 20,
   defaultResOffset: 0,
 };
