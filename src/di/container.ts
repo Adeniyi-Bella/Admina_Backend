@@ -14,6 +14,8 @@ import { container } from 'tsyringe';
 import { UserService } from '@/services/users/user.service';
 import { DocumentService } from '@/services/document/document.service';
 import { AzureService } from '@/services/azure/azure.service';
+import { ChatGTPService } from '@/services/chat-gtp/chat-gtp.service';
+
 
 /**
  * Interfaces
@@ -21,6 +23,7 @@ import { AzureService } from '@/services/azure/azure.service';
 import { IUserService } from '@/services/users/user.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IAzureService } from '@/services/azure/azure.interface';
+import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
 
 
 // Register the interface with its implementation
@@ -32,4 +35,7 @@ container.register<IDocumentService>('IDocumentService', {
 });
 container.register<IAzureService>('IAzureService', {
   useClass: AzureService,
+});
+container.register<IChatGTPService>('IChatGTPService', {
+  useClass: ChatGTPService,
 });

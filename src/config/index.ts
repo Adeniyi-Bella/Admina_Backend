@@ -31,6 +31,7 @@ const config = {
   TRANSLATOR_KEY: process.env.TRANSLATOR_KEY,
   TRANSLATOR_ENDPOINT: process.env.TRANSLATOR_ENDPOINT,
   TRANSLATOR_LOCATION: process.env.TRANSLATOR_LOCATION,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   defaultResLimit: 20,
   defaultResOffset: 0,
 };

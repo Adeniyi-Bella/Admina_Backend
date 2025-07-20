@@ -7,3 +7,6 @@ export interface ExtractTextReqDTO {
 export interface ExtractTextResDTO {
   text: string;
 }
+export interface TranslatedTextDTO {
+  text: string;
+}

@@ -19,8 +19,8 @@ export interface IDocument {
   translatedText?: string;
   sourceLanguage?: string;
   targetLanguage?: string;
-  action_plan?: { title?: string; reason?: string }[];
-  action_plans?: { id: string; title?: string; dueDate?: Date; completed: boolean; location?: string }[];
+  actionPlan?: { title?: string; reason?: string }[];
+  actionPlans?: { id: string; title?: string; dueDate?: Date; completed: boolean; location?: string }[];
 }
 
 /**
@@ -69,11 +69,11 @@ const documentSchema = new Schema<IDocument>(
       type: String,
       default: '',
     },
-    action_plan: {
+    actionPlan: {
       type: [{ title: String, reason: String }],
       default: [],
     },
-    action_plans: {
+    actionPlans: {
       type: [
         {
           id: {

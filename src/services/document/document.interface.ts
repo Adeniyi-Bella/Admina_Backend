@@ -11,4 +11,5 @@ import { Types } from 'mongoose';
 
 export interface IDocumentService {
   getAllDocumentsByUserId(userId: Types.ObjectId | undefined, limit: number, offset: number): Promise<{total: number, documents: IDocument[]}>;
+  createDocumentByUserId(document: IDocument): Promise<IDocument>;
 }
