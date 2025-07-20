@@ -1,0 +1,46 @@
+{
+  "name": "admina_backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "nodemon"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/ms": "^2.1.0",
+    "@types/node": "^24.0.15",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@logtail/node": "^0.5.5",
+    "@logtail/winston": "^0.5.5",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "jose": "^6.0.12",
+    "jsonwebtoken": "^9.0.2",
+    "jwt-decode": "^4.0.0",
+    "mongoose": "^8.16.4",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0",
+    "winston": "^3.17.0"
+  }
+}
