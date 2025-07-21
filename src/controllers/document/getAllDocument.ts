@@ -31,7 +31,7 @@ const getAllDocuments = async (req: Request, res: Response): Promise<void> => {
     const offset =
       parseInt(req.query.offset as string) || config.defaultResOffset;
 
-      const {total, documents} =await documentService.getAllDocumentsByUserId(req.userId, limit, offset)
+      const {total, documents} =await documentService.getAllDocumentsByUserId(req.userId!, limit, offset)
 
     res.status(200).json({
       limit,

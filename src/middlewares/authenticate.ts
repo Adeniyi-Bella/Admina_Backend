@@ -58,14 +58,16 @@ const authenticate = async (
   try {
     // Verify the token and extract the userId from the payload
     const jwtPayload = (await verifyAccessToken(token)) as {
-      oid: Types.ObjectId;
+      oid: string;
     };
 
     const accessTokenPayload: any = jwtDecode(accessToken);
 
-   
-
     // Attach the userId to the request object for later use
+
+    if (!jwtPayload.oid) {
+      throw new Error('Access token invalid');
+    }
     req.userId = jwtPayload.oid;
     req.email = accessTokenPayload.unique_name;
     req.username = accessTokenPayload.name;

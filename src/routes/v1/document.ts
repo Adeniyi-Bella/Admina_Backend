@@ -8,7 +8,7 @@
  */
 import { Router } from 'express';
 import multer from 'multer';
-import { body, query } from 'express-validator';
+import { body, param, query } from 'express-validator';
 
 /**
  * Middlewares
@@ -21,12 +21,13 @@ import validationError from '@/middlewares/validationError';
  */
 import getAllDocuments from '@/controllers/document/getAllDocument';
 import createDocument from '@/controllers/document/createDocument';
+import getDocument from '@/controllers/document/getDocument';
 
 const router = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 router.get(
@@ -42,6 +43,14 @@ router.get(
     .withMessage('Offset must be a positive integer'),
   validationError,
   getAllDocuments,
+);
+
+router.get(
+  '/:docId',
+  authenticate,
+  param('docId').notEmpty().isUUID().withMessage('Invalid doId ID'),
+  validationError,
+  getDocument,
 );
 
 router.post(

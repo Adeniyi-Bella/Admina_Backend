@@ -39,7 +39,7 @@ export class DocumentService implements IDocumentService {
    * @returns An object containing the total count and the documents.
    */
   async getAllDocumentsByUserId(
-    userId: Types.ObjectId | undefined,
+    userId: string,
     limit: number,
     offset: number,
   ): Promise<{ total: number; documents: IDocument[] }> {
@@ -120,5 +120,9 @@ export class DocumentService implements IDocumentService {
       logger.error('Failed to create document', { error: error });
       throw new Error(`Failed to create document: ${error}`);
     }
+  }
+
+  async getDocument(userId: string, docId: string): Promise<IDocument | null> {
+      return await Document.findOne({ userId, docId }).select('-__v').exec()
   }
 }

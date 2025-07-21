@@ -31,7 +31,6 @@ const documentSchema = new Schema<IDocument>(
     userId: {
       type: String,
       required: [true, 'User ID is required'],
-      unique: [true, 'User ID must be unique'],
     },
     docId: {
       type: String,
@@ -79,7 +78,6 @@ const documentSchema = new Schema<IDocument>(
           id: {
             type: String,
             required: [true, 'Action Plan ID is required'],
-            unique: [true, 'Action Plan ID must be unique'],
           },
           title: {
             type: String,
@@ -99,6 +97,7 @@ const documentSchema = new Schema<IDocument>(
         },
       ],
       default: [],
+      _id: false, 
     },
   },
   {
@@ -106,8 +105,5 @@ const documentSchema = new Schema<IDocument>(
   }
 );
 
-documentSchema.pre('save', async function (next) {
-  next();
-});
 
 export default model<IDocument>('Document', documentSchema);
