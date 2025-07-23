@@ -24,11 +24,6 @@ import { v4 as uuidv4 } from 'uuid';
  */
 import { logger } from '@/lib/winston';
 
-/**
- * Types
- */
-import { Types } from 'mongoose';
-
 @injectable()
 export class DocumentService implements IDocumentService {
   /**
