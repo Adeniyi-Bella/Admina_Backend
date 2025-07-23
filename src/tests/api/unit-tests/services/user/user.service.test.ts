@@ -67,7 +67,6 @@ describe('UserService', () => {
         select: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(null),
       });
-      
 
       const result = await userService.checkIfUserExist(req);
 
