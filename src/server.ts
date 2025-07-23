@@ -35,7 +35,7 @@ const app = express();
 
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
-    logger.info('Origin is:', {origin: origin});
+    logger.info('Origin is:', {originIs: origin});
     if (
       config.NODE_ENV === 'development' ||
       !origin 

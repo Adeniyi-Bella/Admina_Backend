@@ -72,6 +72,10 @@ const authenticate = async (
     req.email = accessTokenPayload.unique_name;
     req.username = accessTokenPayload.name;
 
+    logger.info("Logger:", {
+      userId: req.userId
+    })
+
     // Proceed to the next middleware or route handler
     return next();
   } catch (err) {

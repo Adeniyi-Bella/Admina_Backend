@@ -26,6 +26,8 @@ const createUser = async (req: Request, res: Response, next: NextFunction,): Pro
 
     let user = await userService.checkIfUserExist(req);
 
+    logger.info("check if user exists", user)
+
     if (!user){
      user  = await userService.createUserFromToken(req);
     }

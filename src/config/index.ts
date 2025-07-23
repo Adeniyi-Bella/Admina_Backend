@@ -30,6 +30,7 @@ const config = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   defaultResLimit: 20,
   defaultResOffset: 0,
+  K6_API_TEST_TOKEN: process.env.K6_API_TEST_TOKEN
 };
 
 export default config;
