@@ -29,6 +29,18 @@ const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => {
+    const allowedFileTypes = ['application/pdf', 'image/png', 'image/jpeg'];
+    if (allowedFileTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error(
+          'Invalid file type. Only PDF, PNG, or JPEG files are allowed.',
+        ),
+      );
+    }
+  },
 });
 
 // Route to get all documents with optional pagination
@@ -38,7 +50,7 @@ router.get(
   query('limit')
     .optional()
     .isInt({ min: 1, max: 50 })
-    .withMessage('Limit must be between 1 to 50'),
+    .withMessage('Limit must be between 1 to 20'),
   query('offset')
     .optional()
     .isInt({ min: 0 })
@@ -90,15 +102,15 @@ router.post(
       return true;
     }),
   validationError,
-  createDocument
+  createDocument,
 );
 
 router.delete(
-  "/:docId",
+  '/:docId',
   authenticate,
-  param("docId").notEmpty().isUUID().withMessage("Invalid docId ID"),
+  param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
   validationError,
   deleteDocument,
-)
+);
 
 export default router;
