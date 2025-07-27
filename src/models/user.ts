@@ -14,7 +14,9 @@ export interface IUser {
   prompt: number;
   lenghtOfDocs: number;
   userId: string;
-  username: String
+  username: string;
+  createdAt: Date; 
+  updatedAt: Date; 
 }
 
 /**
@@ -37,7 +39,8 @@ const userSchema = new Schema<IUser>(
     },
     lenghtOfDocs: {
       type: Number,
-      default: 0
+      default: 0,
+      min: [0, 'lenghtOfDocs cannot be negative'],
     },
     userId: {
       type: String,
@@ -50,6 +53,7 @@ const userSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
+    strict: true,
   },
 );
 

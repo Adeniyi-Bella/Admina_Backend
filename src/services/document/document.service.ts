@@ -61,10 +61,9 @@ export class DocumentService implements IDocumentService {
    * @throws Error if creation fails or required fields are missing.
    */
   async createDocumentByUserId(
-    document: Partial<IDocument>
+    document: Partial<IDocument>,
   ): Promise<IDocument> {
     try {
-     
       if (!document) {
         throw new Error('Valid document data is required');
       }
@@ -99,9 +98,9 @@ export class DocumentService implements IDocumentService {
    */
   async getDocument(userId: string, docId: string): Promise<IDocument | null> {
     if (!userId || !docId) {
-        throw new Error('Valid userId and docId are required');
-      }
-      return await Document.findOne({ userId, docId }).select('-__v').exec()
+      throw new Error('Valid userId and docId are required');
+    }
+    return await Document.findOne({ userId, docId }).select('-__v').exec();
   }
 
   /**
@@ -128,7 +127,9 @@ export class DocumentService implements IDocumentService {
       return true;
     } catch (error) {
       logger.error('Failed to delete document', { userId, docId, error });
-      throw new Error(`Failed to delete document: ${error instanceof Error ? error.message : error}`);
+      throw new Error(
+        `Failed to delete document: ${error instanceof Error ? error.message : error}`,
+      );
     }
   }
 }

@@ -26,9 +26,11 @@ import { v4 as uuidv4 } from 'uuid';
  */
 import type { Request, Response } from 'express';
 import { IDocument } from '@/models/document';
+import { IUserService } from '@/services/users/user.interface';
 
 const createDocument = async (req: Request, res: Response): Promise<void> => {
   const azureService = container.resolve<IAzureService>('IAzureService');
+  const userService = container.resolve<IUserService>('IUserService');
   const chatgtpService = container.resolve<IChatGTPService>('IChatGTPService');
   const documentService =
     container.resolve<IDocumentService>('IDocumentService');
@@ -124,6 +126,17 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
       `event: createdDocument\ndata: ${JSON.stringify(createdDocument)}\n\n`,
     );
     res.flush();
+
+     const updatelenghtOfDocs = await userService.updatelenghtOfDocs(
+        req.userId,
+      );
+
+      if (!updatelenghtOfDocs) {
+        logger.warn('Failed to update lenghtOfDocs for user', {
+          userId: req.userId,
+        });
+        throw new Error('Failed to update lenghtOfDocs for user');
+      }
 
     // Signal completion
     res.write('event: complete\ndata: {"status":"completed"}\n\n');
