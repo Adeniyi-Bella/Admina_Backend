@@ -35,7 +35,7 @@ const documentSchema = new Schema<IDocument>(
     docId: {
       type: String,
       required: [true, 'Document ID is required'],
-      unique: [true, 'Document ID must be unique'],
+      // unique: [true, 'Document ID must be unique'],
     },
     title: {
       type: String,

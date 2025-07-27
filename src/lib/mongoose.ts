@@ -23,8 +23,8 @@ import type { ConnectOptions } from 'mongoose';
  * Client option
  */
 const clientOptions: ConnectOptions = {
-  dbName: 'Admina',
-  appName: 'Admina api',
+  dbName: 'Admina-Api',
+  appName: 'Admina-Api',
   serverApi: {
     version: '1',
     strict: true,

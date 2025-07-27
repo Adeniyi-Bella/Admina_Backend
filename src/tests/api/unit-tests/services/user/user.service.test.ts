@@ -15,6 +15,11 @@ import { container } from 'tsyringe';
 import { UserService } from '@/services/users/user.service';
 
 /**
+ * Interfaces
+ */
+import { IUserService } from "@/services/users/user.interface";
+
+/**
  * Models
  */
 import User from '@/models/user';
@@ -24,17 +29,21 @@ import User from '@/models/user';
  */
 import type { Request } from 'express';
 
+
+
 // Mock the User model
 jest.mock('@/models/user');
 
 describe('UserService', () => {
   let userService: UserService;
 
+  beforeAll(() => {
+    // Register UserService for DI
+    container.register<IUserService>('IUserService', { useClass: UserService });
+    userService = container.resolve<IUserService>('IUserService');
+  });
+
   beforeEach(() => {
-    // Mock logger to avoid DI errors
-    container.register('logger', { useValue: { info: jest.fn(), error: jest.fn() } });
-    // Resolve UserService from tsyringe container
-    userService = container.resolve(UserService);
     // Clear all mocks before each test
     jest.clearAllMocks();
   });

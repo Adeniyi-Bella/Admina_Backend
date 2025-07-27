@@ -18,7 +18,7 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { Request, Response, NextFunction } from 'express';
-import type { Types } from 'mongoose';
+// import type { Types } from 'mongoose';
 import { jwtDecode } from 'jwt-decode';
 
 /**

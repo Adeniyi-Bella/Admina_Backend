@@ -17,7 +17,6 @@ import { IDocumentService } from './document.interface';
  * Node modules
  */
 import { injectable } from 'tsyringe';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Custom modules
@@ -70,33 +69,8 @@ export class DocumentService implements IDocumentService {
         throw new Error('Valid document data is required');
       }
 
-      // Generate docId if not provided
-      const docId = document.docId || uuidv4();
-
-      // Prepare document data
-      const documentData: IDocument = {
-        userId: document.userId!,
-        docId,
-        title: document.title || '',
-        sender: document.sender || '',
-        receivedDate: document.receivedDate || new Date(),
-        summary: document.summary || '',
-        originalText: document.originalText || '',
-        translatedText: document.translatedText || '',
-        sourceLanguage: document.sourceLanguage || '',
-        targetLanguage: document.targetLanguage || '',
-        actionPlan: document.actionPlan || [],
-        actionPlans: (document.actionPlans || []).map((plan) => ({
-          id: plan.id || uuidv4(),
-          title: plan.title || '',
-          dueDate: plan.dueDate || new Date(),
-          completed: plan.completed ?? false,
-          location: plan.location || '',
-        })),
-      };
-
       // Create and save the document
-      const createdDocument = await Document.create(documentData);
+      const createdDocument = await Document.create(document);
 
       // Convert to plain object and remove __v
       const result = await Document.findById(createdDocument._id)
@@ -108,7 +82,7 @@ export class DocumentService implements IDocumentService {
         throw new Error('Failed to retrieve created document');
       }
 
-      logger.info('Document created successfully', { docId });
+      logger.info('Document created successfully', result);
 
       return result as IDocument;
     } catch (error) {
@@ -117,7 +91,44 @@ export class DocumentService implements IDocumentService {
     }
   }
 
+  /**
+   * Retrieves a document by userId and docId.
+   * @param userId - The ID of the user.
+   * @param docId - The ID of the document.
+   * @returns The document if found, null otherwise.
+   */
   async getDocument(userId: string, docId: string): Promise<IDocument | null> {
+    if (!userId || !docId) {
+        throw new Error('Valid userId and docId are required');
+      }
       return await Document.findOne({ userId, docId }).select('-__v').exec()
+  }
+
+  /**
+   * Deletes a document by userId and docId.
+   * @param userId - The ID of the user.
+   * @param docId - The ID of the document.
+   * @returns True if the document was deleted, false if not found.
+   * @throws Error if deletion fails.
+   */
+  async deleteDocument(userId: string, docId: string): Promise<boolean> {
+    try {
+      if (!userId || !docId) {
+        throw new Error('Valid userId and docId are required');
+      }
+
+      const result = await Document.deleteOne({ userId, docId }).exec();
+
+      if (result.deletedCount === 0) {
+        logger.info('Document not found for deletion', { userId, docId });
+        return false;
+      }
+
+      logger.info('Document deleted successfully', { userId, docId });
+      return true;
+    } catch (error) {
+      logger.error('Failed to delete document', { userId, docId, error });
+      throw new Error(`Failed to delete document: ${error instanceof Error ? error.message : error}`);
+    }
   }
 }

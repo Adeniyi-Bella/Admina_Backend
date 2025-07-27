@@ -22,6 +22,7 @@ import validationError from '@/middlewares/validationError';
 import getAllDocuments from '@/controllers/document/getAllDocument';
 import createDocument from '@/controllers/document/createDocument';
 import getDocument from '@/controllers/document/getDocument';
+import deleteDocument from '@/controllers/document/deleteDocument';
 
 const router = Router();
 
@@ -30,6 +31,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+// Route to get all documents with optional pagination
 router.get(
   '/',
   authenticate,
@@ -45,6 +47,7 @@ router.get(
   getAllDocuments,
 );
 
+// Route to get a specific document by ID
 router.get(
   '/:docId',
   authenticate,
@@ -53,6 +56,9 @@ router.get(
   getDocument,
 );
 
+// Route to create a new document
+// Requires authentication and file upload
+// Used by the scan and translate feature
 router.post(
   '/',
   authenticate,
@@ -86,5 +92,13 @@ router.post(
   validationError,
   createDocument
 );
+
+router.delete(
+  "/:docId",
+  authenticate,
+  param("docId").notEmpty().isUUID().withMessage("Invalid docId ID"),
+  validationError,
+  deleteDocument,
+)
 
 export default router;

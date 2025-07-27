@@ -10,6 +10,7 @@ import { IDocument } from '@/models/document';
 
 export interface IDocumentService {
   getAllDocumentsByUserId(userId: string, limit: number, offset: number): Promise<{total: number, documents: IDocument[]}>;
-  createDocumentByUserId(document: IDocument): Promise<IDocument>;
+  createDocumentByUserId(document: Partial<IDocument>): Promise<IDocument>;
   getDocument(userId: string, docId: string): Promise<IDocument | null>
+  deleteDocument(userId: string, docId: string): Promise<boolean>;
 }
