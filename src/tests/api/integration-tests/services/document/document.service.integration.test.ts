@@ -51,10 +51,6 @@ describe('DocumentService Integration Tests', () => {
   });
 
   describe('getAllDocumentsByUserId', () => {
-    it('should throw an error if userId is empty', async () => {
-      await expect(documentService.getAllDocumentsByUserId('', 10, 0)).rejects.toThrow('Valid userId is required');
-    });
-
     it('should return empty documents and total count for a user with no documents', async () => {
       const result = await documentService.getAllDocumentsByUserId('12345', 10, 0);
 
@@ -77,10 +73,6 @@ describe('DocumentService Integration Tests', () => {
   });
 
   describe('createDocumentByUserId', () => {
-    it('should throw an error if document data is missing', async () => {
-      await expect(documentService.createDocumentByUserId(null as any)).rejects.toThrow('Valid document data is required');
-    });
-
     it('should create and return a new document', async () => {
       const documentData: Partial<IDocument> = {
         userId: '12345',
@@ -103,11 +95,6 @@ describe('DocumentService Integration Tests', () => {
   });
 
   describe('getDocument', () => {
-    it('should throw an error if userId or docId is missing', async () => {
-      await expect(documentService.getDocument('', 'doc1')).rejects.toThrow('Valid userId and docId are required');
-      await expect(documentService.getDocument('12345', '')).rejects.toThrow('Valid userId and docId are required');
-    });
-
     it('should return a document if found', async () => {
       const userId = '12345';
       const docId = 'doc1';
@@ -128,11 +115,6 @@ describe('DocumentService Integration Tests', () => {
   });
 
   describe('deleteDocument', () => {
-    it('should throw an error if userId or docId is missing', async () => {
-      await expect(documentService.deleteDocument('', 'doc1')).rejects.toThrow('Valid userId and docId are required');
-      await expect(documentService.deleteDocument('12345', '')).rejects.toThrow('Valid userId and docId are required');
-    });
-
     it('should return true if document is deleted', async () => {
       const userId = '12345';
       const docId = 'doc1';
@@ -151,6 +133,70 @@ describe('DocumentService Integration Tests', () => {
       const result = await documentService.deleteDocument('12345', 'nonexistent');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('updateDocument', () => {
+    it('should update and return the document with new title', async () => {
+      const userId = '12345';
+      const docId = 'doc1';
+      await Document.create({
+        userId,
+        docId,
+        title: 'Original Title',
+        originalText: 'Sample text',
+      });
+
+      const updates: Partial<IDocument> = { title: 'Updated Title' };
+      const result = await documentService.updateDocument(userId, docId, updates);
+
+      expect(result).toBeDefined();
+      expect(result?.docId).toBe(docId);
+      expect(result?.title).toBe('Updated Title');
+
+      // Verify update in database
+      const savedDocument = await Document.findOne({ userId, docId });
+      expect(savedDocument).toBeDefined();
+      expect(savedDocument?.title).toBe('Updated Title');
+    });
+
+    it('should update and return the document with updated actionPlans.completed', async () => {
+      const userId = '12345';
+      const docId = 'doc1';
+      const actionPlanId = 'action-plan-1';
+      await Document.create({
+        userId,
+        docId,
+        title: 'Test Document',
+        originalText: 'Sample text',
+        actionPlans: [
+          { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: false, location: 'Office' },
+        ],
+      });
+
+      const updates: Partial<IDocument> = {
+        actionPlans: [
+          { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: true, location: 'Office' },
+        ],
+      };
+      const result = await documentService.updateDocument(userId, docId, updates);
+
+      expect(result).toBeDefined();
+      expect(result?.docId).toBe(docId);
+      expect(result?.actionPlans).toHaveLength(1);
+      expect(result?.actionPlans?.[0].completed).toBe(true);
+
+      // Verify update in database
+      const savedDocument = await Document.findOne({ userId, docId });
+      expect(savedDocument).toBeDefined();
+      expect(savedDocument?.actionPlans?.[0].completed).toBe(true);
+    });
+
+    it('should return null if document is not found', async () => {
+      const updates: Partial<IDocument> = { title: 'Updated Title' };
+      const result = await documentService.updateDocument('12345', 'nonexistent', updates);
+
+      expect(result).toBeNull();
     });
   });
 });

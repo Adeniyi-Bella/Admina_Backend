@@ -15,6 +15,7 @@ import { injectable } from 'tsyringe';
  */
 import { logger } from '@/lib/winston';
 import config from '@/config';
+import { Prompt } from './prompts';
 
 /**
  * Types
@@ -26,10 +27,10 @@ import { IDocument } from '@/models/document';
  */
 import { IChatGTPService } from './chat-gtp.interface';
 
-
 @injectable()
-export class ChatGTPService implements IChatGTPService{
+export class ChatGTPService implements IChatGTPService {
   private readonly openai: OpenAI;
+  private readonly prompt: Prompt;
 
   constructor() {
     const apiKey = config.OPENAI_API_KEY;
@@ -37,7 +38,31 @@ export class ChatGTPService implements IChatGTPService{
       throw new Error('OPENAI_API_VALUE must be set in environment variables');
     }
     this.openai = new OpenAI({ apiKey });
+    this.prompt = new Prompt();
   }
+
+  /**
+   * Restructures the provided text into a clearer and more readable layout using OpenAI.
+   * @param text - The text to restructure.
+   * @param label - The language label for the output (e.g., 'en', 'de').
+   * @returns A promise resolving to the structured text.
+   */
+  public async structureText(text: string, label: string): Promise<string> {
+  try {
+    const response = await this.openai.chat.completions.create({
+      model: 'o3-mini',
+      messages: [{ role: 'user', content: this.prompt.structureTextPrompt(text, label) }],
+    });
+
+    const summary =
+      response.choices[0]?.message?.content?.trim() || 'No summary generated.';
+
+    return summary;
+  } catch (error) {
+    console.error('Error in structureText:', error);
+    return 'An error occurred while processing the text.';
+  }
+}
 
   /**
    * Shot summary and generates an action plan from the provided text in the specified target language.
@@ -68,7 +93,7 @@ export class ChatGTPService implements IChatGTPService{
       throw new Error('Valid target language is required');
     }
 
-    const prompt = this.buildPrompt(translatedText, targetLanguage);
+    const prompt = this.prompt.buildPrompt(translatedText, targetLanguage);
 
     try {
       const completion = await this.openai.chat.completions.create({
@@ -90,46 +115,6 @@ export class ChatGTPService implements IChatGTPService{
       });
       return this.getDefaultResponse();
     }
-  }
-
-  /**
-   * Builds the prompt for OpenAI with the document text and target language.
-   * @param translatedText - The document text to process.
-   * @param targetLanguage - The language for the response.
-   * @returns The formatted prompt string.
-   */
-  private buildPrompt(translatedText: string, targetLanguage: string): string {
-    return `
-You are an assistant that reads documents and extracts the following fields from the document:
-- title of the Document (string)
-- date document was received (date string in ISO 8601 format, e.g. "2024-05-24")
-- sender of document (From which institution) (string)
-- short summary (string)
-- actionPlan: an array of { title: string, reason: string }
-- actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
-
-Respond ONLY with valid raw JSON — do NOT include code fences, markdown, or extra text.
-It is important that response should match the language ${targetLanguage}.
-
-Example for an English Response:
-{
-  "title": "Residence Permit Decision",
-  "receivedDate": "2024-05-24T00:00:00Z",
-  "sender": "Auslander Behorde",
-  "summary": "Your residence permit is expiring soon and you need to apply for an extension at least 8 weeks before the expiration date (2023-12-15). You'll need to provide several documents and book an appointment online.",
-  "actionPlan": [
-    { "title": "Prepare valid passport", "reason": "A valid passport is required for the application." },
-    { "title": "Gather current employment contract", "reason": "An employment contract is needed to prove employment status." }
-  ],
-  "actionPlans": [
-    { "title": "Apply for residence permit extension", "due_date": "2025-07-01T00:00:00Z", "completed": false, "location": "Auslander Behorde office" },
-    { "title": "Submit all required documents online", "due_date": "2025-07-15T00:00:00Z", "completed": false, "location": "online portal" }
-  ]
-}
-
-Document:
-${translatedText}
-`.trim();
   }
 
   /**

@@ -23,6 +23,7 @@ import getAllDocuments from '@/controllers/document/getAllDocument';
 import createDocument from '@/controllers/document/createDocument';
 import getDocument from '@/controllers/document/getDocument';
 import deleteDocument from '@/controllers/document/deleteDocument';
+import structureText from '@/controllers/document/update-document/structureText';
 
 const router = Router();
 
@@ -112,5 +113,14 @@ router.delete(
   validationError,
   deleteDocument,
 );
+
+
+router.patch(
+  '/:docId',
+  authenticate,
+  param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
+  validationError,
+  structureText,
+)
 
 export default router;

@@ -9,19 +9,21 @@
 import { IDocument } from '@/models/document';
 
 export interface IChatGTPService {
-//   summarizeTranslatedText(data: ExtractTextReqDTO): Promise<ExtractTextResDTO>;
+  //   summarizeTranslatedText(data: ExtractTextReqDTO): Promise<ExtractTextResDTO>;
   summarizeTranslatedText(
-      translatedText: string,
-      targetLanguage: string,
-    ): Promise<
-      Pick<
-        IDocument,
-        | 'title'
-        | 'sender'
-        | 'receivedDate'
-        | 'summary'
-        | 'actionPlan'
-        | 'actionPlans'
-      >
-    >;
+    translatedText: string,
+    targetLanguage: string,
+  ): Promise<
+    Pick<
+      IDocument,
+      | 'title'
+      | 'sender'
+      | 'receivedDate'
+      | 'summary'
+      | 'actionPlan'
+      | 'actionPlans'
+    >
+  >;
+
+  structureText(text: string, label: string): Promise<string>;
 }

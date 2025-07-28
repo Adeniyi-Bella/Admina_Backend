@@ -18,7 +18,7 @@ import { DocumentService } from '@/services/document/document.service';
 /**
  * Models
  */
-import Document from '@/models/document';
+import Document, { IDocument } from '@/models/document';
 
 // Mock the Document model
 jest.mock('@/models/document');
@@ -40,10 +40,10 @@ describe('DocumentService Unit Tests', () => {
   });
 
   describe('getAllDocumentsByUserId', () => {
-    it('should throw an error if userId is empty', async () => {
-      await expect(
-        documentService.getAllDocumentsByUserId('', 10, 0),
-      ).rejects.toThrow('Valid userId is required');
+    it('should throw an error if userId is empty or invalid', async () => {
+      await expect(documentService.getAllDocumentsByUserId('', 10, 0)).rejects.toThrow('Valid userId is required');
+      await expect(documentService.getAllDocumentsByUserId(null as any, 10, 0)).rejects.toThrow('Valid userId is required');
+      await expect(documentService.getAllDocumentsByUserId(undefined as any, 10, 0)).rejects.toThrow('Valid userId is required');
     });
 
     it('should return documents and total count for a user', async () => {
@@ -61,11 +61,7 @@ describe('DocumentService Unit Tests', () => {
         exec: jest.fn().mockResolvedValue(mockDocuments),
       });
 
-      const result = await documentService.getAllDocumentsByUserId(
-        userId,
-        10,
-        0,
-      );
+      const result = await documentService.getAllDocumentsByUserId(userId, 10, 0);
 
       expect(result).toEqual({ total: 2, documents: mockDocuments });
       expect(Document.countDocuments).toHaveBeenCalledWith({ userId });
@@ -74,10 +70,10 @@ describe('DocumentService Unit Tests', () => {
   });
 
   describe('createDocumentByUserId', () => {
-    it('should throw an error if document data is missing', async () => {
-      await expect(
-        documentService.createDocumentByUserId(null as any),
-      ).rejects.toThrow('Valid document data is required');
+    it('should throw an error if document data is missing or invalid', async () => {
+      await expect(documentService.createDocumentByUserId(null as any)).rejects.toThrow('Valid document data is required');
+      await expect(documentService.createDocumentByUserId(undefined as any)).rejects.toThrow('Valid document data is required');
+      await expect(documentService.createDocumentByUserId({})).rejects.toThrow('Valid document data is required');
     });
 
     it('should create and return a new document', async () => {
@@ -111,20 +107,18 @@ describe('DocumentService Unit Tests', () => {
         exec: jest.fn().mockResolvedValue(null),
       });
 
-      await expect(
-        documentService.createDocumentByUserId(documentData),
-      ).rejects.toThrow('Failed to retrieve created document');
+      await expect(documentService.createDocumentByUserId(documentData)).rejects.toThrow('Failed to retrieve created document');
     });
   });
 
   describe('getDocument', () => {
-    it('should throw an error if userId or docId is missing', async () => {
-      await expect(documentService.getDocument('', 'doc1')).rejects.toThrow(
-        'Valid userId and docId are required',
-      );
-      await expect(documentService.getDocument('12345', '')).rejects.toThrow(
-        'Valid userId and docId are required',
-      );
+    it('should throw an error if userId or docId is missing or invalid', async () => {
+      await expect(documentService.getDocument('', 'doc1')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.getDocument('12345', '')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.getDocument(null as any, 'doc1')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.getDocument('12345', null as any)).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.getDocument(undefined as any, 'doc1')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.getDocument('12345', undefined as any)).rejects.toThrow('Valid userId and docId are required');
     });
 
     it('should return a document if found', async () => {
@@ -155,13 +149,13 @@ describe('DocumentService Unit Tests', () => {
   });
 
   describe('deleteDocument', () => {
-    it('should throw an error if userId or docId is missing', async () => {
-      await expect(documentService.deleteDocument('', 'doc1')).rejects.toThrow(
-        'Valid userId and docId are required',
-      );
-      await expect(documentService.deleteDocument('12345', '')).rejects.toThrow(
-        'Valid userId and docId are required',
-      );
+    it('should throw an error if userId or docId is missing or invalid', async () => {
+      await expect(documentService.deleteDocument('', 'doc1')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.deleteDocument('12345', '')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.deleteDocument(null as any, 'doc1')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.deleteDocument('12345', null as any)).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.deleteDocument(undefined as any, 'doc1')).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.deleteDocument('12345', undefined as any)).rejects.toThrow('Valid userId and docId are required');
     });
 
     it('should return true if document is deleted', async () => {
@@ -196,9 +190,104 @@ describe('DocumentService Unit Tests', () => {
         exec: jest.fn().mockRejectedValue(new Error('Database error')),
       });
 
-      await expect(
-        documentService.deleteDocument(userId, docId),
-      ).rejects.toThrow('Failed to delete document: Database error');
+      await expect(documentService.deleteDocument(userId, docId)).rejects.toThrow('Failed to delete document: Database error');
+    });
+  });
+
+  describe('updateDocument', () => {
+    it('should throw an error if userId or docId is missing or invalid', async () => {
+      await expect(documentService.updateDocument('', 'doc1', { title: 'Updated' })).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.updateDocument('12345', '', { title: 'Updated' })).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.updateDocument(null as any, 'doc1', { title: 'Updated' })).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.updateDocument('12345', null as any, { title: 'Updated' })).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.updateDocument(undefined as any, 'doc1', { title: 'Updated' })).rejects.toThrow('Valid userId and docId are required');
+      await expect(documentService.updateDocument('12345', undefined as any, { title: 'Updated' })).rejects.toThrow('Valid userId and docId are required');
+    });
+
+    it('should throw an error if updates are empty or null', async () => {
+      await expect(documentService.updateDocument('12345', 'doc1', {})).rejects.toThrow('Valid update data is required');
+      await expect(documentService.updateDocument('12345', 'doc1', null as any)).rejects.toThrow('Valid update data is required');
+      await expect(documentService.updateDocument('12345', 'doc1', undefined as any)).rejects.toThrow('Valid update data is required');
+    });
+
+    it('should update and return the document with new title', async () => {
+      const userId = '12345';
+      const docId = 'doc1';
+      const mockDocument = { userId, docId, title: 'Updated Title', originalText: 'Sample text' };
+      (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(mockDocument),
+      });
+
+      const updates: Partial<IDocument> = { title: 'Updated Title' };
+      const result = await documentService.updateDocument(userId, docId, updates);
+
+      expect(result).toEqual(mockDocument);
+      expect(Document.findOneAndUpdate).toHaveBeenCalledWith(
+        { userId, docId },
+        { $set: updates },
+        { new: true, runValidators: true, select: '-__v' }
+      );
+    });
+
+    it('should update and return the document with updated actionPlans.completed', async () => {
+      const userId = '12345';
+      const docId = 'doc1';
+      const actionPlanId = 'action-plan-1';
+      const mockDocument = {
+        userId,
+        docId,
+        title: 'Test Document',
+        originalText: 'Sample text',
+        actionPlans: [
+          { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: true, location: 'Office' },
+        ],
+      };
+      (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(mockDocument),
+      });
+
+      const updates: Partial<IDocument> = {
+        actionPlans: [
+          { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: true, location: 'Office' },
+        ],
+      };
+      const result = await documentService.updateDocument(userId, docId, updates);
+
+      expect(result).toEqual(mockDocument);
+      expect(result?.actionPlans?.[0].completed).toBe(true);
+      expect(Document.findOneAndUpdate).toHaveBeenCalledWith(
+        { userId, docId },
+        { $set: updates },
+        { new: true, runValidators: true, select: '-__v' }
+      );
+    });
+
+    it('should return null if document is not found', async () => {
+      (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      const updates: Partial<IDocument> = { title: 'Updated Title' };
+      const result = await documentService.updateDocument('12345', 'doc1', updates);
+
+      expect(result).toBeNull();
+    });
+
+    it('should throw an error if update fails due to database error', async () => {
+      (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockRejectedValue(new Error('Database error')),
+      });
+
+      const updates: Partial<IDocument> = { title: 'Updated Title' };
+      await expect(documentService.updateDocument('12345', 'doc1', updates)).rejects.toThrow('Failed to update document: Database error');
     });
   });
 });

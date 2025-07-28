@@ -64,7 +64,7 @@ export class DocumentService implements IDocumentService {
     document: Partial<IDocument>,
   ): Promise<IDocument> {
     try {
-      if (!document) {
+      if (!document || !document.userId || !document.docId) {
         throw new Error('Valid document data is required');
       }
 
@@ -129,6 +129,48 @@ export class DocumentService implements IDocumentService {
       logger.error('Failed to delete document', { userId, docId, error });
       throw new Error(
         `Failed to delete document: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+
+  /**
+   * Updates a document by userId and docId with the provided updates.
+   * @param userId - The ID of the user.
+   * @param docId - The ID of the document.
+   * @param updates - Partial document data to update.
+   * @returns The updated document if found, null otherwise.
+   * @throws Error if update fails.
+   */
+  async updateDocument(
+    userId: string,
+    docId: string,
+    updates: Partial<IDocument>,
+  ): Promise<IDocument | null> {
+    try {
+      if (!userId || !docId) {
+        throw new Error('Valid userId and docId are required');
+      }
+      if (!updates || Object.keys(updates).length === 0) {
+        throw new Error('Valid update data is required');
+      }
+
+      const updatedDocument = await Document.findOneAndUpdate(
+        { userId, docId },
+        { $set: updates },
+        { new: true, runValidators: true, select: '-__v' }
+      ).lean().exec();
+
+      if (!updatedDocument) {
+        logger.info('Document not found for update', { userId, docId });
+        return null;
+      }
+
+      logger.info('Document updated successfully', { userId, docId, updates });
+      return updatedDocument as IDocument;
+    } catch (error) {
+      logger.error('Failed to update document', { userId, docId, updates, error });
+      throw new Error(
+        `Failed to update document: ${error instanceof Error ? error.message : error}`,
       );
     }
   }

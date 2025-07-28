@@ -14,11 +14,13 @@ export interface IDocument {
   title?: string;
   sender?: string;
   receivedDate?: Date;
-  summary?: string;
-  originalText?: string;
-  translatedText?: string;
-  sourceLanguage?: string;
-  targetLanguage?: string;
+  summary: string;
+  originalText: string;
+  translatedText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  structuredOriginalText?: string;
+  structuredTranslatedText?: string;
   actionPlan?: { title?: string; reason?: string }[];
   actionPlans?: { id: string; title?: string; dueDate?: Date; completed: boolean; location?: string }[];
 }
@@ -65,6 +67,14 @@ const documentSchema = new Schema<IDocument>(
       default: '',
     },
     targetLanguage: {
+      type: String,
+      default: '',
+    },
+    structuredOriginalText: {
+      type: String,
+      default: '',
+    },
+    structuredTranslatedText: {
       type: String,
       default: '',
     },

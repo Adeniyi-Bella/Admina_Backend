@@ -13,4 +13,9 @@ export interface IDocumentService {
   createDocumentByUserId(document: Partial<IDocument>): Promise<IDocument>;
   getDocument(userId: string, docId: string): Promise<IDocument | null>
   deleteDocument(userId: string, docId: string): Promise<boolean>;
+  updateDocument(
+    userId: string,
+    docId: string,
+    updates: Partial<IDocument>
+  ): Promise<IDocument | null>;
 }
