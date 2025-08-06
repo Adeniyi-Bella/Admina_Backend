@@ -35,10 +35,6 @@ const structureText = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // const structuredOriginalText = await chatgtpService.structureText(
-    //   document.originalText,
-    //   document.sourceLanguage,
-    // );
     const structuredTranslatedText = await chatgtpService.structureText(
       document.translatedText!,
       document.targetLanguage,

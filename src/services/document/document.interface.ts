@@ -6,16 +6,27 @@
 /**
  * Types
  */
-import { IDocument } from '@/models/document';
+import { IActionPlan, IDocument } from '@/models/document';
 
 export interface IDocumentService {
-  getAllDocumentsByUserId(userId: string, limit: number, offset: number): Promise<{total: number, documents: IDocument[]}>;
+  getAllDocumentsByUserId(
+    userId: string,
+    limit: number,
+    offset: number,
+  ): Promise<{ total: number; documents: IDocument[] }>;
   createDocumentByUserId(document: Partial<IDocument>): Promise<IDocument>;
-  getDocument(userId: string, docId: string): Promise<IDocument | null>
+  getDocument(userId: string, docId: string): Promise<IDocument | null>;
   deleteDocument(userId: string, docId: string): Promise<boolean>;
   updateDocument(
     userId: string,
     docId: string,
-    updates: Partial<IDocument>
+    updates: Partial<IDocument>,
+  ): Promise<IDocument | null>;
+  updateActionPlan(
+    userId: string,
+    docId: string,
+    action: 'create' | 'delete' | 'update',
+    actionPlanData?: Partial<IActionPlan>,
+    actionPlanId?: string,
   ): Promise<IDocument | null>;
 }

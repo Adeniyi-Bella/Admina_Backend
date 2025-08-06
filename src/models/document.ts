@@ -9,6 +9,15 @@
 import { Schema, model } from 'mongoose';
 import { Binary } from 'mongodb';
 
+// Define TypeScript interface for an action plan
+export interface IActionPlan {
+  id: string;
+  title?: string;
+  dueDate?: Date;
+  completed: boolean;
+  location?: string;
+}
+
 export interface IDocument {
   userId: string;
   docId: string;
@@ -24,7 +33,9 @@ export interface IDocument {
   // structuredOriginalText?: string;
   structuredTranslatedText?: string;
   actionPlan?: { title?: string; reason?: string }[];
-  actionPlans?: { id: string; title?: string; dueDate?: Date; completed: boolean; location?: string }[];
+  actionPlans?: IActionPlan[];
+   createdAt: Date; 
+  updatedAt: Date; 
 }
 
 /**
@@ -65,7 +76,7 @@ const documentSchema = new Schema<IDocument>(
       default: '',
     },
     translatedPdf: {
-      type: Buffer, 
+      type: Buffer,
       default: null,
     },
     targetLanguage: {
@@ -93,7 +104,7 @@ const documentSchema = new Schema<IDocument>(
           },
           title: {
             type: String,
-            default: "",
+            default: '',
           },
           dueDate: {
             type: Date,
@@ -109,13 +120,12 @@ const documentSchema = new Schema<IDocument>(
         },
       ],
       default: [],
-      _id: false, 
+      _id: false,
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
-
 
 export default model<IDocument>('Document', documentSchema);

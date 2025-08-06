@@ -330,6 +330,8 @@ export class AzurePremiumSubscriptionService
         location: plan.location || '',
       })),
       translatedPdf: this.translatedPdfBuffer.buffer, 
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
 
     const documentCreated = await handleSseAsyncOperation(

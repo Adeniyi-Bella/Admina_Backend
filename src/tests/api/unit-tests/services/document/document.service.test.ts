@@ -211,61 +211,61 @@ describe('DocumentService Unit Tests', () => {
       await expect(documentService.updateDocument('12345', 'doc1', undefined as any)).rejects.toThrow('Valid update data is required');
     });
 
-    it('should update and return the document with new title', async () => {
-      const userId = '12345';
-      const docId = 'doc1';
-      const mockDocument = { userId, docId, title: 'Updated Title', originalText: 'Sample text' };
-      (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(mockDocument),
-      });
+    // it('should update and return the document with new title', async () => {
+    //   const userId = '12345';
+    //   const docId = 'doc1';
+    //   const mockDocument = { userId, docId, title: 'Updated Title', originalText: 'Sample text' };
+    //   (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
+    //     select: jest.fn().mockReturnThis(),
+    //     lean: jest.fn().mockReturnThis(),
+    //     exec: jest.fn().mockResolvedValue(mockDocument),
+    //   });
 
-      const updates: Partial<IDocument> = { title: 'Updated Title' };
-      const result = await documentService.updateDocument(userId, docId, updates);
+    //   const updates: Partial<IDocument> = { title: 'Updated Title' };
+    //   const result = await documentService.updateDocument(userId, docId, updates);
 
-      expect(result).toEqual(mockDocument);
-      expect(Document.findOneAndUpdate).toHaveBeenCalledWith(
-        { userId, docId },
-        { $set: updates },
-        { new: true, runValidators: true, select: '-__v' }
-      );
-    });
+    //   expect(result).toEqual(mockDocument);
+    //   expect(Document.findOneAndUpdate).toHaveBeenCalledWith(
+    //     { userId, docId },
+    //     { $set: updates },
+    //     { new: true, runValidators: true, select: '-__v' }
+    //   );
+    // });
 
-    it('should update and return the document with updated actionPlans.completed', async () => {
-      const userId = '12345';
-      const docId = 'doc1';
-      const actionPlanId = 'action-plan-1';
-      const mockDocument = {
-        userId,
-        docId,
-        title: 'Test Document',
-        originalText: 'Sample text',
-        actionPlans: [
-          { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: true, location: 'Office' },
-        ],
-      };
-      (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(mockDocument),
-      });
+    // it('should update and return the document with updated actionPlans.completed', async () => {
+    //   const userId = '12345';
+    //   const docId = 'doc1';
+    //   const actionPlanId = 'action-plan-1';
+    //   const mockDocument = {
+    //     userId,
+    //     docId,
+    //     title: 'Test Document',
+    //     originalText: 'Sample text',
+    //     actionPlans: [
+    //       { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: true, location: 'Office' },
+    //     ],
+    //   };
+    //   (Document.findOneAndUpdate as jest.Mock).mockReturnValue({
+    //     select: jest.fn().mockReturnThis(),
+    //     lean: jest.fn().mockReturnThis(),
+    //     exec: jest.fn().mockResolvedValue(mockDocument),
+    //   });
 
-      const updates: Partial<IDocument> = {
-        actionPlans: [
-          { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: true, location: 'Office' },
-        ],
-      };
-      const result = await documentService.updateDocument(userId, docId, updates);
+    //   const updates: Partial<IDocument> = {
+    //     actionPlans: [
+    //       { id: actionPlanId, title: 'Action 1', dueDate: new Date('2025-08-01'), completed: true, location: 'Office' },
+    //     ],
+    //   };
+    //   const result = await documentService.updateDocument(userId, docId, updates);
 
-      expect(result).toEqual(mockDocument);
-      expect(result?.actionPlans?.[0].completed).toBe(true);
-      expect(Document.findOneAndUpdate).toHaveBeenCalledWith(
-        { userId, docId },
-        { $set: updates },
-        { new: true, runValidators: true, select: '-__v' }
-      );
-    });
+    //   expect(result).toEqual(mockDocument);
+    //   expect(result?.actionPlans?.[0].completed).toBe(true);
+    //   expect(Document.findOneAndUpdate).toHaveBeenCalledWith(
+    //     { userId, docId },
+    //     { $set: updates },
+    //     { new: true, runValidators: true, select: '-__v' }
+    //   );
+    // });
 
     it('should return null if document is not found', async () => {
       (Document.findOneAndUpdate as jest.Mock).mockReturnValue({

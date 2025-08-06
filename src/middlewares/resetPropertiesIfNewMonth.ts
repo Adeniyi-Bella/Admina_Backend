@@ -7,6 +7,7 @@
  * Models
  */
 import User from '@/models/user';
+import Document from '@/models/document';
 
 /**
  * Custom modules
@@ -17,6 +18,19 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { Request, Response, NextFunction } from 'express';
+
+/**
+ * Helper function to format a date as DD/MM/YYYY: HH:MM in UTC
+ */
+const formatDate = (date: Date | null): string => {
+  if (!date) return 'none';
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year}: ${hours}:${minutes}`;
+};
 
 /**
  * Middleware to reset user properties (prompt and lenghtOfDocs) if it's a new month.
@@ -48,12 +62,25 @@ const resetPropertiesIfNewMonth = async (
       return;
     }
 
-    const lastUpdated = new Date(user.updatedAt);
-    const now = new Date();
+    // Find the most recent document for the user
+    const latestDocument = await Document.findOne({ userId })
+      .sort({ updatedAt: -1 })
+      .select('updatedAt')
+      .exec();
 
-    const isNewMonth =
-      lastUpdated.getUTCFullYear() !== now.getUTCFullYear() ||
-      lastUpdated.getUTCMonth() !== now.getUTCMonth();
+    const now = new Date();
+    const userLastUpdated = new Date(user.updatedAt);
+    const documentLastUpdated = latestDocument
+      ? new Date(latestDocument.updatedAt)
+      : null;
+
+    // Check if it's a new month based on the most recent update (user or document)
+    const isNewMonth = 
+      (userLastUpdated.getUTCFullYear() !== now.getUTCFullYear() ||
+       userLastUpdated.getUTCMonth() !== now.getUTCMonth()) ||
+      (documentLastUpdated &&
+        (documentLastUpdated.getUTCFullYear() !== now.getUTCFullYear() ||
+         documentLastUpdated.getUTCMonth() !== now.getUTCMonth()));
 
     if (isNewMonth) {
       const result = await User.updateOne(
@@ -77,10 +104,16 @@ const resetPropertiesIfNewMonth = async (
       }
 
       logger.info('User properties reset successfully for new month', {
-        userId,
+        currentDate: formatDate(now),
+        userLastUpdated: formatDate(userLastUpdated),
+        documentLastUpdated: formatDate(documentLastUpdated),
       });
     } else {
-      logger.info('No reset needed; not a new month', { userId });
+      logger.info('No reset needed; not a new month', {
+        currentDate: formatDate(now),
+        userLastUpdated: formatDate(userLastUpdated),
+        documentLastUpdated: formatDate(documentLastUpdated),
+      });
     }
 
     next();

@@ -198,6 +198,8 @@ export class AzureFreeSubscriptionService
         completed: plan.completed ?? false,
         location: plan.location || '',
       })),
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
 
     const createdDocument = await handleSseAsyncOperation(
