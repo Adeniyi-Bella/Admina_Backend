@@ -23,11 +23,15 @@
     "@types/ms": "^2.1.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.0.15",
+    "@types/supertest": "^6.0.3",
     "jest": "^30.0.5",
+    "jest-mock-extended": "^4.0.0",
     "mongodb-memory-server": "^10.1.4",
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
     "ts-jest": "^29.4.0",
+    "ts-morph": "^26.0.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
@@ -35,8 +39,10 @@
   "dependencies": {
     "@azure/cognitiveservices-computervision": "^8.2.0",
     "@azure/ms-rest-js": "^2.7.0",
+    "@azure/storage-blob": "^12.28.0",
     "@logtail/node": "^0.5.5",
     "@logtail/winston": "^0.5.5",
+    "axios": "^1.11.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -47,13 +53,12 @@
     "helmet": "^8.1.0",
     "jose": "^6.0.12",
     "jsonwebtoken": "^9.0.2",
-    "jwt-decode": "^4.0.0",
     "mongoose": "^8.16.4",
     "multer": "^2.0.2",
     "openai": "^5.10.1",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
-    "uuidv4": "^6.2.13",
+    "uuid": "^11.1.0",
     "winston": "^3.17.0"
   }
 }

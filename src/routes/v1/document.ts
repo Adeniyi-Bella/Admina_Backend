@@ -15,6 +15,8 @@ import { body, param, query } from 'express-validator';
  */
 import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
+import verifyUploadedFile from '@/middlewares/verifyUploadedFile';
+import  resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 
 /**
  * Controllers
@@ -24,6 +26,7 @@ import createDocument from '@/controllers/document/createDocument';
 import getDocument from '@/controllers/document/getDocument';
 import deleteDocument from '@/controllers/document/deleteDocument';
 import structureText from '@/controllers/document/update-document/structureText';
+
 
 const router = Router();
 
@@ -57,6 +60,7 @@ router.get(
     .isInt({ min: 0 })
     .withMessage('Offset must be a positive integer'),
   validationError,
+  resetPropertiesIfNewMonth,
   getAllDocuments,
 );
 
@@ -66,6 +70,7 @@ router.get(
   authenticate,
   param('docId').notEmpty().isUUID().withMessage('Invalid doId ID'),
   validationError,
+  resetPropertiesIfNewMonth,
   getDocument,
 );
 
@@ -76,6 +81,7 @@ router.post(
   '/',
   authenticate,
   upload.single('file'),
+  verifyUploadedFile, 
   body('docLanguage')
     .exists()
     .withMessage('Source language is required')
@@ -103,6 +109,7 @@ router.post(
       return true;
     }),
   validationError,
+  resetPropertiesIfNewMonth,
   createDocument,
 );
 
@@ -111,6 +118,7 @@ router.delete(
   authenticate,
   param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
   validationError,
+  resetPropertiesIfNewMonth,
   deleteDocument,
 );
 
@@ -120,6 +128,7 @@ router.patch(
   authenticate,
   param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
   validationError,
+  resetPropertiesIfNewMonth,
   structureText,
 )
 

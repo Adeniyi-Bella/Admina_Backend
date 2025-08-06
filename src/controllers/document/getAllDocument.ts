@@ -46,7 +46,7 @@ const getAllDocuments = async (req: Request, res: Response): Promise<void> => {
       error: err,
     });
 
-    logger.error('Error while getting all users', err);
+    logger.error('Error while getting all documents', err);
   }
 };
 

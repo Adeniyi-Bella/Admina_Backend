@@ -7,7 +7,6 @@
  * Node modules
  */
 import { jwtVerify, createRemoteJWKSet } from 'jose';
-import { jwtDecode } from 'jwt-decode';
 
 /**
  * Custom modules
@@ -31,8 +30,6 @@ export const verifyAccessToken = async (token: string) => {
   }
 
   try {
-    // Decode access token (not verifying, just getting claims)
-    const accessTokenPayload: any = jwtDecode(accessToken);
 
     // Verify ID token
     const { payload: idTokenPayload } = await jwtVerify(idToken, JWKS, {
@@ -40,8 +37,14 @@ export const verifyAccessToken = async (token: string) => {
       audience: config.AZURE_CLIENT_ID,
     });
 
+    // Verify ID token
+    const { payload: accessTokenPayload } = await jwtVerify(accessToken, JWKS, {
+      issuer: `https://${config.AZURE_TENANT_ID}.ciamlogin.com/${config.AZURE_TENANT_ID}/v2.0`,
+      audience: "3e79848d-631d-4c2d-bfd5-11dbb8e5a21c",
+    });    
 
     if (
+
       accessTokenPayload.oid !== idTokenPayload.oid ||
       accessTokenPayload.tid !== idTokenPayload.tid ||
       accessTokenPayload.sid !== idTokenPayload.sid
@@ -52,14 +55,14 @@ export const verifyAccessToken = async (token: string) => {
     }
 
     // Additional validation checks
-    if (accessTokenPayload.exp < Math.floor(Date.now() / 1000)) {
+    if (accessTokenPayload.exp! < Math.floor(Date.now() / 1000)) {
       throw new Error('Access token has expired');
     }
     if (idTokenPayload.exp! < Math.floor(Date.now() / 1000)) {
       throw new Error('ID token has expired');
     }
 
-    return idTokenPayload;
+    return accessTokenPayload;
   } catch (error) {
     throw new Error('Unable to verify token');
   }

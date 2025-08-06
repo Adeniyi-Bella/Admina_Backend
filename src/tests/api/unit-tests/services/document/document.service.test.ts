@@ -54,6 +54,7 @@ describe('DocumentService Unit Tests', () => {
       ];
       (Document.countDocuments as jest.Mock).mockResolvedValue(2);
       (Document.find as jest.Mock).mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),

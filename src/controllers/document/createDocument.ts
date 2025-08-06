@@ -11,44 +11,37 @@ import { logger } from '@/lib/winston';
 /**
  * Interfaces
  */
-import { IAzureService } from '@/services/azure/azure.interface';
-import { IDocumentService } from '@/services/document/document.interface';
+import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
+import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
+import { IUserService } from '@/services/users/user.interface';
 import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
+import { IDocumentService } from '@/services/document/document.interface';
 
 /**
  * Node modules
  */
 import { container } from 'tsyringe';
-import { v4 as uuidv4 } from 'uuid';
-
-/**
- * Types
- */
 import type { Request, Response } from 'express';
-import { IDocument } from '@/models/document';
-import { IUserService } from '@/services/users/user.interface';
 
 const createDocument = async (req: Request, res: Response): Promise<void> => {
-  const azureService = container.resolve<IAzureService>('IAzureService');
+  const azureFreeSubscriptionService = container.resolve<IAzureFreeSubscriptionService>('IAzureFreeSubscriptionService');
+  const azurePremiumSubscriptionService = container.resolve<IAzurePremiumSubscriptionService>('IAzurePremiumSubscriptionService');
   const userService = container.resolve<IUserService>('IUserService');
   const chatgtpService = container.resolve<IChatGTPService>('IChatGTPService');
-  const documentService =
-    container.resolve<IDocumentService>('IDocumentService');
+  const documentService = container.resolve<IDocumentService>('IDocumentService');
 
   try {
     // Get data from request body
     const { docLanguage, targetLanguage } = req.body;
-    const file = req.file;
+    const file = req.file!;
 
-    // Check if file exists
-    if (!file) {
-      res.write(
-        `event: error\ndata: ${JSON.stringify({
-          code: 'BadRequest',
-          message: 'File is required',
-        })}\n\n`,
-      );
-      res.end();
+    // Retrieve user plan
+    const user = await userService.checkIfUserExist(req);
+    if (!user) {
+      res.status(400).json({
+        code: 'NotFound',
+        message: 'User details not correct',
+      });
       return;
     }
 
@@ -58,99 +51,55 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    // Send initial event
-    res.write('data: Extracting text...\n\n');
-    res.flush();
-
-    // Extract text from file
-    const extractedText = await azureService.extractTextFromFile({
-      file,
-      docLanguage,
-    });
-
-    // Send extracted text event
-    res.write(
-      `event: extractedText\ndata: ${JSON.stringify({ extractedText: extractedText.text })}\n\n`,
-    );
-    res.flush();
-
-    // Proceed with translation
-    const translatedText = await azureService.translateText(
-      extractedText,
-      targetLanguage,
-    );
-
-    // Send translated text event
-    res.write(
-      `event: translatedText\ndata: ${JSON.stringify({ translatedText })}\n\n`,
-    );
-    res.flush();
-
-    const summarizedText = await chatgtpService.summarizeTranslatedText(
-      translatedText,
-      targetLanguage,
-    );
-
-    // Send translated text event
-    res.write(
-      `event: summarizedTextx\ndata: ${JSON.stringify({ summarizedText })}\n\n`,
-    );
-    res.flush();
-
-    // Create document in MongoDB
-    const documentData: IDocument = {
-      userId: req.userId!.toString(),
-      docId: uuidv4(),
-      title: summarizedText.title || '',
-      sender: summarizedText.sender || '',
-      receivedDate: summarizedText.receivedDate || new Date(),
-      summary: summarizedText.summary || '',
-      originalText: extractedText.text,
-      translatedText,
-      sourceLanguage: docLanguage,
-      targetLanguage,
-      actionPlan: summarizedText.actionPlan || [],
-      actionPlans: (summarizedText.actionPlans || []).map((plan) => ({
-        id: plan.id || uuidv4(),
-        title: plan.title || '',
-        dueDate: plan.dueDate || new Date(),
-        completed: plan.completed ?? false,
-        location: plan.location || '',
-      })),
-    };
-
-    const createdDocument = await documentService.createDocumentByUserId(
-      documentData,
-    );
-    res.write(
-      `event: createdDocument\ndata: ${JSON.stringify(createdDocument)}\n\n`,
-    );
-    res.flush();
-
-     const updatelenghtOfDocs = await userService.updatelenghtOfDocs(
-        req.userId,
+    if (user.plan === 'free') {
+      await azureFreeSubscriptionService.processFreeUserDocument({
+        file,
+        docLanguage,
+        targetLanguage,
+        userId: req.userId!.toString(),
+        res,
+        chatgtpService,
+        documentService,
+        userService,
+      });
+      res.end();
+    } else if (user.plan === 'premium') {
+      await azurePremiumSubscriptionService.processPremiumUserDocument({
+        file,
+        docLanguage,
+        targetLanguage,
+        userId: req.userId!.toString(),
+        res,
+        chatgtpService,
+        documentService,
+        userService
+      });
+      res.end();
+    } else {
+      res.status(400).write(
+        `event: error\ndata: ${JSON.stringify({
+          code: 'BadRequest',
+          message: 'Invalid user data',
+        })}\n\n`,
       );
-
-      if (!updatelenghtOfDocs) {
-        logger.warn('Failed to update lenghtOfDocs for user', {
-          userId: req.userId,
-        });
-        throw new Error('Failed to update lenghtOfDocs for user');
-      }
-
-    // Signal completion
-    res.write('event: complete\ndata: {"status":"completed"}\n\n');
-    res.end();
-  } catch (error) {
-    logger.error('Error during document processing', error);
-    res.write(
+      res.end();
+      return;
+    }
+  } catch (error: any) {
+    logger.error('Error during document processing', {
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).write(
       `event: error\ndata: ${JSON.stringify({
         code: 'ServerError',
-        message: 'Internal server error',
-        error: error,
+        message: 'Failed to process document',
+        error: 'Failed to process document',
+        errorStatus: 500,
       })}\n\n`,
     );
     res.end();
+    return;
   }
 };
 

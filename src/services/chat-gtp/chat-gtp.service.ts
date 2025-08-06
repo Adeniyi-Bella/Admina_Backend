@@ -48,21 +48,32 @@ export class ChatGTPService implements IChatGTPService {
    * @returns A promise resolving to the structured text.
    */
   public async structureText(text: string, label: string): Promise<string> {
-  try {
-    const response = await this.openai.chat.completions.create({
-      model: 'o3-mini',
-      messages: [{ role: 'user', content: this.prompt.structureTextPrompt(text, label) }],
-    });
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4.1',
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'user',
+            content: this.prompt.structureTextPrompt(text, label),
+          },
+        ],
+      });
 
-    const summary =
-      response.choices[0]?.message?.content?.trim() || 'No summary generated.';
+      const summary =
+        response.choices[0]?.message?.content?.trim() ||
+        'No summary generated.';
 
-    return summary;
-  } catch (error) {
-    console.error('Error in structureText:', error);
-    return 'An error occurred while processing the text.';
+      return summary;
+    } catch (error: any) {
+      logger.error('Error in structureText', {
+        error: error.message,
+        text,
+        label,
+      });
+      throw error;
+    }
   }
-}
 
   /**
    * Shot summary and generates an action plan from the provided text in the specified target language.
@@ -97,7 +108,8 @@ export class ChatGTPService implements IChatGTPService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'o3-mini',
+        model: 'gpt-4.1',
+        temperature: 0.3,
         messages: [{ role: 'user', content: prompt }],
       });
 
@@ -190,7 +202,7 @@ export class ChatGTPService implements IChatGTPService {
         response,
         error: error,
       });
-      throw new Error('Invalid JSON response from OpenAI');
+      throw error;
     }
   }
 

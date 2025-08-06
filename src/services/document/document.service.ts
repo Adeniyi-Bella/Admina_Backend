@@ -44,6 +44,7 @@ export class DocumentService implements IDocumentService {
     const total = await Document.countDocuments({ userId });
 
     const documents = await Document.find({ userId })
+      .sort({ createdAt: 1 })
       .select('-__v')
       .limit(limit)
       .skip(offset)
@@ -81,7 +82,7 @@ export class DocumentService implements IDocumentService {
         throw new Error('Failed to retrieve created document');
       }
 
-      logger.info('Document created successfully', result);
+      logger.info('Document created successfully');
 
       return result as IDocument;
     } catch (error) {
@@ -157,8 +158,10 @@ export class DocumentService implements IDocumentService {
       const updatedDocument = await Document.findOneAndUpdate(
         { userId, docId },
         { $set: updates },
-        { new: true, runValidators: true, select: '-__v' }
-      ).lean().exec();
+        { new: true, runValidators: true, select: '-__v' },
+      )
+        .lean()
+        .exec();
 
       if (!updatedDocument) {
         logger.info('Document not found for update', { userId, docId });
@@ -168,7 +171,12 @@ export class DocumentService implements IDocumentService {
       logger.info('Document updated successfully', { userId, docId, updates });
       return updatedDocument as IDocument;
     } catch (error) {
-      logger.error('Failed to update document', { userId, docId, updates, error });
+      logger.error('Failed to update document', {
+        userId,
+        docId,
+        updates,
+        error,
+      });
       throw new Error(
         `Failed to update document: ${error instanceof Error ? error.message : error}`,
       );

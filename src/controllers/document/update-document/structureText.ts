@@ -25,8 +25,8 @@ const structureText = async (req: Request, res: Response): Promise<void> => {
 
     // Check if structured text fields already have content
     const hasStructuredText =
-      typeof document.structuredOriginalText === 'string' &&
-      document.structuredOriginalText.trim().length > 0 &&
+      // typeof document.structuredOriginalText === 'string' &&
+      // document.structuredOriginalText.trim().length > 0 &&
       typeof document.structuredTranslatedText === 'string' &&
       document.structuredTranslatedText.trim().length > 0;
 
@@ -35,12 +35,12 @@ const structureText = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const structuredOriginalText = await chatgtpService.structureText(
-      document.originalText,
-      document.sourceLanguage,
-    );
+    // const structuredOriginalText = await chatgtpService.structureText(
+    //   document.originalText,
+    //   document.sourceLanguage,
+    // );
     const structuredTranslatedText = await chatgtpService.structureText(
-      document.translatedText,
+      document.translatedText!,
       document.targetLanguage,
     );
 
@@ -49,7 +49,7 @@ const structureText = async (req: Request, res: Response): Promise<void> => {
       userId!,
       docId,
       {
-        structuredOriginalText,
+        // structuredOriginalText,
         structuredTranslatedText,
       },
     );

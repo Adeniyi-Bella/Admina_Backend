@@ -10,11 +10,11 @@ import type { Request } from 'express';
 
 export interface UserDTO {
   userId: string;
+  plan: string;
 }
 
 export interface IUserService {
   checkIfUserExist(req: Request): Promise<UserDTO | null>;
   createUserFromToken(req: Request): Promise<UserDTO>;
-  resetPropertiesIfNewMonth(userId: string): Promise<void>;
-  updatelenghtOfDocs(userId: string): Promise<boolean>;
+  updateUser(userId: string, property: string, increment: boolean, value: string | undefined): Promise<boolean>;
 }

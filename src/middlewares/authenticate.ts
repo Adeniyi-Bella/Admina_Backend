@@ -18,8 +18,6 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { Request, Response, NextFunction } from 'express';
-// import type { Types } from 'mongoose';
-import { jwtDecode } from 'jwt-decode';
 
 /**
  * @function authenticate
@@ -53,34 +51,28 @@ const authenticate = async (
   const [_, token] = authHeader.split(' ');
 
   //Split the accessToken from the token
-  const [__, accessToken] = token.split('auth');
+  // const [__, accessToken] = token.split('auth');
 
   try {
     // Verify the token and extract the userId from the payload
     const jwtPayload = (await verifyAccessToken(token)) as {
       oid: string;
+      preferred_username: string;
+      name: string;
     };
-
-    const accessTokenPayload: any = jwtDecode(accessToken);
-
-    // Attach the userId to the request object for later use
 
     if (!jwtPayload.oid) {
       throw new Error('Access token invalid');
     }
     req.userId = jwtPayload.oid;
-    req.email = accessTokenPayload.unique_name;
-    req.username = accessTokenPayload.name;
-
-    logger.info("Logger:", {
-      userId: req.userId
-    })
+    req.email = jwtPayload.preferred_username;
+    req.username = jwtPayload.name;
 
     // Proceed to the next middleware or route handler
     return next();
-  } catch (err) {
+  } catch (error) {
     // Handle expired token error
-    if (err instanceof TokenExpiredError) {
+    if (error instanceof TokenExpiredError) {
       res.status(401).json({
         code: 'AuthenticationError',
         message: 'Access token expired, request a new one with refresh token',
@@ -89,7 +81,7 @@ const authenticate = async (
     }
 
     // Handle invalid token error
-    if (err instanceof JsonWebTokenError) {
+    if (error instanceof JsonWebTokenError) {
       res.status(401).json({
         code: 'AuthenticationError',
         message: 'Access token invalid',
@@ -97,14 +89,18 @@ const authenticate = async (
       return;
     }
 
-    // Catch-all for other errors
     res.status(500).json({
       code: 'ServerError',
       message: 'Internal server error',
-      error: err,
+      // error: error instanceof Error ? { message: error.message } : error,
+    });
+    logger.error('Error in authenticate middleware', {
+      error:
+        error instanceof Error
+          ? { message: error.message, stack: error.stack }
+          : error,
     });
 
-    logger.error('Error during authentication', err);
   }
 };
 

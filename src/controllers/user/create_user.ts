@@ -31,8 +31,6 @@ const createUser = async (req: Request, res: Response, next: NextFunction,): Pro
     if (!user){
      user  = await userService.createUserFromToken(req);
     }
-
-    await userService.resetPropertiesIfNewMonth(user.userId);
     
     return next();
   } catch (err) {

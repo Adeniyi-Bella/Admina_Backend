@@ -19,6 +19,7 @@ import validationError from '@/middlewares/validationError';
  */
 import createUser from '@/controllers/user/create_user';
 import getAllDocuments from '@/controllers/document/getAllDocument';
+import  resetPropertiesIfNewMonth  from '@/middlewares/resetPropertiesIfNewMonth';
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.post(
   '/',
   authenticate,
   validationError,
+  resetPropertiesIfNewMonth,
   createUser,
   getAllDocuments
 );

@@ -78,7 +78,7 @@ describe('DocumentService Integration Tests', () => {
         userId: '12345',
         docId: 'unique-doc-id',
         title: 'Test Document',
-        originalText: 'Sample text',
+        // originalText: 'Sample text',
       };
 
       const result = await documentService.createDocumentByUserId(documentData);

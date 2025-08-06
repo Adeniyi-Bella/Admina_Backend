@@ -16,7 +16,7 @@ export class Prompt {
 
 Preserve all original content, but reorganize and format it for improved readability.
 
-Create a clear structure based on how the content is delivered — identify headings, subheadings, and logical groupings, tables, tick boxes mostly with X alone.
+Create a clear structure based on how the content is delivered — identify headings, subheadings, and logical groupings, tables and style them with inline tailwind css.
 
 Use only well-formed HTML for output (no markdown, no JSON).
 
@@ -41,13 +41,14 @@ ${text}
     return `
 You are an assistant that reads documents and extracts the following fields from the document:
 - title of the Document (string)
-- date document was received (date string in ISO 8601 format, e.g. "2024-05-24")
+- date document was received (date string in ISO 8601 format, e.g. "2024-05-24" or "${new Date().toISOString()}" if no date is provided)
 - sender of document (From which institution) (string)
 - short summary (string)
 - actionPlan: an array of { title: string, reason: string }
 - actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
 
-if there is no due date for any of the actionPlans, use the current date as the due date.
+Assume the current date is "${new Date().toISOString()}". 
+if there is no due date for any of the actionPlans, use this current date as the due date.
 Respond ONLY with valid raw JSON — do NOT include code fences, markdown, or extra text.
 It is important that response should match the language ${targetLanguage}.
 
@@ -63,7 +64,7 @@ Example for an English Response:
   ],
   "actionPlans": [
     { "title": "Apply for residence permit extension", "due_date": "2025-07-01T00:00:00Z", "completed": false, "location": "Auslander Behorde office" },
-    { "title": "Submit all required documents online", "due_date": "2025-07-15T00:00:00Z", "completed": false, "location": "online portal" }
+    { "title": "Submit all required documents online", "due_date": "new Date().toISOString()", "completed": false, "location": "online portal" }
   ]
 }
 

@@ -7,6 +7,7 @@
  * Node modules
  */
 import { Schema, model } from 'mongoose';
+import { Binary } from 'mongodb';
 
 export interface IDocument {
   userId: string;
@@ -15,11 +16,12 @@ export interface IDocument {
   sender?: string;
   receivedDate?: Date;
   summary: string;
-  originalText: string;
-  translatedText: string;
-  sourceLanguage: string;
+  // originalText: string;
+  translatedText?: string;
+  translatedPdf?: Buffer | Binary;
+  // sourceLanguage: string;
   targetLanguage: string;
-  structuredOriginalText?: string;
+  // structuredOriginalText?: string;
   structuredTranslatedText?: string;
   actionPlan?: { title?: string; reason?: string }[];
   actionPlans?: { id: string; title?: string; dueDate?: Date; completed: boolean; location?: string }[];
@@ -54,26 +56,26 @@ const documentSchema = new Schema<IDocument>(
       type: String,
       default: '',
     },
-    originalText: {
-      type: String,
-      default: '',
-    },
+    // originalText: {
+    //   type: String,
+    //   default: '',
+    // },
     translatedText: {
       type: String,
       default: '',
     },
-    sourceLanguage: {
-      type: String,
-      default: '',
+    translatedPdf: {
+      type: Buffer, 
+      default: null,
     },
     targetLanguage: {
       type: String,
       default: '',
     },
-    structuredOriginalText: {
-      type: String,
-      default: '',
-    },
+    // structuredOriginalText: {
+    //   type: String,
+    //   default: '',
+    // },
     structuredTranslatedText: {
       type: String,
       default: '',
