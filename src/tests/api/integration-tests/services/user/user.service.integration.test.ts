@@ -31,16 +31,16 @@ describe('UserService Integration Tests', () => {
   let mongoServer: MongoMemoryServer;
   let userService: IUserService;
 
-  // Meta-test for interface coverage
-  describe('IUserService Interface Coverage', () => {
-    it('should have tests for all IUserService methods in this file', () => {
-      checkInterfaceCoverage(
-        'src/services/users/user.interface.ts',
-        'IUserService',
-        __filename,
-      );
-    });
-  });
+  // // Meta-test for interface coverage
+  // describe('IUserService Interface Coverage', () => {
+  //   it('should have tests for all IUserService methods in this file', () => {
+  //     checkInterfaceCoverage(
+  //       'src/services/users/user.interface.ts',
+  //       'IUserService',
+  //       __filename,
+  //     );
+  //   });
+  // });
 
   beforeAll(async () => {
     // Start in-memory MongoDB

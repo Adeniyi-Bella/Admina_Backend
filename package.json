@@ -39,9 +39,11 @@
   "dependencies": {
     "@azure/cognitiveservices-computervision": "^8.2.0",
     "@azure/ms-rest-js": "^2.7.0",
+    "@azure/msal-node": "^3.7.0",
     "@azure/storage-blob": "^12.28.0",
     "@logtail/node": "^0.5.5",
     "@logtail/winston": "^0.5.5",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "axios": "^1.11.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",

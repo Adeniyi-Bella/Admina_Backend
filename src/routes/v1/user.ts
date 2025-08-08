@@ -20,16 +20,36 @@ import validationError from '@/middlewares/validationError';
 import createUser from '@/controllers/user/create_user';
 import getAllDocuments from '@/controllers/document/getAllDocument';
 import  resetPropertiesIfNewMonth  from '@/middlewares/resetPropertiesIfNewMonth';
+import upgradeUserPlan from '@/controllers/user/upgradeUserPlan';
+import downgradeUserPlan from '@/controllers/user/downgradeUserPlan';
+import deleteUser from '@/controllers/user/deleteUser';
 
 const router = Router();
 
+router.use(authenticate);
+
 router.post(
   '/',
-  authenticate,
   validationError,
-  resetPropertiesIfNewMonth,
   createUser,
   getAllDocuments
+);
+
+router.patch(
+  '/plan/upgrade',
+  resetPropertiesIfNewMonth,
+  upgradeUserPlan,
+)
+router.patch(
+  '/plan/downgrade',
+  resetPropertiesIfNewMonth,
+  downgradeUserPlan,
+)
+
+router.delete(
+  '/',
+  resetPropertiesIfNewMonth,
+  deleteUser,
 );
 
 export default router;

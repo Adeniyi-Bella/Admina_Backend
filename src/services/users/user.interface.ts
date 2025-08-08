@@ -16,5 +16,12 @@ export interface UserDTO {
 export interface IUserService {
   checkIfUserExist(req: Request): Promise<UserDTO | null>;
   createUserFromToken(req: Request): Promise<UserDTO>;
-  updateUser(userId: string, property: string, increment: boolean, value: string | undefined): Promise<boolean>;
+  updateUser(
+    userId: string,
+    property: string,
+    increment: boolean,
+    value: string | undefined,
+  ): Promise<boolean>;
+  deleteUser(userId: string): Promise<boolean>;
+  deleteUserFromEntraId(userId: string): Promise<boolean>;
 }

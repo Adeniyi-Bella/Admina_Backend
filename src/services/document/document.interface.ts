@@ -29,4 +29,5 @@ export interface IDocumentService {
     actionPlanData?: Partial<IActionPlan>,
     actionPlanId?: string,
   ): Promise<IDocument | null>;
+  deleteAllDocuments(userId: string): Promise<boolean>;
 }

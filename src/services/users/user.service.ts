@@ -27,28 +27,99 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { Request } from 'express';
-
+import config from '@/config';
+import { ConfidentialClientApplication } from '@azure/msal-node';
+import { Client } from '@microsoft/microsoft-graph-client';
 
 @injectable()
 export class UserService implements IUserService {
+  private config = {
+    auth: {
+      clientId: config.AZURE_CLIENT_ID!,
+      clientSecret: config.AZURE_CLIENT_SECRETE!,
+      authority: config.AZURE_CLIENT_AUTHORITY,
+    },
+  };
 
-  async updateUser(userId: string, property: string, increment: boolean, value: string | undefined ): Promise<boolean> {
+  async deleteUserFromEntraId(userId: string): Promise<boolean> {
+    try {
+      if (!userId) {
+        throw new Error('Valid userId is required');
+      }
+
+      const cca = new ConfidentialClientApplication(this.config);
+
+      const result = await cca.acquireTokenByClientCredential({
+        scopes: ['https://graph.microsoft.com/.default'],
+      });
+
+      if (!result?.accessToken) {
+        logger.error('Failed to acquire Graph token for Entra ID deletion', {
+          userId,
+        });
+        throw new Error('Failed to acquire Graph token');
+      }
+
+      const client = Client.init({
+        authProvider: (done) => done(null, result.accessToken),
+      });
+
+      await client.api(`/users/${userId}`).delete();
+      logger.info('User deleted successfully from Entra ID', { userId });
+      return true;
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        logger.warn('User not found in Entra ID for deletion', { userId });
+        return false;
+      }
+      logger.error('Failed to delete user from Entra ID', { userId, error });
+      throw new Error(
+        `Failed to delete user from Entra ID`,
+      );
+    }
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    try {
+      const result = await User.deleteOne({ userId }).exec();
+
+      if (result.deletedCount === 0) {
+        logger.warn('User not found for deletion', { userId });
+        return false;
+      }
+
+      logger.info('User deleted successfully', { userId });
+      return true;
+    } catch (error) {
+      logger.error('Error deleting user', { userId, error });
+      throw new Error(
+        `Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  async updateUser(
+    userId: string,
+    property: string,
+    increment: boolean,
+    value: string | undefined,
+  ): Promise<boolean> {
     try {
       const update = increment
         ? { $inc: { [property]: 1 }, $set: { updatedAt: new Date() } }
         : { $set: { [property]: value, updatedAt: new Date() } };
 
-      const result = await User.updateOne(
-        { userId },
-        update,
-      ).exec();
+      const result = await User.updateOne({ userId }, update).exec();
 
       if (result.modifiedCount === 0) {
         logger.warn(`User not found or ${property} not updated`, { userId });
         return false;
       }
 
-      logger.info(`${property} ${increment ? 'incremented' : 'updated'} successfully`, { userId, property, value: increment ? 1 : value });
+      logger.info(
+        `${property} ${increment ? 'incremented' : 'updated'} successfully`,
+        { userId, property, value: increment ? 1 : value },
+      );
       return true;
     } catch (error) {
       logger.error(`Error updating ${property}`, { userId, property, error });

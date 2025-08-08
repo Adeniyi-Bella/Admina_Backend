@@ -26,6 +26,25 @@ import { logger } from '@/lib/winston';
 
 @injectable()
 export class DocumentService implements IDocumentService {
+  async deleteAllDocuments(userId: string): Promise<boolean> {
+    try {
+
+      const result = await Document.deleteMany({ userId }).exec();
+
+      if (result.deletedCount === 0) {
+        logger.info('No documents found for deletion', { userId });
+        return false;
+      }
+
+      logger.info('All documents deleted successfully', { userId, deletedCount: result.deletedCount });
+      return true;
+    } catch (error) {
+      logger.error('Failed to delete all documents', { userId, error });
+      throw new Error(
+        `Failed to delete all documents: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
   /**
    * Retrieves all documents for a user with pagination.
    * @param userId - The ID of the user.

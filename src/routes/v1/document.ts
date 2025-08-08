@@ -48,10 +48,13 @@ const upload = multer({
   },
 });
 
+router.use(authenticate);
+router.use(resetPropertiesIfNewMonth);
+
+
 // Route to get all documents with optional pagination
 router.get(
   '/',
-  authenticate,
   query('limit')
     .optional()
     .isInt({ min: 1, max: 50 })
@@ -61,17 +64,14 @@ router.get(
     .isInt({ min: 0 })
     .withMessage('Offset must be a positive integer'),
   validationError,
-  resetPropertiesIfNewMonth,
   getAllDocuments,
 );
 
 // Route to get a specific document by ID
 router.get(
   '/:docId',
-  authenticate,
   param('docId').notEmpty().isUUID().withMessage('Invalid doId ID'),
   validationError,
-  resetPropertiesIfNewMonth,
   getDocument,
 );
 
@@ -80,7 +80,6 @@ router.get(
 // Used by the scan and translate feature
 router.post(
   '/',
-  authenticate,
   upload.single('file'),
   verifyUploadedFile, 
   body('docLanguage')
@@ -110,16 +109,13 @@ router.post(
       return true;
     }),
   validationError,
-  resetPropertiesIfNewMonth,
   createDocument,
 );
 
 router.delete(
   '/:docId',
-  authenticate,
   param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
   validationError,
-  resetPropertiesIfNewMonth,
   deleteDocument,
 );
 
@@ -127,24 +123,20 @@ router.delete(
 // One example is to restructure a document for freemium users
 router.patch(
   '/:docId',
-  authenticate,
   param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
   validationError,
-  resetPropertiesIfNewMonth,
   structureText,
 )
 
 // Route to handle create, update, delete of action plans
 router.patch(
   '/actionPlan/:docId/:id',
-  authenticate,
   param('docId').notEmpty().isUUID().withMessage('Invalid docId'),
   param('id').notEmpty().isUUID().withMessage('Invalid actionPlan id'),
   query('type')
     .notEmpty().withMessage('type query parameter is required')
     .isIn(['create', 'update', 'delete']).withMessage('type must be one of create, update, or delete'),
   validationError,
-  resetPropertiesIfNewMonth,
   updateActionPlan,
 );
 
