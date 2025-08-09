@@ -9,9 +9,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { v4 as uuidv4 } from 'uuid';
-import router from '@/routes/v1/document';
-import Document, { IDocument } from '@/models/document';
-import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
+import router from '@/routes/v1/document.route';
+import Document, { IDocument } from '@/models/document.model';
+import { IOpenAIService } from '@/services/openai/openai.interface';
 import { IUserService } from '@/services/users/user.interface';
 import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 import { logger } from '@/lib/winston';
@@ -57,8 +57,8 @@ jest.mock('@/middlewares/resetPropertiesIfNewMonth', () => {
 });
 
 // Mock Mongoose models
-jest.mock('@/models/document');
-jest.mock('@/models/user');
+jest.mock('@/models/document.model');
+jest.mock('@/models/user.model');
 
 const app = express();
 app.use(express.json());
@@ -68,7 +68,7 @@ describe('Document Routes - GET /documents (Integration Test)', () => {
   const userId = 'test-user-id';
   const docId = `${uuidv4()}.pdf`;
 
-  let chatGtpService: MockProxy<IChatGTPService>;
+  let chatGtpService: MockProxy<IOpenAIService>;
   let userService: MockProxy<IUserService>;
   let azureFreeSubscriptionService: MockProxy<IAzureFreeSubscriptionService>;
 
@@ -79,10 +79,10 @@ describe('Document Routes - GET /documents (Integration Test)', () => {
     container.register('IDocumentService', { useClass: DocumentService });
 
     // Mock unused services for router consistency
-    chatGtpService = mock<IChatGTPService>();
+    chatGtpService = mock<IOpenAIService>();
     userService = mock<IUserService>();
     azureFreeSubscriptionService = mock<IAzureFreeSubscriptionService>();
-    container.register('IChatGTPService', { useValue: chatGtpService });
+    container.register('IOpenAIService', { useValue: chatGtpService });
     container.register('IUserService', { useValue: userService });
     container.register('IAzureFreeSubscriptionService', {
       useValue: azureFreeSubscriptionService,

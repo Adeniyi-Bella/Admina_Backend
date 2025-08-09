@@ -14,7 +14,7 @@ import { logger } from '@/lib/winston';
 import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
 import { IUserService } from '@/services/users/user.interface';
-import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
+import { IOpenAIService } from '@/services/openai/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 
 /**
@@ -22,13 +22,15 @@ import { IDocumentService } from '@/services/document/document.interface';
  */
 import { container } from 'tsyringe';
 import type { Request, Response } from 'express';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 
 const createDocument = async (req: Request, res: Response): Promise<void> => {
   const azureFreeSubscriptionService = container.resolve<IAzureFreeSubscriptionService>('IAzureFreeSubscriptionService');
   const azurePremiumSubscriptionService = container.resolve<IAzurePremiumSubscriptionService>('IAzurePremiumSubscriptionService');
   const userService = container.resolve<IUserService>('IUserService');
-  const chatgtpService = container.resolve<IChatGTPService>('IChatGTPService');
+  const openAIService = container.resolve<IOpenAIService>('IOpenAIService');
   const documentService = container.resolve<IDocumentService>('IDocumentService');
+  const chatBotService = container.resolve<IChatBotService>('IChatBotService')
 
   try {
     // Get data from request body
@@ -58,7 +60,7 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         targetLanguage,
         userId: req.userId!.toString(),
         res,
-        chatgtpService,
+        openAIService,
         documentService,
         userService,
       });
@@ -70,9 +72,10 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         targetLanguage,
         userId: req.userId!.toString(),
         res,
-        chatgtpService,
+        openAIService,
         documentService,
-        userService
+        userService,
+        chatBotService
       });
       res.end();
     } else {

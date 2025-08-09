@@ -20,15 +20,16 @@ import { Prompt } from './prompts';
 /**
  * Types
  */
-import { IDocument } from '@/models/document';
+import { IDocument } from '@/models/document.model';
 
 /**
  * Interfaces
  */
-import { IChatGTPService } from './chat-gtp.interface';
+import { IOpenAIService } from './openai.interface';
+import { IChatBotHistory } from '@/models/chatbotHistory.model';
 
 @injectable()
-export class ChatGTPService implements IChatGTPService {
+export class OpenAIService implements IOpenAIService {
   private readonly openai: OpenAI;
   private readonly prompt: Prompt;
 
@@ -39,6 +40,29 @@ export class ChatGTPService implements IChatGTPService {
     }
     this.openai = new OpenAI({ apiKey });
     this.prompt = new Prompt();
+  }
+
+   async chatBotStream(
+    chatBotHistory: IChatBotHistory,
+    prompt: string,
+  ): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
+    try {
+      const messages = this.prompt.buildChatBotPrompt(chatBotHistory, prompt);
+      const stream = await this.openai.chat.completions.create({
+        model: 'gpt-4.1',
+        messages,
+        stream: true,
+        temperature: 0.3,
+      });
+      return stream;
+    } catch (error) {
+      logger.error('Error initiating chatbot stream', {
+        error,
+        userId: chatBotHistory.userId,
+        docId: chatBotHistory.docId,
+      });
+      throw error;
+    }
   }
 
   /**

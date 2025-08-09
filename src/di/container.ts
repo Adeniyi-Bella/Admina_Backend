@@ -14,13 +14,15 @@ import { container } from 'tsyringe';
 import { UserService } from '@/services/users/user.service';
 import { DocumentService } from '@/services/document/document.service';
 import { AzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.service';
-import { ChatGTPService } from '@/services/chat-gtp/chat-gtp.service';
+import { OpenAIService } from '@/services/openai/openai.service';
 import { IUserService } from '@/services/users/user.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
-import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
+import { IOpenAIService } from '@/services/openai/openai.interface';
 import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
 import { AzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.service';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
+import { ChatBotService } from '@/services/chatbot/chatbot.service';
 
 
 // Register the interface with its implementation
@@ -36,6 +38,9 @@ container.register<IAzureFreeSubscriptionService>('IAzureFreeSubscriptionService
 container.register<IAzurePremiumSubscriptionService>('IAzurePremiumSubscriptionService', {
   useClass: AzurePremiumSubscriptionService,
 });
-container.register<IChatGTPService>('IChatGTPService', {
-  useClass: ChatGTPService,
+container.register<IOpenAIService>('IOpenAIService', {
+  useClass: OpenAIService,
+});
+container.register<IChatBotService>('IChatBotService', {
+  useClass: ChatBotService,
 });

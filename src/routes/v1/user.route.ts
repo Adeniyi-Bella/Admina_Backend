@@ -28,6 +28,7 @@ const router = Router();
 
 router.use(authenticate);
 
+// Create a new user and or getAll documents for existing user
 router.post(
   '/',
   validationError,
@@ -35,6 +36,7 @@ router.post(
   getAllDocuments
 );
 
+// upgrade userplan
 router.patch(
   '/plan/upgrade',
   resetPropertiesIfNewMonth,

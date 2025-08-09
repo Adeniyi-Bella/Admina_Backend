@@ -1,5 +1,5 @@
 import { logger } from '@/lib/winston';
-import { IDocument } from '@/models/document';
+import { IDocument } from '@/models/document.model';
 import { IDocumentService } from '@/services/document/document.interface';
 import type { Request, Response } from 'express';
 import { container } from 'tsyringe';

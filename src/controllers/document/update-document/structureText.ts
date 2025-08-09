@@ -1,5 +1,5 @@
 import { logger } from '@/lib/winston';
-import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
+import { IOpenAIService } from '@/services/openai/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import type { Request, Response } from 'express';
 import { container } from 'tsyringe';
@@ -7,7 +7,7 @@ import { container } from 'tsyringe';
 const structureText = async (req: Request, res: Response): Promise<void> => {
   const documentService =
     container.resolve<IDocumentService>('IDocumentService');
-  const chatgtpService = container.resolve<IChatGTPService>('IChatGTPService');
+  const openAIService = container.resolve<IOpenAIService>('IOpenAIService');
 
   try {
     const userId = req.userId;
@@ -35,7 +35,7 @@ const structureText = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const structuredTranslatedText = await chatgtpService.structureText(
+    const structuredTranslatedText = await openAIService.structureText(
       document.translatedText!,
       document.targetLanguage,
     );

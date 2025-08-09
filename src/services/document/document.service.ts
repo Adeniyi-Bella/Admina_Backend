@@ -6,7 +6,7 @@
 /**
  * Models
  */
-import Document, { IActionPlan, IDocument } from '@/models/document';
+import Document, { IActionPlan, IDocument } from '@/models/document.model';
 
 /**
  * Interfaces

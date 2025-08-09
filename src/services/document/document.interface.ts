@@ -6,7 +6,7 @@
 /**
  * Types
  */
-import { IActionPlan, IDocument } from '@/models/document';
+import { IActionPlan, IDocument } from '@/models/document.model';
 
 export interface IDocumentService {
   getAllDocumentsByUserId(

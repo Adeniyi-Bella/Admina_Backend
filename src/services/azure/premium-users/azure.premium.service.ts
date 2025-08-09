@@ -32,10 +32,11 @@ import axios from 'axios';
 import { OcrDetectionLanguage } from '@azure/cognitiveservices-computervision/esm/models';
 import { AzureSubscriptionBase } from '../base-class/azure.service';
 import { handleSseAsyncOperation, sendSseMessage } from '../utils';
-import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
-import { IDocument } from '@/models/document';
+import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IDocument } from '@/models/document.model';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IUserService } from '@/services/users/user.interface';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 
 @injectable()
 export class AzurePremiumSubscriptionService
@@ -46,27 +47,33 @@ export class AzurePremiumSubscriptionService
   private readonly containerNameForUpload = 'upload';
   private readonly containerNameForDownload = 'download';
   private sharedKeyCredential: StorageSharedKeyCredential;
-  private translatedPdfBuffer?: Express.Multer.File; 
+  private translatedPdfBuffer?: Express.Multer.File;
 
-  constructor(
-
-  ) {
-
+  constructor() {
     super();
 
     // Initialize Azure Blob Service Client
     const connectionString = config.AZURE_STORAGE_ACCOUNT_CONNECTION_STRING;
-    this.blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+    this.blobServiceClient =
+      BlobServiceClient.fromConnectionString(connectionString);
 
     // Initialize SharedKeyCredential for SAS token generation
     const accountName = config.AZURE_STORAGE_ACCOUNT_NAME;
     const accountKey = config.AZURE_STORAGE_ACCOUNT_KEY;
-    this.sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+    this.sharedKeyCredential = new StorageSharedKeyCredential(
+      accountName,
+      accountKey,
+    );
   }
 
-  async uploadPdfToBlob(file: Express.Multer.File, blobName: string): Promise<void> {
+  async uploadPdfToBlob(
+    file: Express.Multer.File,
+    blobName: string,
+  ): Promise<void> {
     try {
-      const containerClient = this.blobServiceClient.getContainerClient(this.containerNameForUpload);
+      const containerClient = this.blobServiceClient.getContainerClient(
+        this.containerNameForUpload,
+      );
       await containerClient.createIfNotExists({ access: 'container' });
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
       await blockBlobClient.uploadData(file.buffer, {
@@ -82,11 +89,16 @@ export class AzurePremiumSubscriptionService
     }
   }
 
-  async translateDocument(blobName: string, targetLanguage: string): Promise<boolean> {
+  async translateDocument(
+    blobName: string,
+    targetLanguage: string,
+  ): Promise<boolean> {
     try {
       const premiumTranslateKey = config.PREMIUM_PLAN_TRANSLATE_KEY;
       const premiumTranslateEndpoint = config.PREMIUM_PLAN_TRANSLATE_ENDPOINT;
-      const containerClient = this.blobServiceClient.getContainerClient(this.containerNameForUpload);
+      const containerClient = this.blobServiceClient.getContainerClient(
+        this.containerNameForUpload,
+      );
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
       // Generate SAS token for source container (read permission)
@@ -101,12 +113,14 @@ export class AzurePremiumSubscriptionService
           expiresOn: new Date(new Date().valueOf() + 3600 * 1000),
           protocol: SASProtocol.HttpsAndHttp,
         },
-        this.sharedKeyCredential
+        this.sharedKeyCredential,
       ).toString();
       const sourceUrl = `${blockBlobClient.url}?${sourceSas}`;
 
       // Generate SAS token for target container (write permission)
-      const targetContainerClient = this.blobServiceClient.getContainerClient(this.containerNameForDownload);
+      const targetContainerClient = this.blobServiceClient.getContainerClient(
+        this.containerNameForDownload,
+      );
       await targetContainerClient.createIfNotExists({ access: 'container' });
       const targetSasPermissions = new BlobSASPermissions();
       targetSasPermissions.write = true;
@@ -119,7 +133,7 @@ export class AzurePremiumSubscriptionService
           expiresOn: new Date(new Date().valueOf() + 3600 * 1000),
           protocol: SASProtocol.HttpsAndHttp,
         },
-        this.sharedKeyCredential
+        this.sharedKeyCredential,
       ).toString();
       const targetUrl = `${targetContainerClient.url}/${blobName}?${targetSas}`;
 
@@ -131,7 +145,12 @@ export class AzurePremiumSubscriptionService
               storageType: 'File',
               source: { sourceUrl, storageSource: 'AzureBlob' },
               targets: [
-                { targetUrl, storageSource: 'AzureBlob', category: 'general', language: targetLanguage },
+                {
+                  targetUrl,
+                  storageSource: 'AzureBlob',
+                  category: 'general',
+                  language: targetLanguage,
+                },
               ],
             },
           ],
@@ -142,7 +161,7 @@ export class AzurePremiumSubscriptionService
             'Content-Type': 'application/json',
           },
           validateStatus: () => true,
-        }
+        },
       );
 
       const operationLocation = postResponse.headers['operation-location'];
@@ -190,11 +209,14 @@ export class AzurePremiumSubscriptionService
 
   async downloadPdfFromBlob(blobName: string): Promise<Express.Multer.File> {
     try {
-      const containerClient = this.blobServiceClient.getContainerClient(this.containerNameForDownload);
+      const containerClient = this.blobServiceClient.getContainerClient(
+        this.containerNameForDownload,
+      );
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
       const downloadResponse = await blockBlobClient.download();
-      const buffer = await this.streamToBuffer(downloadResponse.readableStreamBody!);
-      
+      const buffer = await this.streamToBuffer(
+        downloadResponse.readableStreamBody!,
+      );
 
       const file: Express.Multer.File = {
         fieldname: 'file',
@@ -235,15 +257,28 @@ export class AzurePremiumSubscriptionService
     targetLanguage: string;
     userId: string;
     res: Response;
-    chatgtpService: IChatGTPService;
+    openAIService: IOpenAIService;
     documentService: IDocumentService;
     userService: IUserService;
+    chatBotService: IChatBotService;
   }): Promise<void> {
-    const { file, docLanguage, targetLanguage, res, chatgtpService, userId, documentService, userService } = params;
+    const {
+      file,
+      docLanguage,
+      targetLanguage,
+      res,
+      openAIService,
+      userId,
+      documentService,
+      userService,
+      chatBotService,
+    } = params;
 
     // Validate file
     if (!file?.buffer || !(file.buffer instanceof Buffer)) {
-      logger.error('Invalid input: A valid document file buffer is required', { userId });
+      logger.error('Invalid input: A valid document file buffer is required', {
+        userId,
+      });
       throw new Error('A valid document file buffer is required');
     }
 
@@ -253,7 +288,8 @@ export class AzurePremiumSubscriptionService
     // Send initial event
     sendSseMessage(res, 'message', 'Uploading document...');
 
-    const docId = `${uuidv4()}.pdf`;
+    const docId = uuidv4();
+    // const fileToBeUploaded= `${uuidv4()}.pdf`
 
     // Upload original PDF to Azure Blob Storage
     await handleSseAsyncOperation(
@@ -278,7 +314,9 @@ export class AzurePremiumSubscriptionService
         () => this.downloadPdfFromBlob(docId),
         'Failed to download translated PDF',
       );
-      sendSseMessage(res, 'downloaded', { status: 'Translated document downloaded' });
+      sendSseMessage(res, 'downloaded', {
+        status: 'Translated document downloaded',
+      });
     } else {
       logger.error('Document translation not completed', { userId, docId });
       throw new Error('Internal server error');
@@ -293,15 +331,31 @@ export class AzurePremiumSubscriptionService
     // Extract text from translated PDF
     const extractedText = await handleSseAsyncOperation(
       res,
-      () => this.extractTextFromFile({ file: this.translatedPdfBuffer!, docLanguage, plan: 'premium' }),
+      () =>
+        this.extractTextFromFile({
+          file: this.translatedPdfBuffer!,
+          docLanguage,
+          plan: 'premium',
+        }),
       'Failed to extract text from translated document',
     );
     sendSseMessage(res, 'extractedText', { extractedText: extractedText.text });
 
+    // Add translated text to chatbot history collection
+    await chatBotService.addTranslatedText({
+      userId: userId.toString(),
+      docId,
+      translatedText: extractedText.text,
+    });
+
     // Summarize translated text
     const summarizedText = await handleSseAsyncOperation(
       res,
-      () => chatgtpService.summarizeTranslatedText(extractedText.text, targetLanguage),
+      () =>
+        openAIService.summarizeTranslatedText(
+          extractedText.text,
+          targetLanguage,
+        ),
       'Failed to summarize translated text',
     );
     sendSseMessage(res, 'summarizedText', { summarizedText });
@@ -329,9 +383,9 @@ export class AzurePremiumSubscriptionService
         completed: plan.completed ?? false,
         location: plan.location || '',
       })),
-      translatedPdf: this.translatedPdfBuffer.buffer, 
+      translatedPdf: this.translatedPdfBuffer.buffer,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     const documentCreated = await handleSseAsyncOperation(
@@ -339,7 +393,9 @@ export class AzurePremiumSubscriptionService
       () => documentService.createDocumentByUserId(documentData),
       'Failed to create document in MongoDB',
     );
-    sendSseMessage(res, 'createdDocument', { status: 'Document created in MongoDB' });
+    sendSseMessage(res, 'createdDocument', {
+      status: 'Document created in MongoDB',
+    });
 
     // Update lengthOfDocs
     await handleSseAsyncOperation(

@@ -28,7 +28,7 @@ import { OcrDetectionLanguage } from '@azure/cognitiveservices-computervision/es
  * Services and Interfaces
  */
 import { AzureSubscriptionBase } from '../base-class/azure.service';
-import { IChatGTPService } from '@/services/chat-gtp/chat-gtp.interface';
+import { IOpenAIService } from '@/services/openai/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IUserService } from '@/services/users/user.interface';
 import { IAzureFreeSubscriptionService } from './azure.free.interface';
@@ -36,7 +36,7 @@ import { IAzureFreeSubscriptionService } from './azure.free.interface';
 /**
  * Models
  */
-import { IDocument } from '@/models/document';
+import { IDocument } from '@/models/document.model';
 
 
 
@@ -130,7 +130,7 @@ export class AzureFreeSubscriptionService
     targetLanguage: string;
     userId: string;
     res: Response;
-    chatgtpService: IChatGTPService;
+    openAIService: IOpenAIService;
     documentService: IDocumentService;
     userService: IUserService;
   }): Promise<void> {
@@ -140,7 +140,7 @@ export class AzureFreeSubscriptionService
       targetLanguage,
       userId,
       res,
-      chatgtpService,
+      openAIService,
       documentService,
       userService,
     } = params;
@@ -173,7 +173,7 @@ export class AzureFreeSubscriptionService
     const summarizedText = await handleSseAsyncOperation(
       res,
       () =>
-        chatgtpService.summarizeTranslatedText(translatedText, targetLanguage),
+        openAIService.summarizeTranslatedText(translatedText, targetLanguage),
       'Failed to summarize translated text',
     );
 

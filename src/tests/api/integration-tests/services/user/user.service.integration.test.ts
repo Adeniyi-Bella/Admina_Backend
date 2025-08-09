@@ -21,7 +21,7 @@ import { UserService } from '@/services/users/user.service';
 /**
  * Models
  */
-import User from '@/models/user';
+import User from '@/models/user.model';
 import { checkInterfaceCoverage } from '@/tests/api/utils';
 
 // Register UserService for DI

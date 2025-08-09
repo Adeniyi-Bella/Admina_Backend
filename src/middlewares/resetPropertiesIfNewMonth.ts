@@ -6,8 +6,9 @@
 /**
  * Models
  */
-import User from '@/models/user';
-import Document from '@/models/document';
+import User from '@/models/user.model';
+import Document from '@/models/document.model';
+import ChatBotHistory from '@/models/chatbotHistory.model';
 
 /**
  * Custom modules
@@ -33,7 +34,7 @@ const formatDate = (date: Date | null): string => {
 };
 
 /**
- * Middleware to reset user properties (prompt and lenghtOfDocs) if it's a new month.
+ * Middleware to reset user properties (prompt and lengthOfDocs) if it's a new month.
  */
 const resetPropertiesIfNewMonth = async (
   req: Request,
@@ -52,7 +53,8 @@ const resetPropertiesIfNewMonth = async (
   }
 
   try {
-    const user = await User.findOne({ userId }).select('-__v').exec();
+    // Retrieve user
+    const user = await User.findOne({ userId }).select('plan updatedAt').exec();
     if (!user) {
       logger.warn('User not found for resetPropertiesIfNewMonth', { userId });
       res.status(400).json({
@@ -68,30 +70,37 @@ const resetPropertiesIfNewMonth = async (
       .select('updatedAt')
       .exec();
 
+    // Find the most recent chatbot history for the user
+    const latestChatBotHistory = await ChatBotHistory.findOne({ userId })
+      .sort({ updatedAt: -1 })
+      .select('updatedAt')
+      .exec();
+
     const now = new Date();
     const userLastUpdated = new Date(user.updatedAt);
-    const documentLastUpdated = latestDocument
-      ? new Date(latestDocument.updatedAt)
-      : null;
+    const documentLastUpdated = latestDocument ? new Date(latestDocument.updatedAt) : null;
+    const chatBotHistoryLastUpdated = latestChatBotHistory ? new Date(latestChatBotHistory.updatedAt) : null;
 
-    // Check if it's a new month based on the most recent update (user or document)
-    const isNewMonth = 
-      (userLastUpdated.getUTCFullYear() !== now.getUTCFullYear() ||
-       userLastUpdated.getUTCMonth() !== now.getUTCMonth()) ||
-      (documentLastUpdated &&
-        (documentLastUpdated.getUTCFullYear() !== now.getUTCFullYear() ||
-         documentLastUpdated.getUTCMonth() !== now.getUTCMonth()));
+    // Find the most recent update timestamp
+    const timestamps = [userLastUpdated, documentLastUpdated, chatBotHistoryLastUpdated].filter(
+      (ts): ts is Date => ts !== null
+    );
+    const mostRecentUpdate = timestamps.length > 0 ? new Date(Math.max(...timestamps.map(ts => ts.getTime()))) : userLastUpdated;
+
+    // Check if it's a new month based on the most recent update
+    const isNewMonth =
+      mostRecentUpdate.getUTCFullYear() !== now.getUTCFullYear() ||
+      mostRecentUpdate.getUTCMonth() !== now.getUTCMonth();
 
     if (isNewMonth) {
+      // Set reset values based on user plan
+      const resetValues = user.plan === 'premium'
+        ? { lengthOfDocs: 5, prompt: 10, updatedAt: new Date() }
+        : { lengthOfDocs: 3, updatedAt: new Date() };
+
       const result = await User.updateOne(
         { userId },
-        {
-          $set: {
-            prompt: 5,
-            lenghtOfDocs: 0,
-            updatedAt: new Date(),
-          },
-        },
+        { $set: resetValues },
       ).exec();
 
       if (result.modifiedCount === 0) {
@@ -104,15 +113,21 @@ const resetPropertiesIfNewMonth = async (
       }
 
       logger.info('User properties reset successfully for new month', {
+        userId,
+        plan: user.plan,
         currentDate: formatDate(now),
         userLastUpdated: formatDate(userLastUpdated),
         documentLastUpdated: formatDate(documentLastUpdated),
+        chatBotHistoryLastUpdated: formatDate(chatBotHistoryLastUpdated),
       });
     } else {
       logger.info('No reset needed; not a new month', {
+        userId,
+        plan: user.plan,
         currentDate: formatDate(now),
         userLastUpdated: formatDate(userLastUpdated),
         documentLastUpdated: formatDate(documentLastUpdated),
+        chatBotHistoryLastUpdated: formatDate(chatBotHistoryLastUpdated),
       });
     }
 

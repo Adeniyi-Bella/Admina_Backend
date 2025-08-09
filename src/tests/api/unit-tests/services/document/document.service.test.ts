@@ -18,7 +18,7 @@ import { DocumentService } from '@/services/document/document.service';
 /**
  * Models
  */
-import Document, { IDocument } from '@/models/document';
+import Document, { IDocument } from '@/models/document.model';
 
 // Mock the Document model
 jest.mock('@/models/document');

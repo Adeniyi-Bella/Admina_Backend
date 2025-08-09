@@ -6,9 +6,11 @@
 /**
  * Types
  */
-import { IDocument } from '@/models/document';
+import { IChatBotHistory } from '@/models/chatbotHistory.model';
+import { IDocument } from '@/models/document.model';
+import { OpenAI } from 'openai';
 
-export interface IChatGTPService {
+export interface IOpenAIService {
   //   summarizeTranslatedText(data: ExtractTextReqDTO): Promise<ExtractTextResDTO>;
   summarizeTranslatedText(
     translatedText: string,
@@ -26,4 +28,9 @@ export interface IChatGTPService {
   >;
 
   structureText(text: string, label: string): Promise<string>;
+ chatBotStream(
+    chatBotHistory: IChatBotHistory,
+    prompt: string,
+  ): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>
+
 }

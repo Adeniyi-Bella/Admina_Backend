@@ -3,6 +3,8 @@
  * @license Apache-2.0
  */
 
+import { IChatBotHistory } from "@/models/chatbotHistory.model";
+
 export class Prompt {
   /**
    * Builds the prompt for restructuring text into a clearer and more readable layout.
@@ -43,7 +45,7 @@ You are an assistant that reads documents and extracts the following fields from
 - title of the Document (string)
 - date document was received (date string in ISO 8601 format, e.g. "2024-05-24" or "${new Date().toISOString()}" if no date is provided)
 - sender of document (From which institution) (string)
-- short summary (string)
+- comprehensive summary (string). A very good comprehensive summary of the document. This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.
 - actionPlan: an array of { title: string, reason: string }
 - actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
 
@@ -71,6 +73,57 @@ Example for an English Response:
 Document:
 ${translatedText}
 `.trim();
+  }
+
+
+    /**
+   * Builds the prompt for the chatbot, incorporating translated text, chat history, and the new prompt.
+   * @param chatBotHistory - The chat history containing translatedText and chats.
+   * @param prompt - The new user prompt.
+   * @returns An array of messages for the OpenAI chat API.
+   */
+  public buildChatBotPrompt(
+    chatBotHistory: IChatBotHistory,
+    prompt: string,
+  ): Array<
+    { role: 'system' | 'user' | 'assistant'; content: string }
+  > {
+    const messages: Array<
+      { role: 'system' | 'user' | 'assistant'; content: string }
+    > = [
+      {
+        role: 'system',
+        content: `
+You are an expert assistant helping the user understand a document and answer their questions.
+Use the following context to formulate your response:
+- Document translated text: ${chatBotHistory.translatedText || 'No translated text available'}
+- Previous conversation: ${
+  chatBotHistory.chats.length > 0
+    ? chatBotHistory.chats
+        .map((chat, index) => `User ${index + 1}: ${chat.prompt}\nAssistant ${index + 1}: ${chat.response}`)
+        .join('\n')
+    : 'No previous conversation'
+}
+Provide a clear and concise response to the user's current prompt, using the document context and previous conversation to inform your answer.
+Only answer questions directly related to the document context. If the prompts relates to another topic, please inform the user that you are only allowed to respond based on the topics related to the document. The response must be in the language of the Document translated text unless specified otherwise
+by user.
+`.trim(),
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ];
+
+    // Include previous chats as part of the conversation
+    chatBotHistory.chats.forEach((chat) => {
+      messages.push(
+        { role: 'user', content: chat.prompt },
+        { role: 'assistant', content: chat.response }
+      );
+    });
+
+    return messages;
   }
 }
 

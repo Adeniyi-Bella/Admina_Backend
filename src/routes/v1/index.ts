@@ -11,8 +11,9 @@ const router = Router();
 /**
  * Routes
  */
-import userRoutes from '@/routes/v1/user';
-import documentRoutes from '@/routes/v1/document';
+import userRoutes from '@/routes/v1/user.route';
+import documentRoutes from '@/routes/v1/document.route';
+import chatbotRoutes from '@/routes/v1/chatbot.route'
 
 /**
  * Root route
@@ -28,5 +29,6 @@ router.get('/', (_, res) => {
 
 router.use('/users', userRoutes);
 router.use('/document', documentRoutes);
+router.use('/chatbot', chatbotRoutes);
 
 export default router;

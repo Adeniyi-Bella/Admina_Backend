@@ -20,7 +20,7 @@ import { DocumentService } from '@/services/document/document.service';
 /**
  * Models
  */
-import Document, { IDocument } from '@/models/document';
+import Document, { IDocument } from '@/models/document.model';
 
 // Register DocumentService for DI
 container.register<IDocumentService>('IDocumentService', { useClass: DocumentService });
