@@ -54,7 +54,7 @@ const getDocument = async (req: Request, res: Response): Promise<void> => {
       try {
         const pdfFile = await azureBlobService.downloadPdfFromBlob(
           'download',
-          docId
+          `${userId}/${docId}`
         );
 
         // return base64-encoded PDF

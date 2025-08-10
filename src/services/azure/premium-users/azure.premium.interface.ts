@@ -16,7 +16,11 @@ import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 export interface IAzurePremiumSubscriptionService {
   // uploadPdfToBlob(file: Express.Multer.File, blobName: string): Promise<void>;
 
-  translateDocument(blobName: string, targetLanguage: string): Promise<boolean>;
+  translateDocument(
+    userId: string,
+    blobName: string,
+    targetLanguage: string,
+  ): Promise<boolean>;
 
   // downloadPdfFromBlob(blobName: string): Promise<Express.Multer.File>;
 
@@ -29,6 +33,6 @@ export interface IAzurePremiumSubscriptionService {
     openAIService: IOpenAIService;
     documentService: IDocumentService;
     userService: IUserService;
-    chatBotService: IChatBotService
+    chatBotService: IChatBotService;
   }): Promise<void>;
 }
