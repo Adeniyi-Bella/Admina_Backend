@@ -36,6 +36,7 @@ const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
     }
 
     await userService.updateUser(req.userId, 'plan', false, 'premium');
+    await userService.updateUser(req.userId, 'prompt', false, 10);
 
     res.status(200).json({ message: 'ok' });
   } catch (err) {

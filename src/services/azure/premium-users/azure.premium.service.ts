@@ -21,11 +21,12 @@ import {
   SASProtocol,
   StorageSharedKeyCredential,
 } from '@azure/storage-blob';
-import { Readable } from 'stream';
+// import { Readable } from 'stream';
 
 /**
  * Custom modules
  */
+import { container } from 'tsyringe';
 import config from '@/config';
 import { logger } from '@/lib/winston';
 import axios from 'axios';
@@ -37,6 +38,8 @@ import { IDocument } from '@/models/document.model';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IUserService } from '@/services/users/user.interface';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
+import { AzureBlobService } from '../azure-blob-storage/azure.blobStorage.service';
+import { IAzureBlobService } from '../azure-blob-storage/azure.blobStorage.interface';
 
 @injectable()
 export class AzurePremiumSubscriptionService
@@ -48,6 +51,8 @@ export class AzurePremiumSubscriptionService
   private readonly containerNameForDownload = 'download';
   private sharedKeyCredential: StorageSharedKeyCredential;
   private translatedPdfBuffer?: Express.Multer.File;
+  private azureBlobService =
+    container.resolve<IAzureBlobService>('IAzureBlobService');
 
   constructor() {
     super();
@@ -66,28 +71,28 @@ export class AzurePremiumSubscriptionService
     );
   }
 
-  async uploadPdfToBlob(
-    file: Express.Multer.File,
-    blobName: string,
-  ): Promise<void> {
-    try {
-      const containerClient = this.blobServiceClient.getContainerClient(
-        this.containerNameForUpload,
-      );
-      await containerClient.createIfNotExists({ access: 'container' });
-      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-      await blockBlobClient.uploadData(file.buffer, {
-        blobHTTPHeaders: { blobContentType: 'application/pdf' },
-      });
-      logger.info('Uploaded PDF to Azure Blob Storage', { blobName });
-    } catch (error: any) {
-      logger.error('Error uploading PDF to blob', {
-        blobName,
-        error: error.message,
-      });
-      throw new Error('Failed to upload PDF to blob');
-    }
-  }
+  // async uploadPdfToBlob(
+  //   file: Express.Multer.File,
+  //   blobName: string,
+  // ): Promise<void> {
+  //   try {
+  //     const containerClient = this.blobServiceClient.getContainerClient(
+  //       this.containerNameForUpload,
+  //     );
+  //     await containerClient.createIfNotExists({ access: 'container' });
+  //     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  //     await blockBlobClient.uploadData(file.buffer, {
+  //       blobHTTPHeaders: { blobContentType: 'application/pdf' },
+  //     });
+  //     logger.info('Uploaded PDF to Azure Blob Storage', { blobName });
+  //   } catch (error: any) {
+  //     logger.error('Error uploading PDF to blob', {
+  //       blobName,
+  //       error: error.message,
+  //     });
+  //     throw new Error('Failed to upload PDF to blob');
+  //   }
+  // }
 
   async translateDocument(
     blobName: string,
@@ -186,6 +191,12 @@ export class AzurePremiumSubscriptionService
         const status = pollResponse.data.status;
         if (status === 'Succeeded') {
           isCompleted = true;
+
+          await this.azureBlobService.deleteBlob(
+            this.containerNameForUpload,
+            blobName,
+          );
+
           break;
         } else if (status === 'Failed' || status === 'ValidationFailed') {
           throw new Error(`Translation failed with status: ${status}`);
@@ -207,49 +218,49 @@ export class AzurePremiumSubscriptionService
     }
   }
 
-  async downloadPdfFromBlob(blobName: string): Promise<Express.Multer.File> {
-    try {
-      const containerClient = this.blobServiceClient.getContainerClient(
-        this.containerNameForDownload,
-      );
-      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-      const downloadResponse = await blockBlobClient.download();
-      const buffer = await this.streamToBuffer(
-        downloadResponse.readableStreamBody!,
-      );
+  // async downloadPdfFromBlob(blobName: string): Promise<Express.Multer.File> {
+  //   try {
+  //     const containerClient = this.blobServiceClient.getContainerClient(
+  //       this.containerNameForDownload,
+  //     );
+  //     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  //     const downloadResponse = await blockBlobClient.download();
+  //     const buffer = await this.streamToBuffer(
+  //       downloadResponse.readableStreamBody!,
+  //     );
 
-      const file: Express.Multer.File = {
-        fieldname: 'file',
-        originalname: `translated-${blobName}`,
-        encoding: '7bit',
-        mimetype: 'application/pdf',
-        size: buffer.length,
-        buffer,
-        stream: Readable.from(buffer),
-        destination: '',
-        filename: '',
-        path: '',
-      };
+  //     const file: Express.Multer.File = {
+  //       fieldname: 'file',
+  //       originalname: `translated-${blobName}`,
+  //       encoding: '7bit',
+  //       mimetype: 'application/pdf',
+  //       size: buffer.length,
+  //       buffer,
+  //       stream: Readable.from(buffer),
+  //       destination: '',
+  //       filename: '',
+  //       path: '',
+  //     };
 
-      return file;
-    } catch (error: any) {
-      logger.error('Error downloading PDF from blob', {
-        blobName,
-        containerName: this.containerNameForDownload,
-        error: error.message,
-      });
-      throw new Error('Internal server error');
-    }
-  }
+  //     return file;
+  //   } catch (error: any) {
+  //     logger.error('Error downloading PDF from blob', {
+  //       blobName,
+  //       containerName: this.containerNameForDownload,
+  //       error: error.message,
+  //     });
+  //     throw new Error('Internal server error');
+  //   }
+  // }
 
-  async streamToBuffer(readableStream: NodeJS.ReadableStream): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      readableStream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
-      readableStream.on('end', () => resolve(Buffer.concat(chunks)));
-      readableStream.on('error', reject);
-    });
-  }
+  // async streamToBuffer(readableStream: NodeJS.ReadableStream): Promise<Buffer> {
+  //   return new Promise((resolve, reject) => {
+  //     const chunks: Buffer[] = [];
+  //     readableStream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+  //     readableStream.on('end', () => resolve(Buffer.concat(chunks)));
+  //     readableStream.on('error', reject);
+  //   });
+  // }
 
   public async processPremiumUserDocument(params: {
     file: Express.Multer.File;
@@ -294,7 +305,12 @@ export class AzurePremiumSubscriptionService
     // Upload original PDF to Azure Blob Storage
     await handleSseAsyncOperation(
       res,
-      () => this.uploadPdfToBlob(file, docId),
+      () =>
+        this.azureBlobService.uploadPdfToBlob(
+          this.containerNameForUpload,
+          file,
+          docId,
+        ),
       'Failed to upload PDF',
     );
     sendSseMessage(res, 'uploaded', { status: 'Document uploaded' });
@@ -311,7 +327,11 @@ export class AzurePremiumSubscriptionService
     if (isDocumentTranslated) {
       this.translatedPdfBuffer = await handleSseAsyncOperation(
         res,
-        () => this.downloadPdfFromBlob(docId),
+        () =>
+          this.azureBlobService.downloadPdfFromBlob(
+            this.containerNameForDownload,
+            docId,
+          ),
         'Failed to download translated PDF',
       );
       sendSseMessage(res, 'downloaded', {
@@ -383,9 +403,6 @@ export class AzurePremiumSubscriptionService
         completed: plan.completed ?? false,
         location: plan.location || '',
       })),
-      translatedPdf: this.translatedPdfBuffer.buffer,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     };
 
     const documentCreated = await handleSseAsyncOperation(

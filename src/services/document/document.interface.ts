@@ -14,14 +14,19 @@ export interface IDocumentService {
     limit: number,
     offset: number,
   ): Promise<{ total: number; documents: IDocument[] }>;
+
   createDocumentByUserId(document: Partial<IDocument>): Promise<IDocument>;
+
   getDocument(userId: string, docId: string): Promise<IDocument | null>;
+
   deleteDocument(userId: string, docId: string): Promise<boolean>;
+
   updateDocument(
     userId: string,
     docId: string,
     updates: Partial<IDocument>,
   ): Promise<IDocument | null>;
+
   updateActionPlan(
     userId: string,
     docId: string,
@@ -29,5 +34,6 @@ export interface IDocumentService {
     actionPlanData?: Partial<IActionPlan>,
     actionPlanId?: string,
   ): Promise<IDocument | null>;
+  
   deleteAllDocuments(userId: string): Promise<boolean>;
 }

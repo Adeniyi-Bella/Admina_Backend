@@ -20,7 +20,7 @@ export interface IUserService {
     userId: string,
     property: string,
     increment: boolean,
-    value: string | undefined,
+    value: string | undefined | number,
   ): Promise<boolean>;
   deleteUser(userId: string): Promise<boolean>;
   deleteUserFromEntraId(userId: string): Promise<boolean>;

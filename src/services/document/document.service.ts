@@ -121,6 +121,8 @@ export class DocumentService implements IDocumentService {
     if (!userId || !docId) {
       throw new Error('Valid userId and docId are required');
     }
+
+    
     return await Document.findOne({ userId, docId }).select('-__v').exec();
   }
 

@@ -14,11 +14,11 @@ import { IUserService } from '@/services/users/user.interface';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 
 export interface IAzurePremiumSubscriptionService {
-  uploadPdfToBlob(file: Express.Multer.File, blobName: string): Promise<void>;
+  // uploadPdfToBlob(file: Express.Multer.File, blobName: string): Promise<void>;
 
   translateDocument(blobName: string, targetLanguage: string): Promise<boolean>;
 
-  downloadPdfFromBlob(blobName: string): Promise<Express.Multer.File>;
+  // downloadPdfFromBlob(blobName: string): Promise<Express.Multer.File>;
 
   processPremiumUserDocument(params: {
     file: Express.Multer.File;

@@ -25,17 +25,14 @@ export interface IDocument {
   sender?: string;
   receivedDate?: Date;
   summary: string;
-  // originalText: string;
   translatedText?: string;
   translatedPdf?: Buffer | Binary;
-  // sourceLanguage: string;
   targetLanguage: string;
-  // structuredOriginalText?: string;
   structuredTranslatedText?: string;
   actionPlan?: { title?: string; reason?: string }[];
   actionPlans?: IActionPlan[];
-   createdAt: Date; 
-  updatedAt: Date; 
+  createdAt?: Date; 
+  updatedAt?: Date;
 }
 
 /**
@@ -50,7 +47,6 @@ const documentSchema = new Schema<IDocument>(
     docId: {
       type: String,
       required: [true, 'Document ID is required'],
-      // unique: [true, 'Document ID must be unique'],
     },
     title: {
       type: String,
@@ -67,10 +63,6 @@ const documentSchema = new Schema<IDocument>(
       type: String,
       default: '',
     },
-    // originalText: {
-    //   type: String,
-    //   default: '',
-    // },
     translatedText: {
       type: String,
       default: '',
@@ -83,10 +75,6 @@ const documentSchema = new Schema<IDocument>(
       type: String,
       default: '',
     },
-    // structuredOriginalText: {
-    //   type: String,
-    //   default: '',
-    // },
     structuredTranslatedText: {
       type: String,
       default: '',

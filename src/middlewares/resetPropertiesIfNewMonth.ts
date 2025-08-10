@@ -78,7 +78,7 @@ const resetPropertiesIfNewMonth = async (
 
     const now = new Date();
     const userLastUpdated = new Date(user.updatedAt);
-    const documentLastUpdated = latestDocument ? new Date(latestDocument.updatedAt) : null;
+    const documentLastUpdated = latestDocument ? new Date(latestDocument.updatedAt!) : null;
     const chatBotHistoryLastUpdated = latestChatBotHistory ? new Date(latestChatBotHistory.updatedAt) : null;
 
     // Find the most recent update timestamp

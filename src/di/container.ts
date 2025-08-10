@@ -23,6 +23,8 @@ import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users
 import { AzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.service';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { ChatBotService } from '@/services/chatbot/chatbot.service';
+import { IAzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.interface';
+import { AzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.service';
 
 
 // Register the interface with its implementation
@@ -43,4 +45,7 @@ container.register<IOpenAIService>('IOpenAIService', {
 });
 container.register<IChatBotService>('IChatBotService', {
   useClass: ChatBotService,
+});
+container.register<IAzureBlobService>('IAzureBlobService', {
+  useClass: AzureBlobService,
 });

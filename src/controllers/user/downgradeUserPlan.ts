@@ -39,6 +39,7 @@ const downgradeUserPlan = async (
     }
 
     await userService.updateUser(req.userId, 'plan', false, 'free');
+    await userService.updateUser(req.userId, 'prompt', false, 0);
 
     res.status(200).json({ message: 'ok' });
 
