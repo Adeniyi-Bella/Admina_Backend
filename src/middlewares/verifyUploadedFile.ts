@@ -6,16 +6,15 @@
 /**
  * Types
  */
+import { ApiResponse } from '@/lib/api_response';
 import type { Request, Response, NextFunction } from 'express';
 
 const verifyUploadedFile = (req: Request, res: Response, next: NextFunction) => {
 //   const errors = validationResult(req);
 
   if (!req.file) {
-    res.status(400).json({
-      code: 'Bad Request',
-      error: 'No file uploaded. Please include a PDF, PNG, or JPEG file.',
-    });
+
+    ApiResponse.badRequest(res, 'No file uploaded. Please include a PDF, PNG, or JPEG file.');
     return;
   }
 

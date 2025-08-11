@@ -7,10 +7,10 @@ import { IChatBotHistory } from "@/models/chatbotHistory.model";
 
 export class Prompt {
   /**
-   * Builds the prompt for restructuring text into a clearer and more readable layout.
+   * Builds the userPrompt for restructuring text into a clearer and more readable layout.
    * @param text - The text to restructure.
    * @param label - The language label for the output (e.g., 'en', 'de').
-   * @returns The formatted prompt string.
+   * @returns The formatted userPrompt string.
    */
   public structureTextPrompt(text: string, label: string): string {
     return `
@@ -34,10 +34,10 @@ ${text}
   }
 
   /**
-   * Builds the prompt for OpenAI with the document text and target language.
+   * Builds the userPrompt for OpenAI with the document text and target language.
    * @param translatedText - The document text to process.
    * @param targetLanguage - The language for the response.
-   * @returns The formatted prompt string.
+   * @returns The formatted userPrompt string.
    */
   public buildPrompt(translatedText: string, targetLanguage: string): string {
     return `
@@ -77,14 +77,14 @@ ${translatedText}
 
 
     /**
-   * Builds the prompt for the chatbot, incorporating translated text, chat history, and the new prompt.
+   * Builds the userPrompt for the chatbot, incorporating translated text, chat history, and the new userPrompt.
    * @param chatBotHistory - The chat history containing translatedText and chats.
-   * @param prompt - The new user prompt.
+   * @param userPrompt - The new user userPrompt.
    * @returns An array of messages for the OpenAI chat API.
    */
   public buildChatBotPrompt(
     chatBotHistory: IChatBotHistory,
-    prompt: string,
+    userPrompt: string,
   ): Array<
     { role: 'system' | 'user' | 'assistant'; content: string }
   > {
@@ -100,25 +100,25 @@ Use the following context to formulate your response:
 - Previous conversation: ${
   chatBotHistory.chats.length > 0
     ? chatBotHistory.chats
-        .map((chat, index) => `User ${index + 1}: ${chat.prompt}\nAssistant ${index + 1}: ${chat.response}`)
+        .map((chat, index) => `User ${index + 1}: ${chat.userPrompt}\nAssistant ${index + 1}: ${chat.response}`)
         .join('\n')
     : 'No previous conversation'
 }
-Provide a clear and concise response to the user's current prompt, using the document context and previous conversation to inform your answer.
-Only answer questions directly related to the document context. If the prompts relates to another topic, please inform the user that you are only allowed to respond based on the topics related to the document. The response must be in the language of the Document translated text unless specified otherwise
+Provide a clear and concise response to the user's current userPrompt, using the document context and previous conversation to inform your answer.
+Only answer questions directly related to the document context. If the userPrompts relates to another topic, please inform the user that you are only allowed to respond based on the topics related to the document. The response must be in the language of the Document translated text unless specified otherwise
 by user.
 `.trim(),
       },
       {
         role: 'user',
-        content: prompt,
+        content: userPrompt,
       },
     ];
 
     // Include previous chats as part of the conversation
     chatBotHistory.chats.forEach((chat) => {
       messages.push(
-        { role: 'user', content: chat.prompt },
+        { role: 'user', content: chat.userPrompt },
         { role: 'assistant', content: chat.response }
       );
     });

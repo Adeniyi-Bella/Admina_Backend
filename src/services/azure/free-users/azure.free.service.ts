@@ -198,6 +198,7 @@ export class AzureFreeSubscriptionService
         completed: plan.completed ?? false,
         location: plan.location || '',
       })),
+      pdfBlobStorage: false
       // createdAt: new Date(),
       // updatedAt: new Date()
     };
@@ -211,10 +212,11 @@ export class AzureFreeSubscriptionService
     sendSseMessage(res, 'createdDocument', { status: createdDocument.summary });
 
     // Update lengthOfDocs
+    
     await handleSseAsyncOperation(
       res,
-      () => userService.updateUser(userId, 'lenghtOfDocs', true, undefined),
-      'Failed to update lenghtOfDocs for user',
+      () => userService.updateUser(userId, 'lengthOfDocs.free.current', true, undefined),
+      'Failed to update lengthOfDocs for user',
     );
 
     // Signal completion

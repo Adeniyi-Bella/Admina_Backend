@@ -23,54 +23,45 @@ import { IDocumentService } from '@/services/document/document.interface';
  * Types
  */
 import type { Request, Response } from 'express';
+import { ApiResponse } from '@/lib/api_response';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 
 const deleteUser = async (req: Request, res: Response): Promise<void> => {
   const userService = container.resolve<IUserService>('IUserService');
+  const chatBotService = container.resolve<IChatBotService>('IChatBotService');
   const documentService =
     container.resolve<IDocumentService>('IDocumentService');
 
   try {
-    const deleteDocument = await documentService.deleteAllDocuments(req.userId);
+    await documentService.deleteAllDocuments(req.userId);
 
-    if (!deleteDocument) {
-      logger.error('Problem deleting users documents');
-      res.status(404).json({
-        code: 'ServerError',
-        message: 'Internal server error',
-      });
-      return;
-    }
-
+    // Delete all chat history for the user
+    await chatBotService.deleteChatHistoryByUserId(req.userId);
+    
     const deleteUserFromDb = await userService.deleteUser(req.userId);
 
     if (!deleteUserFromDb) {
       logger.error('User not found in database for deletion');
-      res.status(404).json({
-        code: 'NotFound',
-        message: 'User not found',
-      });
+      ApiResponse.notFound(res, 'User not found');
       return;
     }
 
-    const deleteUserFromEntraId = await userService.deleteUserFromEntraId(req.userId)
+    const deleteUserFromEntraId = await userService.deleteUserFromEntraId(
+      req.userId,
+    );
     if (!deleteUserFromEntraId) {
       logger.error('User not found in Entra Id for deletion');
-      res.status(404).json({
-        code: 'NotFound',
-        message: 'User not found',
-      });
+      ApiResponse.notFound(res, 'User not found in Entra Id');
       return;
     }
 
-    res.status(204).send();
-  } catch (err) {
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: err,
-    });
-
-    logger.error('Error during user deletion', err);
+    ApiResponse.ok(res, 'User deleted successfully');
+  } catch (error: unknown) {
+    logger.error('Error deleting document', error);
+    // Check if error is an instance of Error to safely access message
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Internal server error', errorMessage);
   }
 };
 

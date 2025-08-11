@@ -18,39 +18,51 @@ import { IUserService } from '@/services/users/user.interface';
  * Types
  */
 import type { Request, Response } from 'express';
+import { IDocumentService } from '@/services/document/document.interface';
+import { ApiResponse } from '@/lib/api_response';
 
 const downgradeUserPlan = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   const userService = container.resolve<IUserService>('IUserService');
+  const docService = container.resolve<IDocumentService>('IDocumentService');
 
   try {
     // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
     if (!user || user.plan !== 'premium') {
       logger.error('User or User should have a premium plan');
-      res.status(400).json({
-        code: 'NotFound',
-        message: 'User details not correct',
-      });
+      ApiResponse.notFound(res, 'User not found');
       return;
-
     }
 
     await userService.updateUser(req.userId, 'plan', false, 'free');
-    await userService.updateUser(req.userId, 'prompt', false, 0);
 
-    res.status(200).json({ message: 'ok' });
-
-  } catch (err) {
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: err,
+    await userService.updateUser(req.userId, 'lengthOfDocs', false, {
+      free: { max: 2, min: 0, current: 2 },
     });
 
-    logger.error('Error during user registration', err);
+    // Get all the documents when the user was a premium user
+    const { documents } = await docService.getAllDocumentsByUserId(
+      req.userId,
+      user.lengthOfDocs.premium!.max,
+      0,
+    );
+    for (const doc of documents) {
+      await docService.updateDocument(req.userId, doc.docId, {
+        chatBotPrompt: {
+          free: { max: 0, min: 0, current: 0 },
+        },
+      });
+    }
+    ApiResponse.ok(res, 'User downgraded successfully');
+  } catch (error: unknown) {
+    logger.error('Error deleting document', error);
+    // Check if error is an instance of Error to safely access message
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Internal server error', errorMessage);
   }
 };
 

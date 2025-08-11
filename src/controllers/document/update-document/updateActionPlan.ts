@@ -1,3 +1,4 @@
+import { ApiResponse } from '@/lib/api_response';
 import { logger } from '@/lib/winston';
 import { IDocument } from '@/models/document.model';
 import { IDocumentService } from '@/services/document/document.interface';
@@ -15,61 +16,24 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
     const requestType = req.query.type as string;
 
     if (!userId || !docId) {
-      res.status(400).json({
-        code: 'Bad Request',
-        message: 'User ID and document ID are required',
-      });
-      return;
+      throw new Error('user id and doc id are required');
     }
 
     if (!requestType || !['create', 'delete', 'update'].includes(requestType)) {
-      res.status(400).json({
-        code: 'Bad Request',
-        message:
-          'Invalid request type. Must be "create", "delete", or "update"',
-      });
+      ApiResponse.badRequest(
+        res,
+        'Invalid request type. Must be "create", "delete", or "update"',
+      );
       return;
     }
 
     let updatedDocument: IDocument | null = null;
 
-    if (requestType === 'create') {
-      if (!req.body) {
-        res.status(400).json({
-          code: 'Bad Request',
-          message: 'Request body is required for creating an action plan',
-        });
-        return;
-      }
-      const { title, dueDate, completed, location } = req.body;
-      if (!title) {
-        res.status(400).json({
-          code: 'Bad Request',
-          message: 'Title is required for creating an action plan',
-        });
-        return;
-      }
-
-      updatedDocument = await documentService.updateActionPlan(
-        userId,
-        docId,
-        'create',
-        {
-          title,
-          dueDate,
-          completed,
-          location,
-        },
-      );
-    } else if (requestType === 'delete') {
+    if (requestType === 'delete') {
       if (!id) {
-        res.status(400).json({
-          code: 'Bad Request',
-          message: 'Action plan ID is required for deletion',
-        });
+        ApiResponse.badRequest(res, 'Action plan ID is required for delete.');
         return;
       }
-
       updatedDocument = await documentService.updateActionPlan(
         userId,
         docId,
@@ -77,64 +41,67 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
         undefined,
         id,
       );
-    } else if (requestType === 'update') {
-      if (!id) {
-        res.status(400).json({
-          code: 'Bad Request',
-          message: 'Action plan ID is required for update',
-        });
-        return;
-      }
+    } else {
       if (!req.body) {
-        res.status(400).json({
-          code: 'Bad Request',
-          message: 'Request body is required for updating an action plan',
-        });
+        ApiResponse.badRequest(res, 'Request body is missing.');
         return;
       }
 
-      const { title, dueDate, completed, location } = req.body;
-      if (!title && !dueDate && completed === undefined && !location) {
-        res.status(400).json({
-          code: 'Bad Request',
-          message:
-            'At least one field (title, dueDate, completed, location) must be provided for update',
-        });
-        return;
+      if (requestType === 'create') {
+        const { title, dueDate, completed, location } = req.body;
+        if (!title) {
+          ApiResponse.badRequest(
+            res,
+            'Request body is missing the right data.',
+          );
+          return;
+        }
+
+        updatedDocument = await documentService.updateActionPlan(
+          userId,
+          docId,
+          'create',
+          {
+            title,
+            dueDate,
+            completed,
+            location,
+          },
+        );
+      } else if (requestType === 'update') {
+        if (!id) {
+          ApiResponse.badRequest(res, 'Action plan ID is required for delete.');
+          return;
+        }
+
+        const { title, dueDate, completed, location } = req.body;
+        if (!title && !dueDate && completed === undefined && !location) {
+          ApiResponse.badRequest(
+            res,
+            'At least one field (title, dueDate, completed, location) must be provided for update.',
+          );
+          return;
+        }
+
+        updatedDocument = await documentService.updateActionPlan(
+          userId,
+          docId,
+          'update',
+          { completed, location, title, dueDate },
+          id,
+        );
       }
-
-      updatedDocument = await documentService.updateActionPlan(
-        userId,
-        docId,
-        'update',
-        { completed, location, title, dueDate },
-        id,
-      );
     }
 
-    if (!updatedDocument) {
-      res.status(404).json({
-        code: 'NotFound',
-        message: 'Invalid Data provided. Please try with the right data',
-      });
-      return;
-    }
-
-    res.status(200).json({ document: updatedDocument });
-  } catch (err) {
-    const errorDetails =
-      err instanceof Error ? { message: err.message, stack: err.stack } : err;
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: errorDetails,
+    ApiResponse.ok(res, 'Document fetched successfully', {
+      document: updatedDocument,
     });
-    logger.error('Error while updating action plan', {
-      userId: req.userId,
-      docId: req.params.docId,
-      requestType: req.query.type,
-      error: errorDetails,
-    });
+  } catch (error: unknown) {
+    logger.error('Error deleting document', error);
+    // Check if error is an instance of Error to safely access message
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Internal server error', errorMessage);
   }
 };
 

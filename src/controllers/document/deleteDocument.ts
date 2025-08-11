@@ -22,6 +22,7 @@ import { container } from 'tsyringe';
  * Types
  */
 import type { Request, Response } from 'express';
+import { ApiResponse } from '@/lib/api_response';
 
 const deleteDocument = async (req: Request, res: Response): Promise<void> => {
   const documentService = container.resolve<IDocumentService>('IDocumentService');
@@ -33,18 +34,16 @@ const deleteDocument = async (req: Request, res: Response): Promise<void> => {
     const deleted = await documentService.deleteDocument(userId, docId);
 
     if (!deleted) {
-      res.status(404).json({ code: 'NotFound', message: 'Document not found' });
+      ApiResponse.notFound(res, 'Document not found');
       return;
     }
 
-    res.status(200).json({ message: 'Document deleted successfully' });
-  } catch (error) {
+    ApiResponse.ok(res, 'Document deleted successfully');
+  } catch (error: unknown) {
     logger.error('Error deleting document', error);
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    // Check if error is an instance of Error to safely access message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Internal server error', errorMessage);
   }
 };
 

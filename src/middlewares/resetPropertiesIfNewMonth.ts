@@ -19,6 +19,7 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { Request, Response, NextFunction } from 'express';
+import { ApiResponse } from '@/lib/api_response';
 
 /**
  * Helper function to format a date as DD/MM/YYYY: HH:MM in UTC
@@ -34,7 +35,7 @@ const formatDate = (date: Date | null): string => {
 };
 
 /**
- * Middleware to reset user properties (prompt and lengthOfDocs) if it's a new month.
+ * Middleware to reset user properties ( doc prompts and lengthOfDocs) if it's a new month.
  */
 const resetPropertiesIfNewMonth = async (
   req: Request,
@@ -45,10 +46,11 @@ const resetPropertiesIfNewMonth = async (
 
   if (!userId) {
     logger.warn('No userId provided in request for resetPropertiesIfNewMonth');
-    res.status(400).json({
-      code: 'Bad Request',
-      error: 'User ID is required.',
-    });
+    ApiResponse.badRequest(
+      res,
+      'No userId provided in request for resetPropertiesIfNewMonth.',
+    );
+
     return;
   }
 
@@ -57,10 +59,7 @@ const resetPropertiesIfNewMonth = async (
     const user = await User.findOne({ userId }).select('plan updatedAt').exec();
     if (!user) {
       logger.warn('User not found for resetPropertiesIfNewMonth', { userId });
-      res.status(400).json({
-        code: 'Bad Request',
-        error: 'User not found.',
-      });
+      ApiResponse.notFound(res, 'User not found');
       return;
     }
 
@@ -78,14 +77,23 @@ const resetPropertiesIfNewMonth = async (
 
     const now = new Date();
     const userLastUpdated = new Date(user.updatedAt);
-    const documentLastUpdated = latestDocument ? new Date(latestDocument.updatedAt!) : null;
-    const chatBotHistoryLastUpdated = latestChatBotHistory ? new Date(latestChatBotHistory.updatedAt) : null;
+    const documentLastUpdated = latestDocument
+      ? new Date(latestDocument.updatedAt!)
+      : null;
+    const chatBotHistoryLastUpdated = latestChatBotHistory
+      ? new Date(latestChatBotHistory.updatedAt)
+      : null;
 
     // Find the most recent update timestamp
-    const timestamps = [userLastUpdated, documentLastUpdated, chatBotHistoryLastUpdated].filter(
-      (ts): ts is Date => ts !== null
-    );
-    const mostRecentUpdate = timestamps.length > 0 ? new Date(Math.max(...timestamps.map(ts => ts.getTime()))) : userLastUpdated;
+    const timestamps = [
+      userLastUpdated,
+      documentLastUpdated,
+      chatBotHistoryLastUpdated,
+    ].filter((ts): ts is Date => ts !== null);
+    const mostRecentUpdate =
+      timestamps.length > 0
+        ? new Date(Math.max(...timestamps.map((ts) => ts.getTime())))
+        : userLastUpdated;
 
     // Check if it's a new month based on the most recent update
     const isNewMonth =
@@ -94,56 +102,53 @@ const resetPropertiesIfNewMonth = async (
 
     if (isNewMonth) {
       // Set reset values based on user plan
-      const resetValues = user.plan === 'premium'
-        ? { lengthOfDocs: 5, prompt: 10, updatedAt: new Date() }
-        : { lengthOfDocs: 3, updatedAt: new Date() };
+      const resetLengthOfDocs = {
+        lengthOfDocs: {
+          premium: { max: 5, min: 0, current: 5 },
+          free: { max: 2, min: 0, current: 2 },
+        },
+        updatedAt: new Date(),
+      };
 
-      const result = await User.updateOne(
+      const resetChatBotPrompts = {
+        chatBotPrompt: {
+          premium: { max: 10, min: 0, current: 10 },
+          free: { max: 0, min: 0, current: 0 },
+        },
+        updatedAt: new Date(),
+      };
+
+      const lengthOfDocsResult = await User.updateOne(
         { userId },
-        { $set: resetValues },
+        { $set: resetLengthOfDocs },
       ).exec();
 
-      if (result.modifiedCount === 0) {
+      const documentsResult = await Document.updateMany(
+        { userId },
+        { $set: resetChatBotPrompts },
+      ).exec();
+
+      if (
+        lengthOfDocsResult.modifiedCount === 0 ||
+        documentsResult.modifiedCount === 0
+      ) {
         logger.warn('Failed to reset user properties', { userId });
-        res.status(500).json({
-          code: 'Internal Server Error',
-          error: 'Failed to reset user properties.',
-        });
+        ApiResponse.serverError(res, 'Failed to reset user properties');
         return;
       }
-
-      logger.info('User properties reset successfully for new month', {
-        userId,
-        plan: user.plan,
-        currentDate: formatDate(now),
-        userLastUpdated: formatDate(userLastUpdated),
-        documentLastUpdated: formatDate(documentLastUpdated),
-        chatBotHistoryLastUpdated: formatDate(chatBotHistoryLastUpdated),
-      });
     } else {
       logger.info('No reset needed; not a new month', {
         userId,
         plan: user.plan,
-        currentDate: formatDate(now),
-        userLastUpdated: formatDate(userLastUpdated),
-        documentLastUpdated: formatDate(documentLastUpdated),
-        chatBotHistoryLastUpdated: formatDate(chatBotHistoryLastUpdated),
       });
     }
 
     next();
-  } catch (error) {
-    logger.error('Error in resetPropertiesIfNewMonth middleware', {
-      userId,
-      error:
-        error instanceof Error
-          ? { message: error.message, stack: error.stack }
-          : 'Unknown error',
-    });
-    res.status(500).json({
-      code: 'Internal Server Error',
-      error: 'Failed to reset user properties.',
-    });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Access denied, invalid token', errorMessage);
+    logger.error('Error in reset PRoperties new month', errorMessage);
   }
 };
 

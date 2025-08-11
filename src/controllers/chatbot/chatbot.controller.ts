@@ -22,6 +22,7 @@ import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { IOpenAIService } from '@/services/openai/openai.interface';
 import { IChatBotHistory, IChatMessage } from '@/models/chatbotHistory.model';
 import { IDocumentService } from '@/services/document/document.interface';
+import { ApiResponse } from '@/lib/api_response';
 
 const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
   const chatBotService = container.resolve<IChatBotService>('IChatBotService');
@@ -31,30 +32,35 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
     container.resolve<IDocumentService>('IDocumentService');
 
   try {
-    const { prompt } = req.body;
+    const { userPrompt } = req.body;
     const userId = req.userId;
     const docId = req.params.docId;
 
-    // Validate inputs
-    if (!userId || !docId || !prompt) {
-      res.status(400).json({
-        code: 'BadRequest',
-        message: 'User ID, Document ID, and prompt are required',
-      });
+    // Retrieve user plan
+    const user = await userService.checkIfUserExist(req);
+    if (
+      !user ||
+      user.plan !== 'premium' ||
+      user.lengthOfDocs.premium?.current === 0
+    ) {
+      logger.error(
+        'User does not have a premium plan or user can no longer use the chatbot for the current month',
+        { userId },
+      );
+
+      ApiResponse.badRequest(
+        res,
+        'User does not have a premium plan or user can no longer use the chatbot for the current month',
+      );
       return;
     }
 
-    // Retrieve user plan
-    const user = await userService.checkIfUserExist(req);
-    if (!user || user.plan !== 'premium') {
-      logger.error(
-        'User should have a premium plan to access chatbot feature',
-        { userId },
-      );
-      res.status(403).json({
-        code: 'Forbidden',
-        message: 'User should have a premium plan to access chatbot feature',
-      });
+    const document = await documentService.getDocument(userId, docId);
+
+    if (!document) {
+      logger.error('Document does not exist', { userId });
+
+      ApiResponse.badRequest(res, 'Document does not exist');
       return;
     }
 
@@ -65,21 +71,6 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
     );
 
     if (!chatHistory) {
-      // If no chat history exists, retrieve the Document
-      const document = await documentService.getDocument(userId, docId);
-      if (!document || !document.translatedText) {
-        logger.error(
-          'Document not found or missing translated text/target language',
-          { userId, docId },
-        );
-        res.status(400).json({
-          code: 'BadRequest',
-          message:
-            'Document not found or missing translated text/target language',
-        });
-        return;
-      }
-
       // Create new ChatBotHistory
       const newChatHistory: IChatBotHistory = {
         userId,
@@ -92,16 +83,6 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
 
       chatHistory = await chatBotService.addTranslatedText(newChatHistory);
       logger.info('Created new ChatBotHistory', { userId, docId });
-    } else if (!chatHistory.translatedText) {
-      logger.error(
-        'Translated text or target language is missing in ChatBotHistory',
-        { userId, docId },
-      );
-      res.status(400).json({
-        code: 'BadRequest',
-        message: 'Translated text is missing for this document',
-      });
-      return;
     }
 
     // Set response headers for streaming
@@ -113,9 +94,8 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
 
     // Stream AI response
     let completeResponse = '';
-    const stream = await openAiService.chatBotStream(chatHistory, prompt);
+    const stream = await openAiService.chatBotStream(chatHistory, userPrompt);
     for await (const chunk of stream) {
-      logger.debug('Received stream chunk', { userId, docId, chunk });
       if (chunk.choices[0]?.delta?.content) {
         const content = chunk.choices[0].delta.content;
         completeResponse += content;
@@ -123,9 +103,14 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // After streaming is complete, update ChatBotHistory with the new prompt and response
+    // Decrement chatBotPrompt.premium.current by -1 for premium users
+    await documentService.updateDocument(userId, docId, {
+      $inc: { 'chatBotPrompt.premium.current': -1 },
+    });
+
+    // After streaming is complete, update ChatBotHistory with the new userPrompt and response
     const newChat: IChatMessage = {
-      prompt,
+      userPrompt,
       response: completeResponse,
       time: new Date(),
     };
@@ -134,21 +119,13 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
     // End the response stream
     res.end();
 
-    logger.info('Chatbot response streamed and history updated successfully', {
-      userId,
-      docId,
-    });
-  } catch (err) {
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: err,
-    });
+  } catch (err: any) {
+    ApiResponse.serverError(res, 'Internal server error', err.message);
 
     logger.error('Error during chatbot interaction', {
       userId: req.userId,
       docId: req.params.docId,
-      error: err,
+      error: err.message,
     });
   }
 };

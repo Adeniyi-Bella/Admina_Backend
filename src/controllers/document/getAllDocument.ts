@@ -23,6 +23,7 @@ import { IDocumentService } from '@/services/document/document.interface';
  * Types
  */
 import type { Request, Response } from 'express';
+import { ApiResponse } from '@/lib/api_response';
 
 const getAllDocuments = async (req: Request, res: Response): Promise<void> => {
     const documentService = container.resolve<IDocumentService>('IDocumentService');
@@ -39,14 +40,11 @@ const getAllDocuments = async (req: Request, res: Response): Promise<void> => {
       total,
       documents,
     });
-  } catch (err) {
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: err,
-    });
-
-    logger.error('Error while getting all documents', err);
+  }  catch (error: unknown) {
+    logger.error('Error getting all documents', error);
+    // Check if error is an instance of Error to safely access message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Internal server error', errorMessage);
   }
 };
 

@@ -18,30 +18,32 @@ import { IUserService } from '@/services/users/user.interface';
  * Types
  */
 import type { NextFunction, Request, Response } from 'express';
+import { ApiResponse } from '@/lib/api_response';
 
-const createUser = async (req: Request, res: Response, next: NextFunction,): Promise<void> => {
+const createUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   const userService = container.resolve<IUserService>('IUserService');
 
   try {
-
     let user = await userService.checkIfUserExist(req);
 
-    logger.info("check if user exists", user)
+    logger.info('check if user exists', user);
 
-    if (!user){
-     user  = await userService.createUserFromToken(req);
+    if (!user) {
+      await userService.createUserFromToken(req);
     }
-    
-    return next();
-  } catch (err) {
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: err,
-    });
 
-    logger.error('Error during user registration', err);
-  }
+    return next();
+  } catch (error: unknown) {
+      logger.error('Error deleting document', error);
+      // Check if error is an instance of Error to safely access message
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      ApiResponse.serverError(res, 'Internal server error', errorMessage);
+    }
 };
 
 export default createUser;

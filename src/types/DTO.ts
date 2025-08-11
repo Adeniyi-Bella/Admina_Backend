@@ -9,6 +9,3 @@ export interface ExtractTextResDTO {
   text: string;
   // structuredPages: string; 
 }
-export interface TranslatedTextDTO {
-  text: string;
-}

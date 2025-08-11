@@ -30,7 +30,7 @@ export interface IOpenAIService {
   structureText(text: string, label: string): Promise<string>;
  chatBotStream(
     chatBotHistory: IChatBotHistory,
-    prompt: string,
+    userPrompt: string,
   ): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>
 
 }

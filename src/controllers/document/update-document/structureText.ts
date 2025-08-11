@@ -3,6 +3,7 @@ import { IOpenAIService } from '@/services/openai/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import type { Request, Response } from 'express';
 import { container } from 'tsyringe';
+import { ApiResponse } from '@/lib/api_response';
 
 const structureText = async (req: Request, res: Response): Promise<void> => {
   const documentService =
@@ -16,22 +17,17 @@ const structureText = async (req: Request, res: Response): Promise<void> => {
     const document = await documentService.getDocument(userId!, docId);
 
     if (!document) {
-      res.status(404).json({
-        code: 'NotFound',
-        message: 'Document not found for this user',
-      });
+      ApiResponse.notFound(res, 'Document not found');
       return;
     }
 
     // Check if structured text fields already have content
     const hasStructuredText =
-      // typeof document.structuredOriginalText === 'string' &&
-      // document.structuredOriginalText.trim().length > 0 &&
       typeof document.structuredTranslatedText === 'string' &&
       document.structuredTranslatedText.trim().length > 0;
 
     if (hasStructuredText) {
-      res.status(200).json({ document });
+      ApiResponse.ok(res, 'Document fetched successfully', { document });
       return;
     }
 
@@ -45,26 +41,14 @@ const structureText = async (req: Request, res: Response): Promise<void> => {
       userId!,
       docId,
       {
-        // structuredOriginalText,
         structuredTranslatedText,
       },
     );
-
-    if (!updatedDocument) {
-      res.status(404).json({
-        code: 'NotFound',
-        message: 'Failed to update document',
-      });
-      return;
-    }
-
-    res.status(200).json({ document: updatedDocument });
-  } catch (err) {
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: err,
+    ApiResponse.ok(res, 'Document fetched successfully', {
+      document: updatedDocument,
     });
+  } catch (err) {
+    ApiResponse.serverError(res, 'Internal server error', err);
 
     logger.error('Error while getting document by userId and docId', err);
   }

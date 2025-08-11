@@ -23,14 +23,22 @@ import { IDocumentService } from '@/services/document/document.interface';
 import { container } from 'tsyringe';
 import type { Request, Response } from 'express';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
+import { ApiResponse } from '@/lib/api_response';
 
 const createDocument = async (req: Request, res: Response): Promise<void> => {
-  const azureFreeSubscriptionService = container.resolve<IAzureFreeSubscriptionService>('IAzureFreeSubscriptionService');
-  const azurePremiumSubscriptionService = container.resolve<IAzurePremiumSubscriptionService>('IAzurePremiumSubscriptionService');
+  const azureFreeSubscriptionService =
+    container.resolve<IAzureFreeSubscriptionService>(
+      'IAzureFreeSubscriptionService',
+    );
+  const azurePremiumSubscriptionService =
+    container.resolve<IAzurePremiumSubscriptionService>(
+      'IAzurePremiumSubscriptionService',
+    );
   const userService = container.resolve<IUserService>('IUserService');
   const openAIService = container.resolve<IOpenAIService>('IOpenAIService');
-  const documentService = container.resolve<IDocumentService>('IDocumentService');
-  const chatBotService = container.resolve<IChatBotService>('IChatBotService')
+  const documentService =
+    container.resolve<IDocumentService>('IDocumentService');
+  const chatBotService = container.resolve<IChatBotService>('IChatBotService');
 
   try {
     // Get data from request body
@@ -40,10 +48,7 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
     if (!user) {
-      res.status(400).json({
-        code: 'NotFound',
-        message: 'User details not correct',
-      });
+      ApiResponse.notFound(res, 'User not found');
       return;
     }
 
@@ -53,7 +58,7 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    if (user.plan === 'free') {
+    if (user.plan === 'free' && user.lengthOfDocs.free?.current) {
       await azureFreeSubscriptionService.processFreeUserDocument({
         file,
         docLanguage,
@@ -65,7 +70,7 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         userService,
       });
       res.end();
-    } else if (user.plan === 'premium') {
+    } else if (user.plan === 'premium' && user.lengthOfDocs.premium?.current) {
       await azurePremiumSubscriptionService.processPremiumUserDocument({
         file,
         docLanguage,
@@ -75,15 +80,13 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         openAIService,
         documentService,
         userService,
-        chatBotService
+        chatBotService,
       });
       res.end();
     } else {
-      res.status(400).write(
-        `event: error\ndata: ${JSON.stringify({
-          code: 'BadRequest',
-          message: 'Invalid user data',
-        })}\n\n`,
+      ApiResponse.badRequest(
+        res,
+        'Invalid user data or user has processed maximum document for the month.',
       );
       res.end();
       return;
@@ -91,16 +94,8 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
   } catch (error: any) {
     logger.error('Error during document processing', {
       error: error.message,
-      stack: error.stack,
     });
-    res.status(500).write(
-      `event: error\ndata: ${JSON.stringify({
-        code: 'ServerError',
-        message: 'Failed to process document',
-        error: 'Failed to process document',
-        errorStatus: 500,
-      })}\n\n`,
-    );
+    ApiResponse.serverError(res, 'Internal server error', error.message);
     res.end();
     return;
   }

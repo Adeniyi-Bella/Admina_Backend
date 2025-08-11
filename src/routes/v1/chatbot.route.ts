@@ -29,12 +29,12 @@ router.use(authenticate);
 router.use(resetPropertiesIfNewMonth);
 
 // Chatbot route
-// Receives everytime the structured document content and the current prompt
-// Saves previous prompts and documents on the server and uses in the next prompt request
+// Receives everytime the structured document content and the current userPrompt
+// Saves previous userPrompts and documents on the server and uses in the next userPrompt request
 router.patch(
   '/:docId',
   param('docId').notEmpty().isUUID().withMessage('Invalid doId ID'),
-  body('prompt')
+  body('userPrompt')
     .exists().trim().notEmpty()
     .withMessage('Prompt is required')
     .isString()

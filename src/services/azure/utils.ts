@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { logger } from '@/lib/winston';
+import { ApiResponse } from '@/lib/api_response';
 
 // Utility to send an SSE message and flush the response
 export function sendSseMessage(res: Response, event: string, data: any): void {
@@ -17,15 +18,8 @@ export async function handleSseAsyncOperation<T>(
     const result = await operation();
     return result;
   } catch (error: any) {
-    logger.error(errorMessage, { "Error is:": error.message });
-    res.status(500).write(
-      `event: error\ndata: ${JSON.stringify({
-        code: 'ServerError',
-        message: 'Failed to process document',
-        error: errorMessage,
-        errorStatus: 500,
-      })}\n\n`,
-    );
+    logger.error(errorMessage, { 'Error is:': error.message });
+    ApiResponse.serverError(res, 'Failed to process document', error.message);
     res.end();
     throw error; // Rethrow to allow caller to handle early termination
   }

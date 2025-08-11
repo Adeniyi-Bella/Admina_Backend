@@ -27,7 +27,7 @@ import { logger } from '@/lib/winston';
 @injectable()
 export class ChatBotService implements IChatBotService {
 
-  async getDocumentChatBotCollection(userId: string, docId: string): Promise<IChatBotHistory> {
+  async getDocumentChatBotCollection(userId: string, docId: string): Promise<IChatBotHistory |null > {
     try {
       if (!userId || !docId) {
         throw new Error('User ID and Document ID are required');
@@ -41,11 +41,6 @@ export class ChatBotService implements IChatBotService {
         .lean()
         .exec();
 
-      if (!result) {
-        throw new Error('Chat history collection not found');
-      }
-
-      logger.info('Chat history collection retrieved successfully', { userId, docId });
       return result;
     } catch (error) {
       logger.error('Failed to retrieve chat history collection', { error, userId, docId });
@@ -54,7 +49,7 @@ export class ChatBotService implements IChatBotService {
   }
    async updateDocumentChatBotHistory(userId: string, docId: string, chat: IChatMessage): Promise<void> {
     try {
-      if (!userId || !docId || !chat || !chat.prompt || !chat.response) {
+      if (!userId || !docId || !chat || !chat.userPrompt || !chat.response) {
         throw new Error('User ID, Document ID, and valid chat data are required');
       }
 
@@ -103,6 +98,26 @@ export class ChatBotService implements IChatBotService {
     } catch (error) {
       logger.error('Failed to create chat history collection', { error: error });
       throw new Error(`Failed to create chat history collection: ${error}`);
+    }
+  }
+
+  async deleteChatHistoryByUserId(userId: string): Promise<boolean> {
+    try {
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
+      const result = await ChatBotHistory.deleteMany({ userId }).exec();
+
+      if (result.deletedCount === 0) {
+        logger.info('No chat history found for user', { userId });
+      }
+
+      logger.info('Chat history deleted successfully', { userId });
+      return true;
+    } catch (error) {
+      logger.error('Failed to delete chat history', { error, userId });
+      throw new Error(`Failed to delete chat history: ${error}`);
     }
   }
 }

@@ -24,7 +24,7 @@ export interface IDocumentService {
   updateDocument(
     userId: string,
     docId: string,
-    updates: Partial<IDocument>,
+    updates: Partial<IDocument> | { $inc?: any },
   ): Promise<IDocument | null>;
 
   updateActionPlan(

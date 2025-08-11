@@ -14,10 +14,12 @@ export interface IChatBotService {
   getDocumentChatBotCollection(
     userId: string,
     docId: string,
-  ): Promise<IChatBotHistory>;
+  ): Promise<IChatBotHistory | null>;
   updateDocumentChatBotHistory(
     userId: string,
     docId: string,
     chat: IChatMessage,
   ): Promise<void>;
+
+  deleteChatHistoryByUserId(userId: string): Promise<boolean>
 }

@@ -73,9 +73,7 @@ export class UserService implements IUserService {
         return false;
       }
       logger.error('Failed to delete user from Entra ID', { userId, error });
-      throw new Error(
-        `Failed to delete user from Entra ID`,
-      );
+      throw new Error(`Failed to delete user from Entra ID`);
     }
   }
 
@@ -101,12 +99,12 @@ export class UserService implements IUserService {
   async updateUser(
     userId: string,
     property: string,
-    increment: boolean,
-    value: string | undefined,
+    decrement: boolean,
+    value: string | undefined | number | {},
   ): Promise<boolean> {
     try {
-      const update = increment
-        ? { $inc: { [property]: 1 }, $set: { updatedAt: new Date() } }
+      const update = decrement
+        ? { $inc: { [property]: -1 }, $set: { updatedAt: new Date() } }
         : { $set: { [property]: value, updatedAt: new Date() } };
 
       const result = await User.updateOne({ userId }, update).exec();
@@ -117,8 +115,8 @@ export class UserService implements IUserService {
       }
 
       logger.info(
-        `${property} ${increment ? 'incremented' : 'updated'} successfully`,
-        { userId, property, value: increment ? 1 : value },
+        `${property} ${decrement ? 'decremented' : 'updated'} successfully`,
+        { userId, property, value: decrement ? 1 : value },
       );
       return true;
     } catch (error) {
@@ -138,23 +136,24 @@ export class UserService implements IUserService {
     return {
       userId: String(user.userId),
       plan: user.plan,
+      lengthOfDocs: user.lengthOfDocs,
     };
   }
 
-  async createUserFromToken(req: Request): Promise<UserDTO> {
+  async createUserFromToken(req: Request): Promise<void> {
     const userId = req.userId;
     const email = req.email;
     const username = req.username;
 
-    const newUser = await User.create({
+    await User.create({
       userId,
       email: email,
       username: username,
     });
 
-    return {
-      userId: String(newUser.userId),
-      plan: newUser.plan,
-    };
+    // return {
+    //   userId: String(newUser.userId),
+    //   plan: newUser.plan,
+    // };
   }
 }

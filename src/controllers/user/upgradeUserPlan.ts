@@ -18,35 +18,46 @@ import { IUserService } from '@/services/users/user.interface';
  * Types
  */
 import type { Request, Response } from 'express';
+import { IDocumentService } from '@/services/document/document.interface';
+import { ApiResponse } from '@/lib/api_response';
 
 const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
   const userService = container.resolve<IUserService>('IUserService');
+  const docService = container.resolve<IDocumentService>('IDocumentService');
 
   try {
     // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
     if (!user || user.plan !== 'free') {
-
       logger.error('User or User should have a free plan');
-      res.status(400).json({
-        code: 'NotFound',
-        message: 'User details not correct',
-      });
+      ApiResponse.notFound(res, 'User not found');
       return;
     }
 
     await userService.updateUser(req.userId, 'plan', false, 'premium');
-    await userService.updateUser(req.userId, 'prompt', false, 10);
 
-    res.status(200).json({ message: 'ok' });
-  } catch (err) {
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      error: err,
+    await userService.updateUser(req.userId, 'lengthOfDocs', false, {
+      premium: { max: 5, min: 0, current: 5 },
     });
 
-    logger.error('Error during user registration', err);
+    const { documents } = await docService.getAllDocumentsByUserId(
+      req.userId,
+      user.lengthOfDocs.free!.max,
+      0,
+    );
+    for (const doc of documents) {
+      await docService.updateDocument(req.userId, doc.docId, {
+        chatBotPrompt: {
+          premium: { max: 10, min: 0, current: 10 },
+        },
+      });
+    }
+    ApiResponse.ok(res, 'User upgraded successfully');
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Internal server error', errorMessage);
+    logger.error('Error upgrading user', errorMessage);
   }
 };
 

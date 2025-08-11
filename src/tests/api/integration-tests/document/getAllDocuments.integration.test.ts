@@ -10,20 +10,24 @@ import { container } from 'tsyringe';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { v4 as uuidv4 } from 'uuid';
 import router from '@/routes/v1/document.route';
-import Document, { IDocument } from '@/models/document.model';
-import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IDocumentService } from '@/services/document/document.interface';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { IUserService } from '@/services/users/user.interface';
-import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 import { logger } from '@/lib/winston';
-import { DocumentService } from '@/services/document/document.service';
+import config from '@/config';
+import { IDocument } from '@/models/document.model';
+import mongoose from 'mongoose';
+import { Server } from 'http';
+import { IAzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.interface';
 
 // Mock config
 jest.mock('@/config', () => ({
   defaultResLimit: 10,
   defaultResOffset: 0,
+  AZURE_STORAGE_ACCOUNT_CONNECTION_STRING: 'mock-connection-string',
 }));
 
-// Mock logger module entirely to ensure consistent instance
+// Mock logger
 jest.mock('@/lib/winston', () => ({
   logger: {
     error: jest.fn(),
@@ -31,6 +35,10 @@ jest.mock('@/lib/winston', () => ({
     info: jest.fn(),
   },
 }));
+
+// Mock Mongoose models
+jest.mock('@/models/document.model');
+jest.mock('@/models/chatbotHistory.model');
 
 // Mock middleware
 jest.mock('@/middlewares/authenticate', () => {
@@ -51,47 +59,96 @@ jest.mock('@/middlewares/validationError', () => {
 });
 
 jest.mock('@/middlewares/resetPropertiesIfNewMonth', () => {
-  return jest.fn((req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     next();
-  });
+  };
 });
 
-// Mock Mongoose models
-jest.mock('@/models/document.model');
-jest.mock('@/models/user.model');
+// Mock multer to avoid file upload issues
+jest.mock('multer', () => {
+  const multerMock = () => ({
+    single: () => (req: Request, res: Response, next: NextFunction) => next(),
+  });
+  multerMock.memoryStorage = jest.fn();
+  return multerMock;
+});
 
 const app = express();
 app.use(express.json());
 app.use('/documents', router);
+let server: Server;
 
-describe('Document Routes - GET /documents (Integration Test)', () => {
+describe('Document Routes - GET /documents', () => {
+  let documentService: MockProxy<IDocumentService>;
+  let chatBotService: MockProxy<IChatBotService>;
+  let userService: MockProxy<IUserService>;
+  let azureBlobService: MockProxy<IAzureBlobService>;
   const userId = 'test-user-id';
   const docId = `${uuidv4()}.pdf`;
 
-  let chatGtpService: MockProxy<IOpenAIService>;
-  let userService: MockProxy<IUserService>;
-  let azureFreeSubscriptionService: MockProxy<IAzureFreeSubscriptionService>;
+  beforeAll(async () => {
+    server = app.listen(0);
+    await new Promise((resolve) => server.once('listening', resolve));
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
 
-    // Register real DocumentService
-    container.register('IDocumentService', { useClass: DocumentService });
-
-    // Mock unused services for router consistency
-    chatGtpService = mock<IOpenAIService>();
+    // Mock all services
+    documentService = mock<IDocumentService>();
+    chatBotService = mock<IChatBotService>();
     userService = mock<IUserService>();
-    azureFreeSubscriptionService = mock<IAzureFreeSubscriptionService>();
-    container.register('IOpenAIService', { useValue: chatGtpService });
+    azureBlobService = mock<IAzureBlobService>();
+
+    // Register mocks in tsyringe container
+    container.register('IDocumentService', { useValue: documentService });
+    container.register('IChatBotService', { useValue: chatBotService });
     container.register('IUserService', { useValue: userService });
-    container.register('IAzureFreeSubscriptionService', {
-      useValue: azureFreeSubscriptionService,
-    });
+    container.register('IAzureBlobService', { useValue: azureBlobService });
   });
 
-  describe('GET /documents', () => {
-    it('should return paginated documents with valid limit and offset', async () => {
-      const mockDocuments: IDocument[] = [
+  afterEach(() => {
+    jest.clearAllTimers();
+    container.clearInstances();
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.close();
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
+  it('should return paginated documents with valid limit and offset', async () => {
+    const mockDocuments: IDocument[] = [
+      {
+        userId,
+        docId,
+        title: 'Test Document',
+        summary: 'Summary',
+        translatedText: 'Translated',
+        targetLanguage: 'es',
+        pdfBlobStorage: true,
+        createdAt: new Date('2025-08-06T21:10:29.978Z'),
+        updatedAt: new Date('2025-08-06T21:10:29.978Z'),
+      },
+    ];
+    documentService.getAllDocumentsByUserId.mockResolvedValue({
+      total: 1,
+      documents: mockDocuments,
+    });
+
+    const response = await request(app)
+      .get('/documents?limit=10&offset=0')
+      .set('Accept', 'application/json');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      limit: 10,
+      offset: 0,
+      total: 1,
+      documents: [
         {
           userId,
           docId,
@@ -99,50 +156,49 @@ describe('Document Routes - GET /documents (Integration Test)', () => {
           summary: 'Summary',
           translatedText: 'Translated',
           targetLanguage: 'es',
-          createdAt: new Date('2025-08-06T21:10:29.978Z'),
-          updatedAt: new Date('2025-08-06T21:10:29.978Z'),
+          pdfBlobStorage: true,
+          createdAt: '2025-08-06T21:10:29.978Z',
+          updatedAt: '2025-08-06T21:10:29.978Z',
         },
-      ];
-      (Document.countDocuments as jest.Mock).mockResolvedValue(1);
-      (Document.find as jest.Mock).mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(mockDocuments),
-      });
+      ],
+    });
+    expect(documentService.getAllDocumentsByUserId).toHaveBeenCalledWith(
+      userId,
+      10,
+      0,
+    );
+    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
+  });
 
-      const response = await request(app)
-        .get('/documents?limit=10&offset=0')
-        .set('Accept', 'application/json');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual({
-        limit: 10,
-        offset: 0,
-        total: 1,
-        documents: [
-          {
-            userId,
-            docId,
-            title: 'Test Document',
-            summary: 'Summary',
-            translatedText: 'Translated',
-            targetLanguage: 'es',
-            createdAt: '2025-08-06T21:10:29.978Z',
-            updatedAt: '2025-08-06T21:10:29.978Z',
-          },
-        ],
-      });
-      expect(Document.find).toHaveBeenCalledWith({ userId });
-      expect(Document.find().limit).toHaveBeenCalledWith(10);
-      expect(Document.find().skip).toHaveBeenCalledWith(0);
-      expect(Document.countDocuments).toHaveBeenCalledWith({ userId });
+  it('should use default limit and offset from config if not provided', async () => {
+    const mockDocuments: IDocument[] = [
+      {
+        userId,
+        docId,
+        title: 'Test Document',
+        summary: 'Summary',
+        translatedText: 'Translated',
+        targetLanguage: 'es',
+        pdfBlobStorage: true,
+        createdAt: new Date('2025-08-06T21:10:29.978Z'),
+        updatedAt: new Date('2025-08-06T21:10:29.978Z'),
+      },
+    ];
+    documentService.getAllDocumentsByUserId.mockResolvedValue({
+      total: 1,
+      documents: mockDocuments,
     });
 
-    it('should use default limit and offset from config if not provided', async () => {
-      const mockDocuments: IDocument[] = [
+    const response = await request(app)
+      .get('/documents')
+      .set('Accept', 'application/json');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      limit: 10,
+      offset: 0,
+      total: 1,
+      documents: [
         {
           userId,
           docId,
@@ -150,126 +206,106 @@ describe('Document Routes - GET /documents (Integration Test)', () => {
           summary: 'Summary',
           translatedText: 'Translated',
           targetLanguage: 'es',
-          createdAt: new Date('2025-08-06T21:10:29.978Z'),
-          updatedAt: new Date('2025-08-06T21:10:29.978Z'),
+          pdfBlobStorage: true,
+          createdAt: '2025-08-06T21:10:29.978Z',
+          updatedAt: '2025-08-06T21:10:29.978Z',
         },
-      ];
-      (Document.countDocuments as jest.Mock).mockResolvedValue(1);
-      (Document.find as jest.Mock).mockReturnValue({
-        sort: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(mockDocuments),
-      });
-
-      const response = await request(app)
-        .get('/documents')
-        .set('Accept', 'application/json');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual({
-        limit: 10,
-        offset: 0,
-        total: 1,
-        documents: [
-          {
-            userId,
-            docId,
-            title: 'Test Document',
-            summary: 'Summary',
-            translatedText: 'Translated',
-            targetLanguage: 'es',
-            createdAt: '2025-08-06T21:10:29.978Z',
-            updatedAt: '2025-08-06T21:10:29.978Z',
-          },
-        ],
-      });
-      expect(Document.find().limit).toHaveBeenCalledWith(10);
-      expect(Document.find().skip).toHaveBeenCalledWith(0);
+      ],
     });
+    expect(documentService.getAllDocumentsByUserId).toHaveBeenCalledWith(
+      userId,
+      10,
+      0,
+    );
+    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
+  });
 
-    it('should return 400 for invalid limit', async () => {
-      const response = await request(app)
-        .get('/documents?limit=51')
-        .set('Accept', 'application/json');
+  it('should return 400 for invalid limit', async () => {
+    const response = await request(app)
+      .get('/documents?limit=51')
+      .set('Accept', 'application/json');
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        errors: [
-          {
-            msg: 'Limit must be between 1 to 20',
-            path: 'limit',
-            type: 'field',
-            value: '51',
-            location: 'query',
-          },
-        ],
-      });
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          msg: 'Limit must be between 1 to 20',
+          path: 'limit',
+          type: 'field',
+          value: '51',
+          location: 'query',
+        },
+      ],
     });
+    expect(documentService.getAllDocumentsByUserId).not.toHaveBeenCalled();
+    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
+  });
 
-    it('should return 400 for non-integer limit', async () => {
-      const response = await request(app)
-        .get('/documents?limit=abc')
-        .set('Accept', 'application/json');
+  it('should return 400 for non-integer limit', async () => {
+    const response = await request(app)
+      .get('/documents?limit=abc')
+      .set('Accept', 'application/json');
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        errors: [
-          {
-            msg: 'Limit must be between 1 to 20',
-            path: 'limit',
-            type: 'field',
-            value: 'abc',
-            location: 'query',
-          },
-        ],
-      });
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          msg: 'Limit must be between 1 to 20',
+          path: 'limit',
+          type: 'field',
+          value: 'abc',
+          location: 'query',
+        },
+      ],
     });
+    expect(documentService.getAllDocumentsByUserId).not.toHaveBeenCalled();
+    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
+  });
 
-    it('should return 400 for negative offset', async () => {
-      const response = await request(app)
-        .get('/documents?offset=-1')
-        .set('Accept', 'application/json');
+  it('should return 400 for negative offset', async () => {
+    const response = await request(app)
+      .get('/documents?offset=-1')
+      .set('Accept', 'application/json');
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        errors: [
-          {
-            msg: 'Offset must be a positive integer',
-            path: 'offset',
-            type: 'field',
-            value: '-1',
-            location: 'query',
-          },
-        ],
-      });
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          msg: 'Offset must be a positive integer',
+          path: 'offset',
+          type: 'field',
+          value: '-1',
+          location: 'query',
+        },
+      ],
     });
+    expect(documentService.getAllDocumentsByUserId).not.toHaveBeenCalled();
+    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
+  });
 
-    it('should return 500 if DocumentService throws an error', async () => {
-      (Document.find as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockRejectedValue(new Error('Database error')),
-      });
+  it('should return 500 if DocumentService throws an error', async () => {
+    const error = new Error('Database error');
+    documentService.getAllDocumentsByUserId.mockRejectedValue(error);
 
-      const response = await request(app)
-        .get('/documents?limit=10&offset=0')
-        .set('Accept', 'application/json');
+    const response = await request(app)
+      .get('/documents?limit=10&offset=0')
+      .set('Accept', 'application/json');
 
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({
-        code: 'ServerError',
-        message: 'Internal server error',
-        error: expect.any(Object),
-      });
-      expect(logger.error).toHaveBeenCalledWith(
-        'Error while getting all documents',
-        expect.any(Error),
-      );
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      code: 'SERVER_ERROR',
+      message: 'Internal server error',
+      data: 'Database error',
+      status: 'error',
+      timestamp: expect.any(String),
+      version: '1.0.0',
     });
+    expect(logger.error).toHaveBeenCalledWith('Error getting all documents', error);
+    expect(documentService.getAllDocumentsByUserId).toHaveBeenCalledWith(
+      userId,
+      10,
+      0,
+    );
+    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
   });
 });

@@ -12,15 +12,13 @@ import { validationResult } from 'express-validator';
  * Types
  */
 import type { Request, Response, NextFunction } from 'express';
+import { ApiResponse } from '@/lib/api_response';
 
 const validationError = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    res.status(400).json({
-      code: 'ValidationError',
-      errors: errors.mapped(),
-    });
+    ApiResponse.badRequest(res, 'ValidationError.', errors.mapped());
     return;
   }
 

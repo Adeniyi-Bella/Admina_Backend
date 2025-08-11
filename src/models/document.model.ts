@@ -8,6 +8,7 @@
  */
 import { Schema, model } from 'mongoose';
 import { Binary } from 'mongodb';
+import { IPlans, IValues } from '@/types';
 
 // Define TypeScript interface for an action plan
 export interface IActionPlan {
@@ -21,19 +22,46 @@ export interface IActionPlan {
 export interface IDocument {
   userId: string;
   docId: string;
+  chatBotPrompt?: IPlans;
   title?: string;
   sender?: string;
   receivedDate?: Date;
   summary: string;
   translatedText?: string;
-  translatedPdf?: Buffer | Binary;
+  pdfBlobStorage: boolean;
   targetLanguage: string;
   structuredTranslatedText?: string;
   actionPlan?: { title?: string; reason?: string }[];
   actionPlans?: IActionPlan[];
-  createdAt?: Date; 
+  createdAt?: Date;
   updatedAt?: Date;
 }
+
+/**
+ * Sub-schemas
+ */
+const valuesSchema = new Schema<IValues>(
+  {
+    max: { type: Number, default: 0 },
+    min: { type: Number, default: 0 },
+    current: { type: Number, default: 0 },
+  },
+  { _id: false },
+);
+
+const plansSchema = new Schema<IPlans>(
+  {
+    premium: {
+      type: valuesSchema,
+      default: () => ({ max: 10, min: 0, current: 10 }),
+    },
+    free: {
+      type: valuesSchema,
+      default: () => ({ max: 0, min: 0, current: 0 }),
+    },
+  },
+  { _id: false },
+);
 
 /**
  * Document schema
@@ -48,6 +76,15 @@ const documentSchema = new Schema<IDocument>(
       type: String,
       required: [true, 'Document ID is required'],
     },
+
+    chatBotPrompt: {
+      type: plansSchema,
+      default: () => ({
+        premium: { max: 10, min: 0, current: 10 },
+        free: { max: 0, min: 0, current: 0 },
+      }),
+    },
+
     title: {
       type: String,
       default: '',
@@ -67,9 +104,9 @@ const documentSchema = new Schema<IDocument>(
       type: String,
       default: '',
     },
-    translatedPdf: {
-      type: Buffer,
-      default: null,
+    pdfBlobStorage: {
+      type: Boolean,
+      required: true
     },
     targetLanguage: {
       type: String,

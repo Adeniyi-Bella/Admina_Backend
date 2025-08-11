@@ -18,6 +18,7 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { Request, Response, NextFunction } from 'express';
+import { ApiResponse } from '@/lib/api_response';
 
 /**
  * @function authenticate
@@ -40,10 +41,7 @@ const authenticate = async (
 
   // If there's no Bearer token, respond with 401 Unauthorized
   if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({
-      code: 'AuthenticationError',
-      message: 'Access denied, no token provided',
-    });
+    ApiResponse.unauthorized(res, 'Access denied, invalid token');
     return;
   }
 
@@ -62,7 +60,7 @@ const authenticate = async (
     };
 
     if (!jwtPayload.oid) {
-      throw new Error('Access token invalid');
+      throw new Error('Access denied, invalid token');
     }
     req.userId = jwtPayload.oid;
     req.email = jwtPayload.preferred_username;
@@ -70,37 +68,11 @@ const authenticate = async (
 
     // Proceed to the next middleware or route handler
     return next();
-  } catch (error) {
-    // Handle expired token error
-    if (error instanceof TokenExpiredError) {
-      res.status(401).json({
-        code: 'AuthenticationError',
-        message: 'Access token expired, request a new one with refresh token',
-      });
-      return;
-    }
-
-    // Handle invalid token error
-    if (error instanceof JsonWebTokenError) {
-      res.status(401).json({
-        code: 'AuthenticationError',
-        message: 'Access token invalid',
-      });
-      return;
-    }
-
-    res.status(500).json({
-      code: 'ServerError',
-      message: 'Internal server error',
-      // error: error instanceof Error ? { message: error.message } : error,
-    });
-    logger.error('Error in authenticate middleware', {
-      error:
-        error instanceof Error
-          ? { message: error.message, stack: error.stack }
-          : error,
-    });
-
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    ApiResponse.serverError(res, 'Access denied, invalid token', errorMessage);
+    logger.error('Access denied, invalid token', errorMessage);
   }
 };
 

@@ -14,17 +14,13 @@ const router = Router();
 import userRoutes from '@/routes/v1/user.route';
 import documentRoutes from '@/routes/v1/document.route';
 import chatbotRoutes from '@/routes/v1/chatbot.route'
+import { ApiResponse } from '@/lib/api_response';
 
 /**
  * Root route
  */
 router.get('/', (_, res) => {
-  res.status(200).json({
-    message: 'API is live',
-    status: 'ok',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-  });
+  ApiResponse.ok(res, 'API is live');
 });
 
 router.use('/users', userRoutes);

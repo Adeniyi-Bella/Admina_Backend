@@ -15,7 +15,7 @@ import { injectable } from 'tsyringe';
  */
 import { logger } from '@/lib/winston';
 import config from '@/config';
-import { Prompt } from './prompts';
+import { Prompt } from './userPrompts';
 
 /**
  * Types
@@ -31,7 +31,7 @@ import { IChatBotHistory } from '@/models/chatbotHistory.model';
 @injectable()
 export class OpenAIService implements IOpenAIService {
   private readonly openai: OpenAI;
-  private readonly prompt: Prompt;
+  private readonly userPrompt: Prompt;
 
   constructor() {
     const apiKey = config.OPENAI_API_KEY;
@@ -39,15 +39,15 @@ export class OpenAIService implements IOpenAIService {
       throw new Error('OPENAI_API_VALUE must be set in environment variables');
     }
     this.openai = new OpenAI({ apiKey });
-    this.prompt = new Prompt();
+    this.userPrompt = new Prompt();
   }
 
    async chatBotStream(
     chatBotHistory: IChatBotHistory,
-    prompt: string,
+    userPrompt: string,
   ): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
     try {
-      const messages = this.prompt.buildChatBotPrompt(chatBotHistory, prompt);
+      const messages = this.userPrompt.buildChatBotPrompt(chatBotHistory, userPrompt);
       const stream = await this.openai.chat.completions.create({
         model: 'gpt-4.1',
         messages,
@@ -79,7 +79,7 @@ export class OpenAIService implements IOpenAIService {
         messages: [
           {
             role: 'user',
-            content: this.prompt.structureTextPrompt(text, label),
+            content: this.userPrompt.structureTextPrompt(text, label),
           },
         ],
       });
@@ -128,13 +128,13 @@ export class OpenAIService implements IOpenAIService {
       throw new Error('Valid target language is required');
     }
 
-    const prompt = this.prompt.buildPrompt(translatedText, targetLanguage);
+    const userPrompt = this.userPrompt.buildPrompt(translatedText, targetLanguage);
 
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4.1',
         temperature: 0.3,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: userPrompt }],
       });
 
       const response = completion.choices[0]?.message?.content;

@@ -337,6 +337,7 @@ export class AzurePremiumSubscriptionService
         completed: plan.completed ?? false,
         location: plan.location || '',
       })),
+      pdfBlobStorage: true
     };
 
     const documentCreated = await handleSseAsyncOperation(
@@ -351,8 +352,8 @@ export class AzurePremiumSubscriptionService
     // Update lengthOfDocs
     await handleSseAsyncOperation(
       res,
-      () => userService.updateUser(userId, 'lenghtOfDocs', true, undefined),
-      'Failed to update lenghtOfDocs for user',
+      () => userService.updateUser(userId, 'lengthOfDocs.premium.current', true, undefined),
+      'Failed to update lengthOfDocs for user',
     );
 
     // Signal completion

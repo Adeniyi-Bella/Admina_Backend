@@ -10,7 +10,7 @@ import { Schema, model } from 'mongoose';
 
 // Define TypeScript interface for chat message
 export interface IChatMessage {
-  prompt: string;
+  userPrompt: string;
   response: string;
   time: Date;
 }
@@ -45,7 +45,7 @@ const chatBotHistorySchema = new Schema<IChatBotHistory>(
     chats: {
       type: [
         {
-          prompt: {
+          userPrompt: {
             type: String,
             required: [true, 'Prompt is required'],
           },

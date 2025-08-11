@@ -28,15 +28,16 @@ import { logger } from '@/lib/winston';
 export class DocumentService implements IDocumentService {
   async deleteAllDocuments(userId: string): Promise<boolean> {
     try {
-
       const result = await Document.deleteMany({ userId }).exec();
 
       if (result.deletedCount === 0) {
         logger.info('No documents found for deletion', { userId });
-        return false;
       }
 
-      logger.info('All documents deleted successfully', { userId, deletedCount: result.deletedCount });
+      logger.info('All documents deleted successfully', {
+        userId,
+        deletedCount: result.deletedCount,
+      });
       return true;
     } catch (error) {
       logger.error('Failed to delete all documents', { userId, error });
@@ -122,8 +123,14 @@ export class DocumentService implements IDocumentService {
       throw new Error('Valid userId and docId are required');
     }
 
-    
-    return await Document.findOne({ userId, docId }).select('-__v').exec();
+    const document = await Document.findOne({ userId, docId })
+      .select('-__v')
+      .exec();
+
+    if (!document) {
+      throw new Error('Document not found');
+    }
+    return document;
   }
 
   /**
@@ -167,7 +174,7 @@ export class DocumentService implements IDocumentService {
   async updateDocument(
     userId: string,
     docId: string,
-    updates: Partial<IDocument>,
+    updates: Partial<IDocument> | { $inc?: any },
   ): Promise<IDocument | null> {
     try {
       if (!userId || !docId) {
@@ -177,9 +184,14 @@ export class DocumentService implements IDocumentService {
         throw new Error('Valid update data is required');
       }
 
+      const updateQuery =
+        '$inc' in updates
+          ? { ...updates, $set: { updatedAt: new Date() } }
+          : { $set: { ...updates, updatedAt: new Date() } };
+
       const updatedDocument = await Document.findOneAndUpdate(
         { userId, docId },
-        { $set: { ...updates, updatedAt: new Date() } },
+        updateQuery,
         { new: true, runValidators: true, select: '-__v' },
       )
         .lean()
