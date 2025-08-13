@@ -5,6 +5,7 @@
 /**
  * Node modules
  */
+import 'tsconfig-paths/register';
 import 'reflect-metadata';
 import "./di/container";
 import express from 'express';
