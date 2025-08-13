@@ -147,7 +147,7 @@ const resetPropertiesIfNewMonth = async (
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    ApiResponse.serverError(res, 'Access denied, invalid token', errorMessage);
+    ApiResponse.serverError(res, 'Error in reset PRoperties new month', errorMessage);
     logger.error('Error in reset PRoperties new month', errorMessage);
   }
 };

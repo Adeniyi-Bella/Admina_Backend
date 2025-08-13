@@ -32,7 +32,6 @@ jest.mock('@/lib/winston', () => ({
 
 // Mock Mongoose models
 jest.mock('@/models/document.model');
-jest.mock('@/models/chatbotHistory.model');
 
 // Mock middleware
 jest.mock('@/middlewares/authenticate', () => {
