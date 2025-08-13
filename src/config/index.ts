@@ -16,7 +16,7 @@ import type ms from 'ms';
 dotenv.config();
 
 const config = {
-  PORT: process.env.PORT || 3000,
+  PORT: process.env.PORT || 8080,
   NODE_ENV: process.env.NODE_ENV,
   MONGO_URI: process.env.MONGO_URI,
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
