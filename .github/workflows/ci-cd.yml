@@ -1,4 +1,4 @@
-name: Admin API CI-CD Pipeline
+name: Admina API CI-CD Pipeline
 
 on: 
   push:
