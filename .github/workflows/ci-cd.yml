@@ -1,6 +1,9 @@
 name: Admin API CI-CD Pipeline
 
-on: [push]
+on: 
+  push:
+    branches:
+      - main
 
 name: Node.js
 
