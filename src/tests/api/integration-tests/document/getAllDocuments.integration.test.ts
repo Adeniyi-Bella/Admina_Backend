@@ -11,20 +11,14 @@ import { mock, MockProxy } from 'jest-mock-extended';
 import { v4 as uuidv4 } from 'uuid';
 import router from '@/routes/v1/document.route';
 import { IDocumentService } from '@/services/document/document.interface';
-import { IChatBotService } from '@/services/chatbot/chatbot.interface';
-import { IUserService } from '@/services/users/user.interface';
 import { logger } from '@/lib/winston';
-import config from '@/config';
 import { IDocument } from '@/models/document.model';
-import mongoose from 'mongoose';
 import { Server } from 'http';
-import { IAzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.interface';
 
 // Mock config
 jest.mock('@/config', () => ({
   defaultResLimit: 10,
   defaultResOffset: 0,
-  AZURE_STORAGE_ACCOUNT_CONNECTION_STRING: 'mock-connection-string',
 }));
 
 // Mock logger
@@ -64,15 +58,6 @@ jest.mock('@/middlewares/resetPropertiesIfNewMonth', () => {
   };
 });
 
-// Mock multer to avoid file upload issues
-jest.mock('multer', () => {
-  const multerMock = () => ({
-    single: () => (req: Request, res: Response, next: NextFunction) => next(),
-  });
-  multerMock.memoryStorage = jest.fn();
-  return multerMock;
-});
-
 const app = express();
 app.use(express.json());
 app.use('/documents', router);
@@ -80,9 +65,6 @@ let server: Server;
 
 describe('Document Routes - GET /documents', () => {
   let documentService: MockProxy<IDocumentService>;
-  let chatBotService: MockProxy<IChatBotService>;
-  let userService: MockProxy<IUserService>;
-  let azureBlobService: MockProxy<IAzureBlobService>;
   const userId = 'test-user-id';
   const docId = `${uuidv4()}.pdf`;
 
@@ -97,15 +79,9 @@ describe('Document Routes - GET /documents', () => {
 
     // Mock all services
     documentService = mock<IDocumentService>();
-    chatBotService = mock<IChatBotService>();
-    userService = mock<IUserService>();
-    azureBlobService = mock<IAzureBlobService>();
 
     // Register mocks in tsyringe container
     container.register('IDocumentService', { useValue: documentService });
-    container.register('IChatBotService', { useValue: chatBotService });
-    container.register('IUserService', { useValue: userService });
-    container.register('IAzureBlobService', { useValue: azureBlobService });
   });
 
   afterEach(() => {
@@ -114,7 +90,6 @@ describe('Document Routes - GET /documents', () => {
   });
 
   afterAll(async () => {
-    await mongoose.connection.close();
     if (server) {
       await new Promise((resolve) => server.close(resolve));
     }
@@ -167,7 +142,6 @@ describe('Document Routes - GET /documents', () => {
       10,
       0,
     );
-    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
   });
 
   it('should use default limit and offset from config if not provided', async () => {
@@ -217,7 +191,6 @@ describe('Document Routes - GET /documents', () => {
       10,
       0,
     );
-    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
   });
 
   it('should return 400 for invalid limit', async () => {
@@ -238,7 +211,6 @@ describe('Document Routes - GET /documents', () => {
       ],
     });
     expect(documentService.getAllDocumentsByUserId).not.toHaveBeenCalled();
-    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
   });
 
   it('should return 400 for non-integer limit', async () => {
@@ -259,7 +231,6 @@ describe('Document Routes - GET /documents', () => {
       ],
     });
     expect(documentService.getAllDocumentsByUserId).not.toHaveBeenCalled();
-    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
   });
 
   it('should return 400 for negative offset', async () => {
@@ -280,7 +251,6 @@ describe('Document Routes - GET /documents', () => {
       ],
     });
     expect(documentService.getAllDocumentsByUserId).not.toHaveBeenCalled();
-    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
   });
 
   it('should return 500 if DocumentService throws an error', async () => {
@@ -306,6 +276,5 @@ describe('Document Routes - GET /documents', () => {
       10,
       0,
     );
-    expect(chatBotService.getDocumentChatBotCollection).not.toHaveBeenCalled();
   });
 });
