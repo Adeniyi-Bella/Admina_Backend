@@ -47,7 +47,6 @@ if (config.NODE_ENV !== 'production') {
           const metaStr = Object.keys(meta).length
             ? `\n${JSON.stringify(meta)}`
             : '';
-
           return `${timestamp} [${level}]: ${message}${metaStr}`;
         }),
       ),
@@ -64,7 +63,7 @@ if (config.NODE_ENV !== 'production') {
   // Add Logtail if configured
   if (config.LOGTAIL_SOURCE_TOKEN) {
     const logtail = new Logtail(config.LOGTAIL_SOURCE_TOKEN, {
-      endpoint: 'https://in.logs.betterstack.com',
+      endpoint: `https://${config.LOG_TAIL_INGESTING_HOST}`,
     });
     transports.push(new LogtailTransport(logtail));
   }
