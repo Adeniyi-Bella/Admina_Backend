@@ -21,19 +21,19 @@ const { combine, timestamp, json, errors, align, printf, colorize } =
 const transports: winston.transport[] = [];
 
 // Create a Logtail transport instance
-// const logtail = new Logtail(config.LOGTAIL_SOURCE_TOKEN, {
-//   endpoint: `https://${config.LOGTAIL_INGESTING_HOST}`,
-// });
+const logtail = new Logtail(config.LOGTAIL_SOURCE_TOKEN, {
+  endpoint: `https://${config.LOG_TAIL_INGESTING_HOST}`,
+});
 
-// if (config.NODE_ENV === 'production') {
-//   if (!config.LOGTAIL_SOURCE_TOKEN || !config.LOGTAIL_INGESTING_HOST) {
-//     throw new Error(
-//       'Logtail source token and ingesting host must be provided in the configuration',
-//     );
-//   }
+if (config.NODE_ENV === 'production') {
+  if (!config.LOGTAIL_SOURCE_TOKEN || !config.LOG_TAIL_INGESTING_HOST) {
+    throw new Error(
+      'Logtail source token and ingesting host must be provided in the configuration',
+    );
+  }
 
-//   transports.push(new LogtailTransport(logtail));
-// }
+  transports.push(new LogtailTransport(logtail));
+}
 
 // If the application is not running in production, add a console transport
 if (config.NODE_ENV !== 'production') {
@@ -60,13 +60,13 @@ if (config.NODE_ENV !== 'production') {
     }),
   );
 
-  // Add Logtail if configured
-  if (config.LOGTAIL_SOURCE_TOKEN) {
-    const logtail = new Logtail(config.LOGTAIL_SOURCE_TOKEN, {
-      endpoint: `https://${config.LOG_TAIL_INGESTING_HOST}`,
-    });
-    transports.push(new LogtailTransport(logtail));
-  }
+  // if (!config.LOGTAIL_SOURCE_TOKEN || !config.LOG_TAIL_INGESTING_HOST) {
+  //   throw new Error(
+  //     'Logtail source token and ingesting host must be provided in the configuration',
+  //   );
+  // }
+
+  // transports.push(new LogtailTransport(logtail));
 }
 
 // Create a logger instance using Winston
@@ -77,4 +77,4 @@ const logger = winston.createLogger({
   silent: config.NODE_ENV === 'test', // Disable logging in test environment
 });
 
-export { logger };
+export { logger, logtail };
