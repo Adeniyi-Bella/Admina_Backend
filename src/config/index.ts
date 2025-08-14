@@ -17,6 +17,7 @@ dotenv.config();
 
 const config = {
   PORT: process.env.PORT || 8080,
+  WHITELIST_ORIGINS: ['https://admina-app-api.scm.azurewebsites.net'],
   NODE_ENV: process.env.NODE_ENV,
   MONGO_URI: process.env.MONGO_URI,
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',

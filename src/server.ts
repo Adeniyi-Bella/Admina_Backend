@@ -38,8 +38,8 @@ const corsOptions: CorsOptions = {
     logger.info('Origin is:', {originIs: origin});
     if (
       config.NODE_ENV === 'development' ||
-      !origin 
-      // config.WHITELIST_ORIGINS.includes(origin)
+      !origin ||
+      config.WHITELIST_ORIGINS.includes(origin)
     ) {
       callback(null, true);
     } else {
