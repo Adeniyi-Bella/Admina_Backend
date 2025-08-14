@@ -60,6 +60,14 @@ if (config.NODE_ENV !== 'production') {
       format: combine(timestamp(), json()),
     }),
   );
+
+  // Add Logtail if configured
+  if (config.LOGTAIL_SOURCE_TOKEN) {
+    const logtail = new Logtail(config.LOGTAIL_SOURCE_TOKEN, {
+      endpoint: 'https://in.logs.betterstack.com',
+    });
+    transports.push(new LogtailTransport(logtail));
+  }
 }
 
 // Create a logger instance using Winston
