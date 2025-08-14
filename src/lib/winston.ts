@@ -53,6 +53,13 @@ if (config.NODE_ENV !== 'production') {
       ),
     }),
   );
+} else {
+  // In Azure production
+  transports.push(
+    new winston.transports.Console({
+      format: combine(timestamp(), json()),
+    }),
+  );
 }
 
 // Create a logger instance using Winston
