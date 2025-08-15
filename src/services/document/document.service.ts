@@ -202,7 +202,6 @@ export class DocumentService implements IDocumentService {
         return null;
       }
 
-      logger.info('Document updated successfully', { userId, docId, updates });
       return updatedDocument as IDocument;
     } catch (error) {
       logger.error('Failed to update document', {

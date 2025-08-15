@@ -25,7 +25,7 @@ const logtail = new Logtail(config.LOGTAIL_SOURCE_TOKEN, {
   endpoint: `https://${config.LOG_TAIL_INGESTING_HOST}`,
 });
 
-if (config.NODE_ENV === 'production') {
+if (config.NODE_ENV === 'production' || config.NODE_ENV === 'development') {
   if (!config.LOGTAIL_SOURCE_TOKEN || !config.LOG_TAIL_INGESTING_HOST) {
     throw new Error(
       'Logtail source token and ingesting host must be provided in the configuration',
@@ -36,7 +36,7 @@ if (config.NODE_ENV === 'production') {
 }
 
 // If the application is not running in production, add a console transport
-if (config.NODE_ENV !== 'production') {
+if (config.NODE_ENV == 'local') {
   transports.push(
     new winston.transports.Console({
       format: combine(
@@ -52,13 +52,13 @@ if (config.NODE_ENV !== 'production') {
       ),
     }),
   );
-} else {
-  // In Azure production
-  transports.push(
-    new winston.transports.Console({
-      format: combine(timestamp(), json()),
-    }),
-  );
+// } else {
+//   // In Azure production
+//   transports.push(
+//     new winston.transports.Console({
+//       format: combine(timestamp(), json()),
+//     }),
+//   );
 
   // if (!config.LOGTAIL_SOURCE_TOKEN || !config.LOG_TAIL_INGESTING_HOST) {
   //   throw new Error(

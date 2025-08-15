@@ -29,31 +29,30 @@ import v1Routes from '@/routes/v1';
 /**
  * Types
  */
-// import type { CorsOptions } from 'cors';
+import type { CorsOptions } from 'cors';
 
 const app = express();
 
-// const corsOptions: CorsOptions = {
-//   origin(origin, callback) {
-//     logger.info('Origin is:', {originIs: origin});
-//     if (
-//       config.NODE_ENV === 'development' ||
-//       !origin ||
-//       config.WHITELIST_ORIGINS.includes(origin)
-//     ) {
-//       callback(null, true);
-//     } else {
-//       // Reject requests from non-whitelisted origins
-//       callback(
-//         new Error(`CORS error: ${origin} is not allowed by CORS`),
-//         false,
-//       );
-//       logger.warn(`CORS error: ${origin} is not allowed by CORS`);
-//     }
-//   },
-// };
+const corsOptions: CorsOptions = {
+  origin(origin, callback) {
+    logger.info('Origin is:', {originIs: origin});
+    if (
+      !origin || 
+      config.WHITELIST_ORIGINS.includes(origin!)
+    ) {
+      callback(null, true);
+    } else {
+      // Reject requests from non-whitelisted origins
+      callback(
+        new Error(`CORS error: ${origin} is not allowed by CORS`),
+        false,
+      );
+      logger.warn(`CORS error: ${origin} is not allowed by CORS`);
+    }
+  },
+};
 
-// app.use(cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Enable JSON request body parsing
 app.use(express.json());
@@ -97,7 +96,7 @@ app.use(limiter);
   } catch (err) {
     logger.error('Failed to start the server', err);
 
-    if (config.NODE_ENV === 'production') {
+    if (config.NODE_ENV === 'production' || config.NODE_ENV === "development") {
       process.exit(1);
     }
   }

@@ -30,8 +30,6 @@ const createUser = async (
   try {
     let user = await userService.checkIfUserExist(req);
 
-    logger.info('check if user exists', user);
-
     if (!user) {
       await userService.createUserFromToken(req);
     }

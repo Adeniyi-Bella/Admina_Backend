@@ -52,6 +52,7 @@ const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
         },
       });
     }
+    logger.info('User upgraded successfully and document per prompt updated successfully', { user: user });
     ApiResponse.ok(res, 'User upgraded successfully');
   } catch (error: unknown) {
     const errorMessage =

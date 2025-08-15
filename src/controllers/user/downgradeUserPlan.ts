@@ -56,6 +56,11 @@ const downgradeUserPlan = async (
         },
       });
     }
+    logger.info(
+      'User downgraded successfully and document per prompt updated successfully',
+      { user: user },
+    );
+
     ApiResponse.ok(res, 'User downgraded successfully');
   } catch (error: unknown) {
     logger.error('Error deleting document', error);

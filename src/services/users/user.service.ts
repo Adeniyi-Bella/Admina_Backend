@@ -129,9 +129,9 @@ export class UserService implements IUserService {
 
   async checkIfUserExist(req: Request): Promise<UserDTO | null> {
     const userId = req.userId;
-    logger.info('user id:', { userId });
+    logger.info('user id:', {userId:  userId });
     const user = await User.findOne({ userId }).select('-__v').exec();
-    logger.info('user from db', { user });
+    logger.info('user from db', { user: user });
     if (!user) return null;
     return {
       userId: String(user.userId),

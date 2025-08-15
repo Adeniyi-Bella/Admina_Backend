@@ -20,7 +20,7 @@ const limiter = rateLimit({
   },
   skip: (req, res) => {
     const environment = config.NODE_ENV;
-    return environment === "development"
+    return environment === "local"
   },
 });
 

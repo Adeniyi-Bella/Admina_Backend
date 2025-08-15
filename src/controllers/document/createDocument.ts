@@ -48,7 +48,7 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
     if (!user) {
-      if (!res.headersSent) ApiResponse.notFound(res, 'User not found');
+      ApiResponse.notFound(res, 'User not found');
       return;
     }
 
@@ -69,7 +69,7 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         documentService,
         userService,
       });
-      if (!res.headersSent) res.end();
+      res.end();
     } else if (user.plan === 'premium' && user.lengthOfDocs.premium?.current) {
       await azurePremiumSubscriptionService.processPremiumUserDocument({
         file,
@@ -82,9 +82,9 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         userService,
         chatBotService,
       });
-      if (!res.headersSent) res.end();
+      res.end();
     } else {
-      if (!res.headersSent) ApiResponse.badRequest(
+      ApiResponse.badRequest(
         res,
         'Invalid user data or user has processed maximum document for the month.',
       );
@@ -95,7 +95,8 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     logger.error('Error during document processing', {
       error: error.message,
     });
-    if (!res.headersSent) ApiResponse.serverError(res, 'Internal server error', error.message);
+
+    ApiResponse.serverError(res, 'Internal server error', error.message);
     res.end();
     return;
   }
