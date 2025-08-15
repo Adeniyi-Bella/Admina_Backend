@@ -35,39 +35,21 @@ if (config.NODE_ENV === 'production' || config.NODE_ENV === 'development') {
   transports.push(new LogtailTransport(logtail));
 }
 
-// If the application is not running in production, add a console transport
-if (config.NODE_ENV == 'local') {
-  transports.push(
-    new winston.transports.Console({
-      format: combine(
-        colorize({ all: true }), // Add colors to log levels
-        timestamp({ format: 'YYYY-MM-DD hh:mm:ss A' }), // Add timestamp to logs
-        align(), // Align log messages
-        printf(({ timestamp, level, message, ...meta }) => {
-          const metaStr = Object.keys(meta).length
-            ? `\n${JSON.stringify(meta)}`
-            : '';
-          return `${timestamp} [${level}]: ${message}${metaStr}`;
-        }),
-      ),
-    }),
-  );
-// } else {
-//   // In Azure production
-//   transports.push(
-//     new winston.transports.Console({
-//       format: combine(timestamp(), json()),
-//     }),
-//   );
-
-  // if (!config.LOGTAIL_SOURCE_TOKEN || !config.LOG_TAIL_INGESTING_HOST) {
-  //   throw new Error(
-  //     'Logtail source token and ingesting host must be provided in the configuration',
-  //   );
-  // }
-
-  // transports.push(new LogtailTransport(logtail));
-}
+transports.push(
+  new winston.transports.Console({
+    format: combine(
+      colorize({ all: true }), // Add colors to log levels
+      timestamp({ format: 'YYYY-MM-DD hh:mm:ss A' }), // Add timestamp to logs
+      align(), // Align log messages
+      printf(({ timestamp, level, message, ...meta }) => {
+        const metaStr = Object.keys(meta).length
+          ? `\n${JSON.stringify(meta)}`
+          : '';
+        return `${timestamp} [${level}]: ${message}${metaStr}`;
+      }),
+    ),
+  }),
+);
 
 // Create a logger instance using Winston
 const logger = winston.createLogger({
