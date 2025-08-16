@@ -6,7 +6,7 @@
 /**
  * Types
  */
-import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IUserService } from '@/services/users/user.interface';
 import { ExtractTextReqDTO, ExtractTextResDTO } from '@/types/DTO';
@@ -31,7 +31,6 @@ export interface IAzureFreeSubscriptionService {
     targetLanguage: string;
     userId: string;
     res: Response;
-    openAIService: IOpenAIService;
     documentService: IDocumentService;
     userService: IUserService;
   }): Promise<void>;

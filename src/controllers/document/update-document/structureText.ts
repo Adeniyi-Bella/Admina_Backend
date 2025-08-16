@@ -1,5 +1,5 @@
 import { logger } from '@/lib/winston';
-import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import type { Request, Response } from 'express';
 import { container } from 'tsyringe';

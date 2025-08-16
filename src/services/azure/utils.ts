@@ -19,8 +19,7 @@ export async function handleSseAsyncOperation<T>(
     return result;
   } catch (error: any) {
     logger.error(errorMessage, { 'Error is:': error.message });
-    ApiResponse.serverError(res, 'Failed to process document', error.message);
-    res.end();
-    throw error; // Rethrow to allow caller to handle early termination
+
+    throw error;
   }
 }

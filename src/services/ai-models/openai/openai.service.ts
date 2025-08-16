@@ -15,7 +15,7 @@ import { injectable } from 'tsyringe';
  */
 import { logger } from '@/lib/winston';
 import config from '@/config';
-import { Prompt } from './userPrompts';
+import { Prompt } from '../userPrompts';
 
 /**
  * Types
@@ -25,7 +25,7 @@ import { IDocument } from '@/models/document.model';
 /**
  * Interfaces
  */
-import { IOpenAIService } from './openai.interface';
+import { IOpenAIService } from '../openai.interface';
 import { IChatBotHistory } from '@/models/chatbotHistory.model';
 
 @injectable()
@@ -143,13 +143,11 @@ export class OpenAIService implements IOpenAIService {
       }
 
       return this.parseResponse(response);
-    } catch (error) {
-      logger.error('Failed to generate action plan', {
-        error: error,
-        translatedText,
-        targetLanguage,
+    } catch (error: any) {
+      logger.error('Failed to generate action plan with Gemini AI', {
+        error: error.message,
       });
-      return this.getDefaultResponse();
+      throw new Error('Failed to generate action plan with Gemini AI');
     }
   }
 
@@ -228,28 +226,5 @@ export class OpenAIService implements IOpenAIService {
       });
       throw error;
     }
-  }
-
-  /**
-   * Returns a default response when the OpenAI request or parsing fails.
-   * @returns Default document fields.
-   */
-  private getDefaultResponse(): Pick<
-    IDocument,
-    | 'title'
-    | 'sender'
-    | 'receivedDate'
-    | 'summary'
-    | 'actionPlan'
-    | 'actionPlans'
-  > {
-    return {
-      title: '',
-      sender: '',
-      receivedDate: new Date(),
-      summary: 'Failed to generate action plan. Please try again later.',
-      actionPlan: [],
-      actionPlans: [],
-    };
   }
 }

@@ -32,7 +32,7 @@ import axios from 'axios';
 import { OcrDetectionLanguage } from '@azure/cognitiveservices-computervision/esm/models';
 import { AzureSubscriptionBase } from '../base-class/azure.service';
 import { handleSseAsyncOperation, sendSseMessage } from '../utils';
-import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IDocument } from '@/models/document.model';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IUserService } from '@/services/users/user.interface';

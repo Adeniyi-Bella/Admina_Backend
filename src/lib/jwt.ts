@@ -26,7 +26,7 @@ export const verifyAccessToken = async (token: string) => {
 
   // If there's no Bearer token, respond with 401 Unauthorized
   if (!idToken || !accessToken) {
-    throw new Error('No access token or id token provided');
+    throw new Error('Token does not follow the expected format');
   }
 
   try {

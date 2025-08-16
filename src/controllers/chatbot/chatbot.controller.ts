@@ -19,7 +19,7 @@ import { IUserService } from '@/services/users/user.interface';
  */
 import type { Request, Response } from 'express';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
-import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IChatBotHistory, IChatMessage } from '@/models/chatbotHistory.model';
 import { IDocumentService } from '@/services/document/document.interface';
 import { ApiResponse } from '@/lib/api_response';

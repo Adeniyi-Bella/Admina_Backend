@@ -41,15 +41,13 @@ const authenticate = async (
 
   // If there's no Bearer token, respond with 401 Unauthorized
   if (!authHeader?.startsWith('Bearer ')) {
-    ApiResponse.unauthorized(res, 'Access denied, invalid token');
+    logger.error('Access denied, No Bearer Token');
+    ApiResponse.unauthorized(res, '');
     return;
   }
 
   // Split out the token from the 'Bearer' prefix
   const [_, token] = authHeader.split(' ');
-
-  //Split the accessToken from the token
-  // const [__, accessToken] = token.split('auth');
 
   try {
     // Verify the token and extract the userId from the payload
@@ -60,6 +58,7 @@ const authenticate = async (
     };
 
     if (!jwtPayload.oid) {
+      logger.error('Token does not have an oid');
       throw new Error('Access denied, invalid token');
     }
     req.userId = jwtPayload.oid;
@@ -71,8 +70,12 @@ const authenticate = async (
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    ApiResponse.serverError(res, 'Access denied, invalid token', errorMessage);
-    logger.error('Access denied, invalid token', errorMessage);
+    logger.error('Access denied, invalid token', {
+      errorMessage: errorMessage,
+      token,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    ApiResponse.unauthorized(res, 'Access denied, invalid token');
   }
 };
 

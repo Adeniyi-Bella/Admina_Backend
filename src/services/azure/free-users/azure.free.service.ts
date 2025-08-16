@@ -28,7 +28,7 @@ import { OcrDetectionLanguage } from '@azure/cognitiveservices-computervision/es
  * Services and Interfaces
  */
 import { AzureSubscriptionBase } from '../base-class/azure.service';
-import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 import { IUserService } from '@/services/users/user.interface';
 import { IAzureFreeSubscriptionService } from './azure.free.interface';
@@ -37,6 +37,7 @@ import { IAzureFreeSubscriptionService } from './azure.free.interface';
  * Models
  */
 import { IDocument } from '@/models/document.model';
+import { GeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.service';
 
 
 
@@ -140,10 +141,11 @@ export class AzureFreeSubscriptionService
       targetLanguage,
       userId,
       res,
-      openAIService,
       documentService,
       userService,
     } = params;
+
+    const geminiAiService = new GeminiAIService;
 
     // Send initial event
     sendSseMessage(res, 'message', 'Extracting text...');
@@ -173,7 +175,7 @@ export class AzureFreeSubscriptionService
     const summarizedText = await handleSseAsyncOperation(
       res,
       () =>
-        openAIService.summarizeTranslatedText(translatedText, targetLanguage),
+        geminiAiService.summarizeTranslatedText(translatedText, targetLanguage),
       'Failed to summarize translated text',
     );
 

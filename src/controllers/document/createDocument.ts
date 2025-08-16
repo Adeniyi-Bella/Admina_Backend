@@ -14,7 +14,7 @@ import { logger } from '@/lib/winston';
 import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
 import { IUserService } from '@/services/users/user.interface';
-import { IOpenAIService } from '@/services/openai/openai.interface';
+import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 
 /**
@@ -65,11 +65,9 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         targetLanguage,
         userId: req.userId!.toString(),
         res,
-        openAIService,
         documentService,
         userService,
       });
-      res.end();
     } else if (user.plan === 'premium' && user.lengthOfDocs.premium?.current) {
       await azurePremiumSubscriptionService.processPremiumUserDocument({
         file,
@@ -82,13 +80,17 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         userService,
         chatBotService,
       });
-      res.end();
     } else {
-      ApiResponse.badRequest(
-        res,
+      logger.info(
         'Invalid user data or user has processed maximum document for the month.',
+        {
+          userDetails: user,
+        },
       );
-      res.end();
+      res.write(
+        'event: error\ndata: {"message": "Invalid user data or user has processed maximum document for the month."}\n\n',
+      );
+      // res.end();
       return;
     }
   } catch (error: any) {
@@ -96,9 +98,12 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
       error: error.message,
     });
 
-    ApiResponse.serverError(res, 'Internal server error', error.message);
+    // Send error event via SSE
+    res.write(
+      `event: error\ndata: {"message": "Internal server error", "error": "${error.message}"}\n\n`,
+    );
+  } finally {
     res.end();
-    return;
   }
 };
 
