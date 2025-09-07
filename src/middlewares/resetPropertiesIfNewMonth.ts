@@ -20,6 +20,7 @@ import { logger } from '@/lib/winston';
  */
 import type { Request, Response, NextFunction } from 'express';
 import { ApiResponse } from '@/lib/api_response';
+import { IPlans } from '@/types';
 
 /**
  * Helper function to format a date as DD/MM/YYYY: HH:MM in UTC
@@ -102,17 +103,19 @@ const resetPropertiesIfNewMonth = async (
 
     if (isNewMonth) {
       // Set reset values based on user plan
-      const resetLengthOfDocs = {
+      const resetLengthOfDocs: { lengthOfDocs: IPlans; updatedAt: Date } = {
         lengthOfDocs: {
           premium: { max: 5, min: 0, current: 5 },
+          standard: { max: 3, min: 0, current: 3 },
           free: { max: 2, min: 0, current: 2 },
         },
         updatedAt: new Date(),
       };
 
-      const resetChatBotPrompts = {
+      const resetChatBotPrompts: { chatBotPrompt: IPlans; updatedAt: Date } = {
         chatBotPrompt: {
           premium: { max: 10, min: 0, current: 10 },
+          standard: { max: 5, min: 0, current: 5 },
           free: { max: 0, min: 0, current: 0 },
         },
         updatedAt: new Date(),

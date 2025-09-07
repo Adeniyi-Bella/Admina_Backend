@@ -4,6 +4,7 @@ import { ApiResponse } from '@/lib/api_response';
 
 // Utility to send an SSE message and flush the response
 export function sendSseMessage(res: Response, event: string, data: any): void {
+  logger.info(event, { 'Status': data });
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   res.flush();
 }

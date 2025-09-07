@@ -3,70 +3,105 @@
  * @license Apache-2.0
  */
 
-/**
- * Node modules
- */
 import { container } from 'tsyringe';
-
-/**
- * Custom modules
- */
 import { logger } from '@/lib/winston';
 import { IUserService } from '@/services/users/user.interface';
-
-/**
- * Types
- */
-import type { Request, Response } from 'express';
 import { IDocumentService } from '@/services/document/document.interface';
 import { ApiResponse } from '@/lib/api_response';
+import { IPlans } from '@/types';
+import type { Request, Response } from 'express';
 
-const downgradeUserPlan = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+const downgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
   const userService = container.resolve<IUserService>('IUserService');
   const docService = container.resolve<IDocumentService>('IDocumentService');
 
   try {
-    // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
-    if (!user || user.plan !== 'premium') {
-      logger.error('User or User should have a premium plan');
+    if (!user) {
+      logger.error('User not found during downgradeUserPlan');
       ApiResponse.notFound(res, 'User not found');
       return;
     }
 
-    await userService.updateUser(req.userId, 'plan', false, 'free');
+    const currentPlan = user.plan;
+    const planToDowngradeTo = req.params.plan;
 
-    await userService.updateUser(req.userId, 'lengthOfDocs', false, {
-      free: { max: 2, min: 0, current: 2 },
-    });
+    // Validate target plan
+    const allowedPlans = ['standard', 'free'];
+    if (!allowedPlans.includes(planToDowngradeTo)) {
+      logger.error(`Invalid target plan: ${planToDowngradeTo}`);
+      ApiResponse.badRequest(
+        res,
+        `Invalid target plan: ${planToDowngradeTo}. Must be "standard" or "free".`
+      );
+      return;
+    }
 
-    // Get all the documents when the user was a premium user
+    // Enforce downgrade rules
+    switch (currentPlan) {
+      case 'free':
+        logger.error('Free plan cannot be downgraded further');
+        ApiResponse.badRequest(res, 'Free plan cannot be downgraded further');
+        return;
+      case 'standard':
+        if (planToDowngradeTo !== 'free') {
+          logger.error('Standard plan can only be downgraded to free');
+          ApiResponse.badRequest(res, 'Standard plan can only be downgraded to free');
+          return;
+        }
+        break;
+      case 'premium':
+        // Can downgrade to standard or free
+        break;
+      default:
+        logger.error(`Unknown current plan: ${currentPlan}`);
+        ApiResponse.badRequest(res, `Unknown current plan: ${currentPlan}`);
+        return;
+    }
+
+    // Update user plan
+    await userService.updateUser(req.userId, 'plan', false, planToDowngradeTo);
+
+    // Update lengthOfDocs for new plan
+    const newLengthOfDocs: IPlans =
+      planToDowngradeTo === 'standard'
+        ? { standard: { max: 3, min: 0, current: 3 } }
+        : { free: { max: 2, min: 0, current: 2 } };
+
+    await userService.updateUser(req.userId, 'lengthOfDocs', false, newLengthOfDocs);
+
+    // Update documents' chatBotPrompt
+    const maxDocsForPrevPlan =
+      currentPlan === 'premium'
+        ? user.lengthOfDocs.premium!.max
+        : user.lengthOfDocs.standard!.max;
+
     const { documents } = await docService.getAllDocumentsByUserId(
       req.userId,
-      user.lengthOfDocs.premium!.max,
-      0,
+      maxDocsForPrevPlan,
+      0
     );
+
+    const newChatBotPrompt: IPlans =
+      planToDowngradeTo === 'standard'
+        ? { standard: { max: 5, min: 0, current: 5 } }
+        : { free: { max: 0, min: 0, current: 0 } };
+
     for (const doc of documents) {
       await docService.updateDocument(req.userId, doc.docId, {
-        chatBotPrompt: {
-          free: { max: 0, min: 0, current: 0 },
-        },
+        chatBotPrompt: newChatBotPrompt,
       });
     }
+
     logger.info(
-      'User downgraded successfully and document per prompt updated successfully',
-      { user: user },
+      `User downgraded successfully from ${currentPlan} to ${planToDowngradeTo} and documents updated`,
+      { user }
     );
 
     ApiResponse.ok(res, 'User downgraded successfully');
   } catch (error: unknown) {
-    logger.error('Error deleting document', error);
-    // Check if error is an instance of Error to safely access message
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Error downgrading user', errorMessage);
     ApiResponse.serverError(res, 'Internal server error', errorMessage);
   }
 };

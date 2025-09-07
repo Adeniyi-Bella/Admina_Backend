@@ -7,7 +7,6 @@
  * Node modules
  */
 import { Schema, model } from 'mongoose';
-import { Binary } from 'mongodb';
 import { IPlans, IValues } from '@/types';
 
 // Define TypeScript interface for an action plan
@@ -28,7 +27,6 @@ export interface IDocument {
   receivedDate?: Date;
   summary: string;
   translatedText?: string;
-  // structuredText?: string;
   pdfBlobStorage: boolean;
   targetLanguage: string;
   structuredTranslatedText?: Record<string, string>;
@@ -56,6 +54,10 @@ const plansSchema = new Schema<IPlans>(
       type: valuesSchema,
       default: () => ({ max: 10, min: 0, current: 10 }),
     },
+    standard: {
+      type: valuesSchema,
+      default: () => ({ max: 5, min: 0, current: 5 }),
+    },
     free: {
       type: valuesSchema,
       default: () => ({ max: 0, min: 0, current: 0 }),
@@ -82,6 +84,7 @@ const documentSchema = new Schema<IDocument>(
       type: plansSchema,
       default: () => ({
         premium: { max: 10, min: 0, current: 10 },
+        standard: { max: 5, min: 0, current: 5 },
         free: { max: 0, min: 0, current: 0 },
       }),
     },
@@ -107,7 +110,7 @@ const documentSchema = new Schema<IDocument>(
     },
     pdfBlobStorage: {
       type: Boolean,
-      required: true
+      required: true,
     },
     targetLanguage: {
       type: String,

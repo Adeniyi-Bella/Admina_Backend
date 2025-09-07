@@ -60,11 +60,11 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    if (user.plan === 'free' && user.lengthOfDocs.free?.current) {
+    if (user.plan === 'free' && user.lengthOfDocs.free?.current || user.plan === "standard" && user.lengthOfDocs.standard?.current) {
       await userService.analyzeDocumentContentForFreemiumUser(
         file,
         targetLanguage,
-        req.userId!.toString(),
+        user,
         res,
         geminiAIService,
         documentService,

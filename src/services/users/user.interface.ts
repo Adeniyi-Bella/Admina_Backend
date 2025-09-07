@@ -31,7 +31,7 @@ export interface IUserService {
   analyzeDocumentContentForFreemiumUser(
     file: Express.Multer.File,
     targetLanguage: string,
-    userId: string,
+    user: UserDTO,
     res: Response,
     geminiAIService: IGeminiAIService,
     documentService: IDocumentService,

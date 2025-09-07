@@ -6,5 +6,6 @@ export interface IValues {
 
 export interface IPlans {
   premium?: IValues;
+  standard?: IValues;
   free?: IValues;
 }

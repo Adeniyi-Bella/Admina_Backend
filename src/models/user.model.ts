@@ -42,6 +42,11 @@ const plansSchema = new Schema<IPlans>(
       type: valuesSchema,
       default: { max: 5, min: 0, current: 5 }, // default premium plan
     },
+    standard: {
+      type: valuesSchema,
+      default: { max: 3, min: 0, current: 3 }, // default standard plan
+    },
+
     free: {
       type: valuesSchema,
       default: { max: 2, min: 0, current: 2 }, // default free plan
@@ -73,6 +78,7 @@ const userSchema = new Schema<IUser>(
       type: plansSchema,
       default: {
         premium: { max: 5, min: 0, current: 5 },
+        standard: { max: 3, min: 0, current: 3 },
         free: { max: 2, min: 0, current: 2 },
       },
     },
@@ -87,10 +93,6 @@ const userSchema = new Schema<IUser>(
     strict: true,
   },
 );
-
-// userSchema.pre('save', async function (next) {
-//   next();
-// });
 
 export default model<IUser>('User', userSchema);
 
