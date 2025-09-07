@@ -28,9 +28,10 @@ export interface IDocument {
   receivedDate?: Date;
   summary: string;
   translatedText?: string;
+  // structuredText?: string;
   pdfBlobStorage: boolean;
   targetLanguage: string;
-  structuredTranslatedText?: string;
+  structuredTranslatedText?: Record<string, string>;
   actionPlan?: { title?: string; reason?: string }[];
   actionPlans?: IActionPlan[];
   createdAt?: Date;
@@ -113,8 +114,9 @@ const documentSchema = new Schema<IDocument>(
       default: '',
     },
     structuredTranslatedText: {
-      type: String,
-      default: '',
+      type: Map,
+      of: String,
+      default: {},
     },
     actionPlan: {
       type: [{ title: String, reason: String }],

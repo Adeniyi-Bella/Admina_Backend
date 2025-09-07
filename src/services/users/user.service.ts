@@ -12,11 +12,14 @@ import User from '@/models/user.model';
  * Interfaces
  */
 import { IUserService, UserDTO } from './user.interface';
+import { IDocumentService } from '../document/document.interface';
+import { IGeminiAIService } from '../ai-models/gemini-ai/geminiai.interface';
 
 /**
  * Node modules
  */
 import { injectable } from 'tsyringe';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Custom modules
@@ -26,10 +29,13 @@ import { logger } from '@/lib/winston';
 /**
  * Types
  */
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import config from '@/config';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
+import { IDocument } from '@/models/document.model';
+import { handleSseAsyncOperation, sendSseMessage } from '../azure/utils';
+
 
 @injectable()
 export class UserService implements IUserService {
@@ -40,6 +46,73 @@ export class UserService implements IUserService {
       authority: config.AZURE_CLIENT_AUTHORITY,
     },
   };
+
+  async analyzeDocumentContentForFreemiumUser(
+    file: Express.Multer.File,
+    targetLanguage: string,
+    userId: string,
+    res: Response,
+    geminiAIService: IGeminiAIService,
+    documentService: IDocumentService,
+  ): Promise<void> {
+
+    // Send initial event
+    sendSseMessage(res, 'message', 'Started Document Analysis for Free Users');
+
+    const analyzedDocument = await handleSseAsyncOperation(
+      res,
+      () => geminiAIService.analyzePDFDocument(file, targetLanguage),
+      'Failed to analyze document',
+    );
+
+    // Send translated text event
+    sendSseMessage(res, 'status', {
+      message: 'Document Analyzed Successfully with gemini',
+    });
+
+    // Create document in MongoDB
+    const documentData: IDocument = {
+      userId: userId.toString(),
+      docId: uuidv4(),
+      title: analyzedDocument.title || '',
+      sender: analyzedDocument.sender || '',
+      receivedDate: analyzedDocument.receivedDate || new Date(),
+      summary: analyzedDocument.summary || '',
+      translatedText: analyzedDocument.translatedText || '',
+      structuredTranslatedText: analyzedDocument.structuredTranslatedText,
+      targetLanguage,
+      actionPlan: analyzedDocument.actionPlan || [],
+      actionPlans: (analyzedDocument.actionPlans || []).map((plan: any) => ({
+        id: plan.id || uuidv4(),
+        title: plan.title || '',
+        dueDate: plan.dueDate || new Date(),
+        completed: plan.completed ?? false,
+        location: plan.location || '',
+      })),
+      pdfBlobStorage: false,
+    };
+
+    await handleSseAsyncOperation(
+      res,
+      () => documentService.createDocumentByUserId(documentData),
+      'Failed to create document in MongoDB',
+    );
+
+    sendSseMessage(res, 'status', {
+      message: 'Document Created Successfully in MongoDB',
+    });
+
+    // Update lengthOfDocs
+    await handleSseAsyncOperation(
+      res,
+      () =>
+        this.updateUser(userId, 'lengthOfDocs.free.current', true, undefined),
+      'Failed to update lengthOfDocs for user',
+    );
+
+    // Signal completion
+    sendSseMessage(res, 'complete', { status: 'completed' });
+  }
 
   async deleteUserFromEntraId(userId: string): Promise<boolean> {
     try {
@@ -129,7 +202,7 @@ export class UserService implements IUserService {
 
   async checkIfUserExist(req: Request): Promise<UserDTO | null> {
     const userId = req.userId;
-    logger.info('user id:', {userId:  userId });
+    logger.info('user id:', { userId: userId });
     const user = await User.findOne({ userId }).select('-__v').exec();
     logger.info('user from db', { user: user });
     if (!user) return null;

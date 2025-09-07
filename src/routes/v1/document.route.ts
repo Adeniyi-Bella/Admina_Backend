@@ -25,9 +25,7 @@ import getAllDocuments from '@/controllers/document/getAllDocument';
 import createDocument from '@/controllers/document/createDocument';
 import getDocument from '@/controllers/document/getDocument';
 import deleteDocument from '@/controllers/document/deleteDocument';
-import structureText from '@/controllers/document/update-document/structureText';
 import updateActionPlan from '@/controllers/document/update-document/updateActionPlan';
-
 
 const router = Router();
 
@@ -118,15 +116,6 @@ router.delete(
   validationError,
   deleteDocument,
 );
-
-// Route to Update a document
-// One example is to restructure a document for freemium users
-router.patch(
-  '/:docId',
-  param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
-  validationError,
-  structureText,
-)
 
 // Route to handle create, update, delete of action plans
 router.patch(

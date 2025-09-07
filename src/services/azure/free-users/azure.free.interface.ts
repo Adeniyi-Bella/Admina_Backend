@@ -1,37 +1,37 @@
-/**
- * @copyright 2025 Adeniyi Bella
- * @license Apache-2.0
- */
+// /**
+//  * @copyright 2025 Adeniyi Bella
+//  * @license Apache-2.0
+//  */
 
-/**
- * Types
- */
-import { IOpenAIService } from '@/services/ai-models/openai.interface';
-import { IDocumentService } from '@/services/document/document.interface';
-import { IUserService } from '@/services/users/user.interface';
-import { ExtractTextReqDTO, ExtractTextResDTO } from '@/types/DTO';
-import { OcrDetectionLanguage } from '@azure/cognitiveservices-computervision/esm/models';
+// /**
+//  * Types
+//  */
+// import { IOpenAIService } from '@/services/ai-models/openai.interface';
+// import { IDocumentService } from '@/services/document/document.interface';
+// import { IUserService } from '@/services/users/user.interface';
+// import { ExtractTextReqDTO, ExtractTextResDTO } from '@/types/DTO';
+// import { OcrDetectionLanguage } from '@azure/cognitiveservices-computervision/esm/models';
 
-/**
- * Node modules
- */
-import type { Response } from 'express';
+// /**
+//  * Node modules
+//  */
+// import type { Response } from 'express';
 
-export interface IAzureFreeSubscriptionService {
-  extractTextFromFile(data: ExtractTextReqDTO): Promise<ExtractTextResDTO>;
+// export interface IAzureFreeSubscriptionService {
+//   extractTextFromFile(data: ExtractTextReqDTO): Promise<ExtractTextResDTO>;
   
-  translateText(
-    text: ExtractTextResDTO,
-    toLang: OcrDetectionLanguage,
-  ): Promise<string>;
+//   translateText(
+//     text: ExtractTextResDTO,
+//     toLang: OcrDetectionLanguage,
+//   ): Promise<string>;
 
-  processFreeUserDocument(params: {
-    file: Express.Multer.File;
-    docLanguage: OcrDetectionLanguage;
-    targetLanguage: string;
-    userId: string;
-    res: Response;
-    documentService: IDocumentService;
-    userService: IUserService;
-  }): Promise<void>;
-}
+//   // processFreeUserDocument(params: {
+//   //   file: Express.Multer.File;
+//   //   docLanguage: OcrDetectionLanguage;
+//   //   targetLanguage: string;
+//   //   userId: string;
+//   //   res: Response;
+//   //   documentService: IDocumentService;
+//   //   userService: IUserService;
+//   // }): Promise<void>;
+// }

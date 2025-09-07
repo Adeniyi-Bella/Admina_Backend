@@ -7,12 +7,14 @@
  * Types
  */
 import { IPlans } from '@/types';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import { IDocumentService } from '../document/document.interface';
+import { IGeminiAIService } from '../ai-models/gemini-ai/geminiai.interface';
 
 export interface UserDTO {
   userId: string;
   plan: string;
-  lengthOfDocs: IPlans
+  lengthOfDocs: IPlans;
 }
 
 export interface IUserService {
@@ -26,4 +28,12 @@ export interface IUserService {
   ): Promise<boolean>;
   deleteUser(userId: string): Promise<boolean>;
   deleteUserFromEntraId(userId: string): Promise<boolean>;
+  analyzeDocumentContentForFreemiumUser(
+    file: Express.Multer.File,
+    targetLanguage: string,
+    userId: string,
+    res: Response,
+    geminiAIService: IGeminiAIService,
+    documentService: IDocumentService,
+  ): Promise<void>;
 }

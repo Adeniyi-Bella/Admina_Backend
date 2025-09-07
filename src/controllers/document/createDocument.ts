@@ -11,24 +11,26 @@ import { logger } from '@/lib/winston';
 /**
  * Interfaces
  */
-import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
+// import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
 import { IUserService } from '@/services/users/user.interface';
 import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
+import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
+
 
 /**
  * Node modules
  */
 import { container } from 'tsyringe';
 import type { Request, Response } from 'express';
-import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { ApiResponse } from '@/lib/api_response';
 
 const createDocument = async (req: Request, res: Response): Promise<void> => {
-  const azureFreeSubscriptionService =
-    container.resolve<IAzureFreeSubscriptionService>(
-      'IAzureFreeSubscriptionService',
+  const geminiAIService =
+    container.resolve<IGeminiAIService>(
+      'IGeminiAIService',
     );
   const azurePremiumSubscriptionService =
     container.resolve<IAzurePremiumSubscriptionService>(
@@ -59,15 +61,15 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     res.flushHeaders();
 
     if (user.plan === 'free' && user.lengthOfDocs.free?.current) {
-      await azureFreeSubscriptionService.processFreeUserDocument({
+      await userService.analyzeDocumentContentForFreemiumUser(
         file,
-        docLanguage,
         targetLanguage,
-        userId: req.userId!.toString(),
+        req.userId!.toString(),
         res,
+        geminiAIService,
         documentService,
-        userService,
-      });
+      );
+
     } else if (user.plan === 'premium' && user.lengthOfDocs.premium?.current) {
       await azurePremiumSubscriptionService.processPremiumUserDocument({
         file,

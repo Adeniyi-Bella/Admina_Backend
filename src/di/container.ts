@@ -13,11 +13,11 @@ import { container } from 'tsyringe';
  */
 import { UserService } from '@/services/users/user.service';
 import { DocumentService } from '@/services/document/document.service';
-import { AzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.service';
+// import { AzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.service';
 import { OpenAIService } from '@/services/ai-models/openai/openai.service';
 import { IUserService } from '@/services/users/user.interface';
 import { IDocumentService } from '@/services/document/document.interface';
-import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
+// import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
 import { AzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.service';
@@ -25,6 +25,8 @@ import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { ChatBotService } from '@/services/chatbot/chatbot.service';
 import { IAzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.interface';
 import { AzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.service';
+import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
+import { GeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.service';
 
 
 // Register the interface with its implementation
@@ -34,8 +36,8 @@ container.register<IUserService>('IUserService', {
 container.register<IDocumentService>('IDocumentService', {
   useClass: DocumentService,
 });
-container.register<IAzureFreeSubscriptionService>('IAzureFreeSubscriptionService', {
-  useClass: AzureFreeSubscriptionService,
+container.register<IGeminiAIService>('IGeminiAIService', {
+  useClass: GeminiAIService,
 });
 container.register<IAzurePremiumSubscriptionService>('IAzurePremiumSubscriptionService', {
   useClass: AzurePremiumSubscriptionService,

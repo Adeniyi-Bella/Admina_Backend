@@ -6,7 +6,7 @@
 /**
  * Node modules
  */
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 import { v4 as uuidv4 } from 'uuid';
 import { injectable } from 'tsyringe';
 
@@ -14,7 +14,7 @@ import { injectable } from 'tsyringe';
  * Custom modules
  */
 import { logger } from '@/lib/winston';
-// import config from '@/config';
+import config from '@/config';
 import { Prompt } from '../userPrompts';
 
 /**
@@ -25,54 +25,48 @@ import { IDocument } from '@/models/document.model';
 /**
  * Interfaces
  */
-// import { IOpenAIService } from '../openai.interface';
+import { IGeminiAIService } from './geminiai.interface';
 
 @injectable()
-export class GeminiAIService {
+export class GeminiAIService implements IGeminiAIService {
   private readonly geminiAi: GoogleGenAI;
   private readonly userPrompt: Prompt;
-  private readonly model: string = "gemini-2.5-flash";
+  private readonly model: string = 'gemini-2.5-flash';
 
   constructor() {
-    this.geminiAi = new GoogleGenAI({});
+    console.log('GEMINI API KEY:', config.GEMINI_API_KEY);
+    this.geminiAi = new GoogleGenAI({
+      apiKey: config.GEMINI_API_KEY!,
+    });
+
     this.userPrompt = new Prompt();
   }
 
-  /**
-   * Shot summary and generates an action plan from the provided text in the specified target language.
-   * @param translatedText - The original document text to process.
-   * @param targetLanguage - The language for the response (e.g., 'en', 'de').
-   * @returns A promise resolving to the document fields (excluding userId, docId, translatedText, translatedText, sourceLanguage, targetLanguage, created_at, updated_at).
-   * @throws Error if the OpenAI request or JSON parsing fails.
-   */
-  public async summarizeTranslatedText(
-    translatedText: string,
+  public async analyzePDFDocument(
+    file: Express.Multer.File,
     targetLanguage: string,
-  ): Promise<
-    Pick<
-      IDocument,
-      | 'title'
-      | 'sender'
-      | 'receivedDate'
-      | 'summary'
-      | 'actionPlan'
-      | 'actionPlans'
-    >
-  > {
+  ): Promise<Partial<IDocument>> {
     // Validate inputs
-    if (!translatedText || typeof translatedText !== 'string') {
-      throw new Error('Valid original text is required');
-    }
-    if (!targetLanguage || typeof targetLanguage !== 'string') {
-      throw new Error('Valid target language is required');
+    if (!file || !file.buffer) {
+      throw new Error('PDF file buffer is required');
     }
 
-    const userPrompt = this.userPrompt.buildPrompt(translatedText, targetLanguage);
+    const userPrompt = this.userPrompt.buildPromptForGeminiAI(targetLanguage);
 
     try {
+      const contents = [
+        { text: userPrompt },
+        {
+          inlineData: {
+            mimeType: 'application/pdf',
+            data: file.buffer.toString('base64'),
+          },
+        },
+      ];
+
       const response = await this.geminiAi.models.generateContent({
         model: this.model,
-        contents: [userPrompt],
+        contents,
       });
 
       const responseText = response.text;
@@ -89,74 +83,39 @@ export class GeminiAIService {
     }
   }
 
-
   /**
    * Parses the OpenAI response and normalizes it to match the IDocument interface.
    * @param response - The raw JSON response from OpenAI.
    * @returns The parsed and normalized document fields.
    * @throws Error if JSON parsing fails.
    */
-  private parseResponse(
-    response: string,
-  ): Pick<
-    IDocument,
-    | 'title'
-    | 'sender'
-    | 'receivedDate'
-    | 'summary'
-    | 'actionPlan'
-    | 'actionPlans'
-  > {
+  private parseResponse(response: string): Partial<IDocument> {
     try {
-      const parsed = JSON.parse(response);
+      const cleanResponse = response
+        .trim()
+        .replace(/^```(?:json)?/i, '')
+        .replace(/```$/, '')
+        .trim();
 
-      // Validate required fields
-      if (!parsed.title || typeof parsed.title !== 'string') {
-        parsed.title = '';
-      }
-      if (!parsed.sender || typeof parsed.sender !== 'string') {
-        parsed.sender = '';
-      }
-      if (!parsed.summary || typeof parsed.summary !== 'string') {
-        parsed.summary = '';
-      }
-
-      // Parse receivedDate safely
-      const receivedDate =
-        parsed.receivedDate && !isNaN(new Date(parsed.receivedDate).getTime())
-          ? new Date(parsed.receivedDate)
-          : new Date();
-
-      // Normalize actionPlan array
-      const actionPlan = Array.isArray(parsed.actionPlan)
-        ? parsed.actionPlan.map((item: any) => ({
-            title: typeof item.title === 'string' ? item.title : '',
-            reason: typeof item.reason === 'string' ? item.reason : '',
-          }))
-        : [];
-
-      // Normalize actionPlans array
-      const actionPlans = Array.isArray(parsed.actionPlans)
-        ? parsed.actionPlans.map((item: any) => ({
-            id: uuidv4(),
-            title: typeof item.title === 'string' ? item.title : '',
-            dueDate:
-              item.due_date && !isNaN(new Date(item.due_date).getTime())
-                ? new Date(item.due_date)
-                : new Date(),
-            completed:
-              typeof item.completed === 'boolean' ? item.completed : false,
-            location: typeof item.location === 'string' ? item.location : '',
-          }))
-        : [];
+      const parsed = JSON.parse(cleanResponse);
 
       return {
-        title: parsed.title,
-        sender: parsed.sender,
-        receivedDate,
-        summary: parsed.summary,
-        actionPlan,
-        actionPlans,
+        translatedText: parsed.translatedText ?? '',
+        structuredTranslatedText: parsed.structuredTranslatedText ?? {},
+        title: parsed.title ?? '',
+        sender: parsed.sender ?? '',
+        receivedDate: parsed.receivedDate ?? new Date().toISOString(),
+        summary: parsed.summary ?? '',
+        actionPlan: parsed.actionPlan ?? [],
+        actionPlans: Array.isArray(parsed.actionPlans)
+          ? parsed.actionPlans.map((item: any) => ({
+              id: uuidv4(),
+              title: item.title ?? '',
+              dueDate: item.due_date ?? new Date().toISOString(),
+              completed: item.completed ?? false,
+              location: item.location ?? '',
+            }))
+          : [],
       };
     } catch (error) {
       logger.error('Failed to parse OpenAI response', {
