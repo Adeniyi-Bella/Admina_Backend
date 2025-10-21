@@ -48,6 +48,7 @@ export class OpenAIService implements IOpenAIService {
   ): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
     try {
       const messages = this.userPrompt.buildChatBotPrompt(chatBotHistory, userPrompt);
+      
       const stream = await this.openai.chat.completions.create({
         model: 'gpt-4.1',
         messages,

@@ -9,3 +9,12 @@ export interface ExtractTextResDTO {
   text: string;
   // structuredPages: string; 
 }
+
+export interface IDocumentResponseFreeUsersDTO {
+  receivedDate?: Date;
+  docId: string;
+  title?: string;
+  sender?: string;
+  structuredTranslatedText?: Record<string, string>;
+  pdfBlobStorage?: boolean;
+}

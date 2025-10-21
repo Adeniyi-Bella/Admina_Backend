@@ -23,22 +23,26 @@ import { container } from 'tsyringe';
  */
 import type { Request, Response } from 'express';
 import { ApiResponse } from '@/lib/api_response';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 
 const deleteDocument = async (req: Request, res: Response): Promise<void> => {
+    const chatBotService = container.resolve<IChatBotService>('IChatBotService');
   const documentService = container.resolve<IDocumentService>('IDocumentService');
 
   try {
     const userId = req.userId;
     const docId = req.params.docId;
 
+    const deleteChatHistory = await chatBotService.deleteChatHistoryByDocument(userId, docId);
+
     const deleted = await documentService.deleteDocument(userId, docId);
 
-    if (!deleted) {
+    if (!deleted || !deleteChatHistory) {
       ApiResponse.notFound(res, 'Document not found');
       return;
     }
 
-    ApiResponse.ok(res, 'Document deleted successfully');
+    ApiResponse.ok(res, 'Documents deleted successfully');
   } catch (error: unknown) {
     logger.error('Error deleting document', error);
     // Check if error is an instance of Error to safely access message

@@ -34,7 +34,6 @@ export class GeminiAIService implements IGeminiAIService {
   private readonly model: string = 'gemini-2.5-flash';
 
   constructor() {
-    console.log('GEMINI API KEY:', config.GEMINI_API_KEY);
     this.geminiAi = new GoogleGenAI({
       apiKey: config.GEMINI_API_KEY!,
     });

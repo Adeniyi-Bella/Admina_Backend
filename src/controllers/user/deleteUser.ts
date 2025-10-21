@@ -54,11 +54,9 @@ const deleteUser = async (req: Request, res: Response): Promise<void> => {
       ApiResponse.notFound(res, 'User not found in Entra Id');
       return;
     }
-    logger.info(
-      'User deleted successfully'
-    );
+    logger.info('User deleted successfully');
 
-    ApiResponse.ok(res, 'User deleted successfully');
+    ApiResponse.noContent(res);
   } catch (error: unknown) {
     logger.error('Error deleting document', error);
     // Check if error is an instance of Error to safely access message

@@ -19,19 +19,17 @@ const getDocument = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
     const docId = req.params.docId;
-
-    // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
     if (!user) {
       ApiResponse.notFound(res, 'User not found');
       return;
     }
+    const document = await documentService.getDocument(user, docId);
 
-    // Get the document
-    const document = await documentService.getDocument(userId!, docId);
-
-
-    // Get chat history
+    if (!document) {
+      ApiResponse.notFound(res, 'Document not found');
+      return;
+    }
     let chats: IChatMessage[] = [];
     try {
       const chatHistory = await chatBotService.getDocumentChatBotCollection(
@@ -75,15 +73,13 @@ const getDocument = async (req: Request, res: Response): Promise<void> => {
         return;
       }
     }
-
-    // Free users → only document and chats
     ApiResponse.ok(res, 'Document fetched successfully', {
       document,
       chats,
+      userPlan: user.plan,
     });
   } catch (error: unknown) {
     logger.error('Error fetching document', error);
-    // Check if error is an instance of Error to safely access message
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     ApiResponse.serverError(res, 'Internal server error', errorMessage);

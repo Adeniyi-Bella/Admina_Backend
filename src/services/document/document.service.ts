@@ -1,28 +1,13 @@
-/**
- * @copyright 2025 Adeniyi Bella
- * @license Apache-2.0
- */
-
-/**
- * Models
- */
 import Document, { IActionPlan, IDocument } from '@/models/document.model';
 
-/**
- * Interfaces
- */
 import { IDocumentService } from './document.interface';
 
-/**
- * Node modules
- */
 import { injectable } from 'tsyringe';
 import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Custom modules
- */
 import { logger } from '@/lib/winston';
+import { UserDTO } from '../users/user.interface';
+import { IDocumentResponseFreeUsersDTO } from '@/types/DTO';
 
 @injectable()
 export class DocumentService implements IDocumentService {
@@ -46,21 +31,19 @@ export class DocumentService implements IDocumentService {
       );
     }
   }
-  /**
-   * Retrieves all documents for a user with pagination.
-   * @param userId - The ID of the user.
-   * @param limit - Number of documents to return.
-   * @param offset - Number of documents to skip.
-   * @returns An object containing the total count and the documents.
-   */
   async getAllDocumentsByUserId(
-    userId: string,
+    user: UserDTO,
     limit: number,
     offset: number,
-  ): Promise<{ total: number; documents: IDocument[] }> {
-    if (!userId) {
+  ): Promise<{
+    total: number;
+    documents: IDocument[] | IDocumentResponseFreeUsersDTO[];
+  }> {
+    if (!user.userId) {
       throw new Error('Valid userId is required');
     }
+
+    const userId = user.userId;
 
     const total = await Document.countDocuments({ userId });
 
@@ -72,16 +55,22 @@ export class DocumentService implements IDocumentService {
       .lean()
       .exec();
 
+    if (user.plan === 'free') {
+      // const freeDocuments: IDocumentResponseFreeUsersDTO[] = documents.map(
+      //   (doc) => ({
+      //     receivedDate: doc.receivedDate,
+      //     docId: doc.docId,
+      //     title: doc.title,
+      //     sender: doc.sender,
+      //     structuredTranslatedText: doc.structuredTranslatedText,
+      //   }),
+      // );
+      return { total, documents };
+    }
+
     return { total, documents };
   }
 
-  /**
-   * Creates a new document for a user and returns the created document.
-   * @param userId - The ID of the user.
-   * @param document - The document data to create.
-   * @returns The created document.
-   * @throws Error if creation fails or required fields are missing.
-   */
   async createDocumentByUserId(
     document: Partial<IDocument>,
   ): Promise<IDocument> {
@@ -89,11 +78,7 @@ export class DocumentService implements IDocumentService {
       if (!document || !document.userId || !document.docId) {
         throw new Error('Valid document data is required');
       }
-
-      // Create and save the document
       const createdDocument = await Document.create(document);
-
-      // Convert to plain object and remove __v
       const result = await Document.findById(createdDocument._id)
         .select('-__v')
         .lean()
@@ -112,34 +97,25 @@ export class DocumentService implements IDocumentService {
     }
   }
 
-  /**
-   * Retrieves a document by userId and docId.
-   * @param userId - The ID of the user.
-   * @param docId - The ID of the document.
-   * @returns The document if found, null otherwise.
-   */
-  async getDocument(userId: string, docId: string): Promise<IDocument | null> {
-    if (!userId || !docId) {
+  async getDocument(
+    user: UserDTO,
+    docId: string,
+  ): Promise<IDocument | null > {
+    if (!user.userId || !docId) {
       throw new Error('Valid userId and docId are required');
     }
 
-    const document = await Document.findOne({ userId, docId })
+    const document = await Document.findOne({ userId: user.userId, docId })
       .select('-__v')
       .exec();
 
     if (!document) {
-      throw new Error('Document not found');
+      return null;
     }
+
     return document;
   }
 
-  /**
-   * Deletes a document by userId and docId.
-   * @param userId - The ID of the user.
-   * @param docId - The ID of the document.
-   * @returns True if the document was deleted, false if not found.
-   * @throws Error if deletion fails.
-   */
   async deleteDocument(userId: string, docId: string): Promise<boolean> {
     try {
       if (!userId || !docId) {
@@ -163,14 +139,6 @@ export class DocumentService implements IDocumentService {
     }
   }
 
-  /**
-   * Updates a document by userId and docId with the provided updates.
-   * @param userId - The ID of the user.
-   * @param docId - The ID of the document.
-   * @param updates - Partial document data to update.
-   * @returns The updated document if found, null otherwise.
-   * @throws Error if update fails.
-   */
   async updateDocument(
     userId: string,
     docId: string,
@@ -216,16 +184,6 @@ export class DocumentService implements IDocumentService {
     }
   }
 
-  /**
-   * Updates the actionPlans array in a document by userId and docId.
-   * @param userId - The ID of the user.
-   * @param docId - The ID of the document.
-   * @param action - The action to perform: 'create', 'delete', or 'update'.
-   * @param actionPlanData - Data for the action plan (for create/update).
-   * @param actionPlanId - ID of the action plan (for delete/update).
-   * @returns The updated document if found, null otherwise.
-   * @throws Error if the operation fails.
-   */
   async updateActionPlan(
     userId: string,
     docId: string,
@@ -262,7 +220,6 @@ export class DocumentService implements IDocumentService {
         if (!actionPlanId) {
           throw new Error('Action plan ID is required for deletion');
         }
-        // Check if actionPlanId exists in the document
         const document = await Document.findOne({
           userId,
           docId,
@@ -322,8 +279,6 @@ export class DocumentService implements IDocumentService {
         if (actionPlanData.location)
           updateFields['actionPlans.$[elem].location'] =
             actionPlanData.location;
-
-        // Always update the timestamp
         updateFields['updatedAt'] = new Date();
 
         update = { $set: updateFields };

@@ -47,7 +47,7 @@ You are an assistant that reads documents, translates them into ${targetLanguage
 - title of the Document (string)
 - date document was received (date string in ISO 8601 format, e.g. "2024-05-24T00:00:00Z" or "${new Date().toISOString()}" if no date is provided)
 - sender of document (from which institution) (string)
-- comprehensive summary (string). A very good comprehensive summary of the document. This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.
+- A very good comprehensive summary of the document. This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.
 - actionPlan: an array of { title: string, reason: string }
 - actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
 - structuredTranslatedText HTML response of the translated text according to pages with proper inline Tailwind stylings { page1: string, page2: string, ... }
@@ -94,40 +94,35 @@ If there is no due date for any of the actionPlans, use this current date as the
     const messages: Array<{
       role: 'system' | 'user' | 'assistant';
       content: string;
-    }> = [
-      {
-        role: 'system',
-        content: `
-You are an expert assistant helping the user understand a document and answer their questions.
-Use the following context to formulate your response:
-- Document translated text: ${chatBotHistory.translatedText || 'No translated text available'}
-- Previous conversation: ${
-          chatBotHistory.chats.length > 0
-            ? chatBotHistory.chats
-                .map(
-                  (chat, index) =>
-                    `User ${index + 1}: ${chat.userPrompt}\nAssistant ${index + 1}: ${chat.response}`,
-                )
-                .join('\n')
-            : 'No previous conversation'
-        }
-Provide a clear and concise response to the user's current userPrompt, using the document context and previous conversation to inform your answer.
-Only answer questions directly related to the document context. If the userPrompts relates to another topic, please inform the user that you are only allowed to respond based on the topics related to the document. The response must be in the language of the Document translated text unless specified otherwise
-by user.
-`.trim(),
-      },
-      {
-        role: 'user',
-        content: userPrompt,
-      },
-    ];
+    }> = [];
 
-    // Include previous chats as part of the conversation
+    // 1️⃣ Give the model document context and behavioral instructions
+    messages.push({
+      role: 'system',
+      content: `
+You are an expert assistant helping the user understand and discuss a document.
+
+Use the following document context to formulate your responses:
+- Translated document text: ${chatBotHistory.translatedText || 'No translated text available'}
+
+Rules:
+- Base your answers on the translated text and the ongoing conversation.
+- Be concise, factual, and only answer questions related to the document context.
+- If the question is unrelated, politely tell the user that you can only answer document-related questions.
+- Always respond in the same language as the translated document unless the user specifies otherwise.
+`.trim(),
+    });
+
+    // 2️⃣ Add all previous conversation messages in order
     chatBotHistory.chats.forEach((chat) => {
-      messages.push(
-        { role: 'user', content: chat.userPrompt },
-        { role: 'assistant', content: chat.response },
-      );
+      messages.push({ role: 'user', content: chat.userPrompt });
+      messages.push({ role: 'assistant', content: chat.response });
+    });
+
+    // 3️⃣ Finally, include the new user question
+    messages.push({
+      role: 'user',
+      content: userPrompt,
     });
 
     return messages;

@@ -1,8 +1,3 @@
-/**
- * @copyright 2025 Adeniyi Bella
- * @license Apache-2.0
- */
-
 import { container } from 'tsyringe';
 import { logger } from '@/lib/winston';
 import { IUserService } from '@/services/users/user.interface';
@@ -25,8 +20,6 @@ const downgradeUserPlan = async (req: Request, res: Response): Promise<void> => 
 
     const currentPlan = user.plan;
     const planToDowngradeTo = req.params.plan;
-
-    // Validate target plan
     const allowedPlans = ['standard', 'free'];
     if (!allowedPlans.includes(planToDowngradeTo)) {
       logger.error(`Invalid target plan: ${planToDowngradeTo}`);
@@ -36,8 +29,6 @@ const downgradeUserPlan = async (req: Request, res: Response): Promise<void> => 
       );
       return;
     }
-
-    // Enforce downgrade rules
     switch (currentPlan) {
       case 'free':
         logger.error('Free plan cannot be downgraded further');
@@ -51,33 +42,26 @@ const downgradeUserPlan = async (req: Request, res: Response): Promise<void> => 
         }
         break;
       case 'premium':
-        // Can downgrade to standard or free
         break;
       default:
         logger.error(`Unknown current plan: ${currentPlan}`);
         ApiResponse.badRequest(res, `Unknown current plan: ${currentPlan}`);
         return;
     }
-
-    // Update user plan
     await userService.updateUser(req.userId, 'plan', false, planToDowngradeTo);
-
-    // Update lengthOfDocs for new plan
     const newLengthOfDocs: IPlans =
       planToDowngradeTo === 'standard'
         ? { standard: { max: 3, min: 0, current: 3 } }
         : { free: { max: 2, min: 0, current: 2 } };
 
     await userService.updateUser(req.userId, 'lengthOfDocs', false, newLengthOfDocs);
-
-    // Update documents' chatBotPrompt
     const maxDocsForPrevPlan =
       currentPlan === 'premium'
         ? user.lengthOfDocs.premium!.max
         : user.lengthOfDocs.standard!.max;
 
     const { documents } = await docService.getAllDocumentsByUserId(
-      req.userId,
+      user,
       maxDocsForPrevPlan,
       0
     );

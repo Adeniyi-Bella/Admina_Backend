@@ -12,7 +12,7 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
     const docId = req.params.docId;
-    const id = req.params.id;
+    const actionPlanId = req.params.id;
     const requestType = req.query.type as string;
 
     if (!userId || !docId) {
@@ -30,7 +30,7 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
     let updatedDocument: IDocument | null = null;
 
     if (requestType === 'delete') {
-      if (!id) {
+      if (!actionPlanId) {
         ApiResponse.badRequest(res, 'Action plan ID is required for delete.');
         return;
       }
@@ -39,7 +39,7 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
         docId,
         'delete',
         undefined,
-        id,
+        actionPlanId,
       );
     } else {
       if (!req.body) {
@@ -48,7 +48,7 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
       }
 
       if (requestType === 'create') {
-        const { title, dueDate, completed, location } = req.body;
+        const { title, dueDate, completed, location } = req.body.completed;
         if (!title) {
           ApiResponse.badRequest(
             res,
@@ -69,12 +69,24 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
           },
         );
       } else if (requestType === 'update') {
-        if (!id) {
-          ApiResponse.badRequest(res, 'Action plan ID is required for delete.');
+        if (!actionPlanId) {
+          ApiResponse.badRequest(res, 'Action plan ID is required for update.');
           return;
         }
 
-        const { title, dueDate, completed, location } = req.body;
+        let title, dueDate, completed, location;
+
+        if (typeof req.body.completed === 'boolean') {
+          completed = req.body.completed;
+          ({ title, dueDate, location } = req.body);
+        } else if (
+          typeof req.body.completed === 'object'
+        ) {
+          ({ title, dueDate, completed, location } = req.body.completed);
+        } else {
+          ApiResponse.badRequest(res, 'Invalid body format.');
+          return;
+        }
         if (!title && !dueDate && completed === undefined && !location) {
           ApiResponse.badRequest(
             res,
@@ -88,8 +100,16 @@ const updateActionPlan = async (req: Request, res: Response): Promise<void> => {
           docId,
           'update',
           { completed, location, title, dueDate },
-          id,
+          actionPlanId,
         );
+
+        if (!updatedDocument) {
+          ApiResponse.notFound(
+            res,
+            'Document or action plan not found for update.',
+          );
+          return;
+        }
       }
     }
 

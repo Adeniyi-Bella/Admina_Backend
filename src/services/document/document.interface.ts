@@ -7,17 +7,25 @@
  * Types
  */
 import { IActionPlan, IDocument } from '@/models/document.model';
+import { UserDTO } from '../users/user.interface';
+import { IDocumentResponseFreeUsersDTO } from '@/types/DTO';
 
 export interface IDocumentService {
   getAllDocumentsByUserId(
-    userId: string,
+    user: UserDTO,
     limit: number,
     offset: number,
-  ): Promise<{ total: number; documents: IDocument[] }>;
+  ): Promise<{
+    total: number;
+    documents: IDocument[] | IDocumentResponseFreeUsersDTO[];
+  }>;
 
   createDocumentByUserId(document: Partial<IDocument>): Promise<IDocument>;
 
-  getDocument(userId: string, docId: string): Promise<IDocument | null>;
+  getDocument(
+    user: UserDTO,
+    docId: string,
+  ): Promise<IDocument | null >;
 
   deleteDocument(userId: string, docId: string): Promise<boolean>;
 
@@ -34,6 +42,6 @@ export interface IDocumentService {
     actionPlanData?: Partial<IActionPlan>,
     actionPlanId?: string,
   ): Promise<IDocument | null>;
-  
+
   deleteAllDocuments(userId: string): Promise<boolean>;
 }

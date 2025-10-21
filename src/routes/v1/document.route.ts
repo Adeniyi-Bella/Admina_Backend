@@ -16,7 +16,7 @@ import { body, param, query } from 'express-validator';
 import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
 import verifyUploadedFile from '@/middlewares/verifyUploadedFile';
-import  resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
+import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 
 /**
  * Controllers
@@ -26,12 +26,13 @@ import createDocument from '@/controllers/document/createDocument';
 import getDocument from '@/controllers/document/getDocument';
 import deleteDocument from '@/controllers/document/deleteDocument';
 import updateActionPlan from '@/controllers/document/update-document/updateActionPlan';
+import getDocumentChatbotLimit from '@/controllers/document/getDocumentChatbotLimit';
 
 const router = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
     const allowedFileTypes = ['application/pdf', 'image/png', 'image/jpeg'];
     if (allowedFileTypes.includes(file.mimetype)) {
@@ -48,7 +49,6 @@ const upload = multer({
 
 router.use(authenticate);
 router.use(resetPropertiesIfNewMonth);
-
 
 // Route to get all documents with optional pagination
 router.get(
@@ -73,13 +73,21 @@ router.get(
   getDocument,
 );
 
+// Route to get chatbot linit
+router.get(
+  '/:docId/limit',
+  param('docId').notEmpty().isUUID().withMessage('Invalid doId ID'),
+  validationError,
+  getDocumentChatbotLimit,
+);
+
 // Route to create a new document
 // Requires authentication and file upload
 // Used by the scan and translate feature
 router.post(
   '/',
   upload.single('file'),
-  verifyUploadedFile, 
+  verifyUploadedFile,
   body('docLanguage')
     .exists()
     .withMessage('Source language is required')
@@ -117,17 +125,29 @@ router.delete(
   deleteDocument,
 );
 
-// Route to handle create, update, delete of action plans
+router.patch(
+  '/actionPlan/:docId',
+  param('docId').notEmpty().isUUID().withMessage('Invalid docId'),
+  query('type')
+    .notEmpty()
+    .withMessage('type query parameter is required')
+    .isIn(['create'])
+    .withMessage('type must be create'),
+  validationError,
+  updateActionPlan,
+);
+
 router.patch(
   '/actionPlan/:docId/:id',
   param('docId').notEmpty().isUUID().withMessage('Invalid docId'),
   param('id').notEmpty().isUUID().withMessage('Invalid actionPlan id'),
   query('type')
-    .notEmpty().withMessage('type query parameter is required')
-    .isIn(['create', 'update', 'delete']).withMessage('type must be one of create, update, or delete'),
+    .notEmpty()
+    .withMessage('type query parameter is required')
+    .isIn(['update', 'delete'])
+    .withMessage('type must be one of update, or delete'),
   validationError,
   updateActionPlan,
 );
-
 
 export default router;

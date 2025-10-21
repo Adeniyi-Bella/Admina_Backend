@@ -77,8 +77,8 @@ const userSchema = new Schema<IUser>(
     lengthOfDocs: {
       type: plansSchema,
       default: {
-        premium: { max: 5, min: 0, current: 5 },
-        standard: { max: 3, min: 0, current: 3 },
+        premium: { max: 7, min: 0, current: 7 },
+        standard: { max: 5, min: 0, current: 5 },
         free: { max: 2, min: 0, current: 2 },
       },
     },

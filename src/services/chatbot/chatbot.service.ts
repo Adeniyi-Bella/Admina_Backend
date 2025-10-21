@@ -120,5 +120,25 @@ export class ChatBotService implements IChatBotService {
       throw new Error(`Failed to delete chat history: ${error}`);
     }
   }
+
+  async deleteChatHistoryByDocument(userId: string, docId: string): Promise<boolean> {
+    try {
+      if (!userId || !docId) {
+        throw new Error('User ID is required');
+      }
+
+      const result = await ChatBotHistory.deleteMany({ userId, docId }).exec();
+
+      if (result.deletedCount === 0) {
+        logger.info('No chat history found for user', { userId, docId });
+      }
+
+      logger.info('Chat history deleted successfully', { userId, docId });
+      return true;
+    } catch (error) {
+      logger.error('Failed to delete chat history', { error, userId });
+      throw new Error(`Failed to delete chat history: ${error}`);
+    }
+  }
 }
 

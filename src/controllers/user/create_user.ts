@@ -36,7 +36,7 @@ const createUser = async (
 
     return next();
   } catch (error: unknown) {
-      logger.error('Error deleting document', error);
+      logger.error('Error creating user', error);
       // Check if error is an instance of Error to safely access message
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';

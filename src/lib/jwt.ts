@@ -7,13 +7,13 @@
  * Node modules
  */
 import { jwtVerify, createRemoteJWKSet } from 'jose';
+import { logger } from '@/lib/winston';
 
 /**
  * Custom modules
  */
 import config from '@/config';
-// import { logger } from '@/lib/winston';
-
+import { ConfidentialClientApplication } from '@azure/msal-node';
 
 const JWKS = createRemoteJWKSet(
   new URL(
@@ -30,21 +30,21 @@ export const verifyAccessToken = async (token: string) => {
   }
 
   try {
-
     // Verify ID token
     const { payload: idTokenPayload } = await jwtVerify(idToken, JWKS, {
       issuer: `https://${config.AZURE_TENANT_ID}.ciamlogin.com/${config.AZURE_TENANT_ID}/v2.0`,
       audience: config.AZURE_CLIENT_ID,
+      clockTolerance: 3600,
     });
 
     // Verify ID token
     const { payload: accessTokenPayload } = await jwtVerify(accessToken, JWKS, {
       issuer: `https://${config.AZURE_TENANT_ID}.ciamlogin.com/${config.AZURE_TENANT_ID}/v2.0`,
-      audience: "3e79848d-631d-4c2d-bfd5-11dbb8e5a21c",
-    });    
+      audience: config.ADMINA_API_CLIENT_ID,
+      clockTolerance: 3600,
+    });
 
     if (
-
       accessTokenPayload.oid !== idTokenPayload.oid ||
       accessTokenPayload.tid !== idTokenPayload.tid ||
       accessTokenPayload.sid !== idTokenPayload.sid
@@ -54,17 +54,45 @@ export const verifyAccessToken = async (token: string) => {
       );
     }
 
-    // Additional validation checks
-    if (accessTokenPayload.exp! < Math.floor(Date.now() / 1000)) {
-      throw new Error('Access token has expired');
-    }
-    if (idTokenPayload.exp! < Math.floor(Date.now() / 1000)) {
-      throw new Error('ID token has expired');
+    const authVerify = {
+      auth: {
+        clientId: config.AZURE_CLIENT_ID!,
+        clientSecret: config.AZURE_CLIENT_SECRETE!,
+        authority: config.AZURE_CLIENT_AUTHORITY,
+      },
+    };
+
+    const cca = new ConfidentialClientApplication(authVerify);
+
+    const result = await cca.acquireTokenByClientCredential({
+      scopes: ['https://graph.microsoft.com/.default'],
+    });
+
+    if (!result?.accessToken) {
+      logger.error('Failed to verify user with secrete', {
+        accessTokenPayload,
+      });
+      throw new Error('Failed to acquire Graph token');
     }
 
-    return accessTokenPayload;
+    const graphToken = await cca.acquireTokenByClientCredential({
+      scopes: ['https://graph.microsoft.com/.default'],
+    });
+
+    const userRes = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${(accessTokenPayload.oid)}`,
+      {
+        headers: { Authorization: `Bearer ${graphToken!.accessToken}` },
+      },
+    );
+
+    const user = await userRes.json();
+    const email = user.mail
+    const username = user.displayName;
+    const oid = accessTokenPayload.oid as string
+
+    return {oid, email, username};
   } catch (error) {
     throw new Error('Unable to verify token');
   }
 };
-

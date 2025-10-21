@@ -51,19 +51,16 @@ const authenticate = async (
 
   try {
     // Verify the token and extract the userId from the payload
-    const jwtPayload = (await verifyAccessToken(token)) as {
-      oid: string;
-      preferred_username: string;
-      name: string;
-    };
+    const jwtPayload = (await verifyAccessToken(token)) 
 
     if (!jwtPayload.oid) {
       logger.error('Token does not have an oid');
       throw new Error('Access denied, invalid token');
     }
+    
     req.userId = jwtPayload.oid;
-    req.email = jwtPayload.preferred_username;
-    req.username = jwtPayload.name;
+    req.email = jwtPayload.email;
+    req.username = jwtPayload.username;
 
     // Proceed to the next middleware or route handler
     return next();

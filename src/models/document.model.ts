@@ -50,18 +50,9 @@ const valuesSchema = new Schema<IValues>(
 
 const plansSchema = new Schema<IPlans>(
   {
-    premium: {
-      type: valuesSchema,
-      default: () => ({ max: 10, min: 0, current: 10 }),
-    },
-    standard: {
-      type: valuesSchema,
-      default: () => ({ max: 5, min: 0, current: 5 }),
-    },
-    free: {
-      type: valuesSchema,
-      default: () => ({ max: 0, min: 0, current: 0 }),
-    },
+    premium: { type: valuesSchema },
+    standard: { type: valuesSchema },
+    free: { type: valuesSchema },
   },
   { _id: false },
 );
@@ -83,9 +74,9 @@ const documentSchema = new Schema<IDocument>(
     chatBotPrompt: {
       type: plansSchema,
       default: () => ({
-        premium: { max: 10, min: 0, current: 10 },
-        standard: { max: 5, min: 0, current: 5 },
-        free: { max: 0, min: 0, current: 0 },
+        premium: { max: 20, min: 0, current: 20 },
+        standard: { max: 10, min: 0, current: 10 },
+        free: { max: 5, min: 0, current: 5 },
       }),
     },
 

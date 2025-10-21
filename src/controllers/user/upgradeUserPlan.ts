@@ -1,8 +1,3 @@
-/**
- * @copyright 2025 Adeniyi Bella
- * @license Apache-2.0
- */
-
 import { container } from 'tsyringe';
 import { logger } from '@/lib/winston';
 import { IUserService } from '@/services/users/user.interface';
@@ -16,7 +11,6 @@ const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
   const docService = container.resolve<IDocumentService>('IDocumentService');
 
   try {
-    // Get current user
     const user = await userService.checkIfUserExist(req);
     if (!user) {
       logger.error('User not found during upgradeUserPlan');
@@ -26,8 +20,6 @@ const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
 
     const currentPlan = user.plan;
     const planToUpgradeTo = req.params.plan;
-
-    // Validate requested upgrade plan
     const allowedPlans = ['standard', 'premium'];
     if (!allowedPlans.includes(planToUpgradeTo)) {
       logger.error(`Invalid target plan: ${planToUpgradeTo}`);
@@ -37,11 +29,8 @@ const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
       );
       return;
     }
-
-    // Enforce upgrade rules based on current plan
     switch (currentPlan) {
       case 'free':
-        // can upgrade to standard or premium
         break;
       case 'standard':
         if (planToUpgradeTo !== 'premium') {
@@ -62,27 +51,19 @@ const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
         ApiResponse.badRequest(res, `Unknown current plan: ${currentPlan}`);
         return;
     }
-
-    // Update user plan
     await userService.updateUser(req.userId, 'plan', false, planToUpgradeTo);
-
-    // Set lengthOfDocs for new plan
     const newLengthOfDocs: IPlans =
       planToUpgradeTo === 'standard'
         ? { standard: { max: 3, min: 0, current: 3 } }
         : { premium: { max: 5, min: 0, current: 5 } };
 
     await userService.updateUser(req.userId, 'lengthOfDocs', false, newLengthOfDocs);
-
-     // Update documents' chatBotPrompt
     const maxDocsForPrevPlan =
       currentPlan === 'free'
         ? user.lengthOfDocs.free!.max
         : user.lengthOfDocs.standard!.max;
-        
-    // Update documents' chatBotPrompt for new plan
     const { documents } = await docService.getAllDocumentsByUserId(
-      req.userId,
+      user,
       maxDocsForPrevPlan,
       0
     );

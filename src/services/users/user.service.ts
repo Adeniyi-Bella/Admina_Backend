@@ -36,7 +36,6 @@ import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { IDocument } from '@/models/document.model';
 import { handleSseAsyncOperation, sendSseMessage } from '../azure/utils';
-import e from 'express';
 
 @injectable()
 export class UserService implements IUserService {
@@ -75,16 +74,6 @@ export class UserService implements IUserService {
       });
       sendSseMessage(res, 'complete', { status: 'failed' });
       return;
-    } else if (user.plan === 'standard' && pageCount > 4) {
-      logger.error('Page count exceeds limit for standard users', {
-        userId: user.userId,
-        pageCount,
-      });
-      sendSseMessage(res, 'error', {
-        message: 'Standard users can only upload up to 4 pages',
-      });
-      sendSseMessage(res, 'complete', { status: 'failed' });
-      return;
     }
 
     // Send initial event
@@ -101,10 +90,12 @@ export class UserService implements IUserService {
       message: 'Document Analyzed Successfully with gemini',
     });
 
+    const docId = uuidv4();
+
     // Create document in MongoDB
     const documentData: IDocument = {
       userId: user.userId.toString(),
-      docId: uuidv4(),
+      docId,
       title: analyzedDocument.title || '',
       sender: analyzedDocument.sender || '',
       receivedDate: analyzedDocument.receivedDate || new Date(),
@@ -169,7 +160,7 @@ export class UserService implements IUserService {
     }
 
     // Signal completion
-    sendSseMessage(res, 'complete', { status: 'completed' });
+    sendSseMessage(res, 'complete', { status: 'completed', docId });
   }
 
   async deleteUserFromEntraId(userId: string): Promise<boolean> {
@@ -274,7 +265,7 @@ export class UserService implements IUserService {
   async createUserFromToken(req: Request): Promise<void> {
     const userId = req.userId;
     const email = req.email;
-    const username = req.username;
+    const username = req.username;    
 
     await User.create({
       userId,
