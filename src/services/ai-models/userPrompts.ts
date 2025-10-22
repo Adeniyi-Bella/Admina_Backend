@@ -50,7 +50,9 @@ You are an assistant that reads documents, translates them into ${targetLanguage
 - A very good comprehensive summary of the document. This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.
 - actionPlan: an array of { title: string, reason: string }
 - actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
-- structuredTranslatedText HTML response of the translated text according to pages with proper inline Tailwind stylings { page1: string, page2: string, ... }
+- structuredTranslatedText: an object containing HTML strings for each page { page1: string, page2: string, ... }.
+  Each page must include the **fully translated text** (no original language remains), structured in semantic HTML with inline Tailwind CSS classes.
+  The translation inside the HTML must exactly match the translatedText field.
 
 Assume the current date is "${new Date().toISOString()}".
 If there is no due date for any of the actionPlans, use this current date as the due date.
@@ -59,6 +61,9 @@ If there is no due date for any of the actionPlans, use this current date as the
 - Respond with *raw JSON only*. Do NOT wrap the response in markdown, code fences (e.g., \`\`\`json or \`\`\`), or any other text.
 - Ensure the response is valid JSON that can be parsed directly with JSON.parse().
 - Do NOT include any explanatory text, comments, or extra characters outside the JSON object.
+- Do NOT include any original-language content inside structuredTranslatedText.
+- All text, including within structuredTranslatedText, must be in ${targetLanguage}.
+- The structuredTranslatedText must reflect the same translation as translatedText, but formatted in HTML per page.
 - Example of a correct response:
 {
   "translatedText": "This is the translated text",
