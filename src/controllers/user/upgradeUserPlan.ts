@@ -81,7 +81,12 @@ const upgradeUserPlan = async (req: Request, res: Response): Promise<void> => {
 
     logger.info(
       `User upgraded successfully from ${currentPlan} to ${planToUpgradeTo} and document chatBotPrompt updated`,
-      { user }
+       {
+          user: {
+            id: user.userId,
+            email: user.email,
+          },
+        },
     );
     ApiResponse.ok(res, 'User upgraded successfully');
   } catch (error: unknown) {

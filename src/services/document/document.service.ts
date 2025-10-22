@@ -88,8 +88,6 @@ export class DocumentService implements IDocumentService {
         throw new Error('Failed to retrieve created document');
       }
 
-      logger.info('Document created successfully');
-
       return result as IDocument;
     } catch (error) {
       logger.error('Failed to create document', { error: error });

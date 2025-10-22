@@ -141,8 +141,11 @@ const resetPropertiesIfNewMonth = async (
       }
     } else {
       logger.info('No reset needed; not a new month', {
-        userId,
-        plan: user.plan,
+        user: {
+          id: user.userId,
+          email: user.email,
+          plan: user.plan
+        },
       });
     }
 
@@ -150,7 +153,11 @@ const resetPropertiesIfNewMonth = async (
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    ApiResponse.serverError(res, 'Error in reset PRoperties new month', errorMessage);
+    ApiResponse.serverError(
+      res,
+      'Error in reset PRoperties new month',
+      errorMessage,
+    );
     logger.error('Error in reset PRoperties new month', errorMessage);
   }
 };

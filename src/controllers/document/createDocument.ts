@@ -19,7 +19,6 @@ import { IDocumentService } from '@/services/document/document.interface';
 import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 
-
 /**
  * Node modules
  */
@@ -29,9 +28,7 @@ import { ApiResponse } from '@/lib/api_response';
 
 const createDocument = async (req: Request, res: Response): Promise<void> => {
   const geminiAIService =
-    container.resolve<IGeminiAIService>(
-      'IGeminiAIService',
-    );
+    container.resolve<IGeminiAIService>('IGeminiAIService');
   const azurePremiumSubscriptionService =
     container.resolve<IAzurePremiumSubscriptionService>(
       'IAzurePremiumSubscriptionService',
@@ -60,7 +57,10 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    if (user.plan === 'free' && user.lengthOfDocs.free?.current || user.plan === "standard" && user.lengthOfDocs.standard?.current) {
+    if (
+      (user.plan === 'free' && user.lengthOfDocs.free?.current) ||
+      (user.plan === 'standard' && user.lengthOfDocs.standard?.current)
+    ) {
       await userService.analyzeDocumentContentForFreemiumUser(
         file,
         targetLanguage,
@@ -69,7 +69,6 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         geminiAIService,
         documentService,
       );
-
     } else if (user.plan === 'premium' && user.lengthOfDocs.premium?.current) {
       await azurePremiumSubscriptionService.processPremiumUserDocument({
         file,
@@ -86,7 +85,10 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
       logger.info(
         'Invalid user data or user has processed maximum document for the month.',
         {
-          userDetails: user,
+          user: {
+            id: user.userId,
+            email: user.email,
+          },
         },
       );
       res.write(

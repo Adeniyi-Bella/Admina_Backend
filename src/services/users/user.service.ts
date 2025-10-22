@@ -253,19 +253,27 @@ export class UserService implements IUserService {
     const userId = req.userId;
     logger.info('user id:', { userId: userId });
     const user = await User.findOne({ userId }).select('-__v').exec();
-    logger.info('user from db', { user: user });
+
     if (!user) return null;
+    
+    logger.info('user from db', {
+      user: {
+        id: user.userId,
+        email: user.email,
+      },
+    });
     return {
       userId: String(user.userId),
       plan: user.plan,
       lengthOfDocs: user.lengthOfDocs,
+      email: user.email,
     };
   }
 
   async createUserFromToken(req: Request): Promise<void> {
     const userId = req.userId;
     const email = req.email;
-    const username = req.username;    
+    const username = req.username;
 
     await User.create({
       userId,

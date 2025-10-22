@@ -6,7 +6,10 @@
 /**
  * Models
  */
-import ChatBotHistory, { IChatBotHistory, IChatMessage } from '@/models/chatbotHistory.model'
+import ChatBotHistory, {
+  IChatBotHistory,
+  IChatMessage,
+} from '@/models/chatbotHistory.model';
 
 /**
  * Interfaces
@@ -23,11 +26,12 @@ import { injectable } from 'tsyringe';
  */
 import { logger } from '@/lib/winston';
 
-
 @injectable()
 export class ChatBotService implements IChatBotService {
-
-  async getDocumentChatBotCollection(userId: string, docId: string): Promise<IChatBotHistory |null > {
+  async getDocumentChatBotCollection(
+    userId: string,
+    docId: string,
+  ): Promise<IChatBotHistory | null> {
     try {
       if (!userId || !docId) {
         throw new Error('User ID and Document ID are required');
@@ -43,20 +47,30 @@ export class ChatBotService implements IChatBotService {
 
       return result;
     } catch (error) {
-      logger.error('Failed to retrieve chat history collection', { error, userId, docId });
+      logger.error('Failed to retrieve chat history collection', {
+        error,
+        userId,
+        docId,
+      });
       throw new Error(`Failed to retrieve chat history collection: ${error}`);
     }
   }
-   async updateDocumentChatBotHistory(userId: string, docId: string, chat: IChatMessage): Promise<void> {
+  async updateDocumentChatBotHistory(
+    userId: string,
+    docId: string,
+    chat: IChatMessage,
+  ): Promise<void> {
     try {
       if (!userId || !docId || !chat || !chat.userPrompt || !chat.response) {
-        throw new Error('User ID, Document ID, and valid chat data are required');
+        throw new Error(
+          'User ID, Document ID, and valid chat data are required',
+        );
       }
 
       const result = await ChatBotHistory.findOneAndUpdate(
         { userId, docId },
         { $push: { chats: chat } },
-        { new: true }
+        { new: true },
       )
         .select('-__v')
         .lean()
@@ -66,14 +80,23 @@ export class ChatBotService implements IChatBotService {
         throw new Error('Chat history collection not found for update');
       }
 
-      logger.info('Chat history collection updated successfully', { userId, docId });
+      logger.info('Chat history collection updated successfully', {
+        userId,
+        docId,
+      });
     } catch (error) {
-      logger.error('Failed to update chat history collection', { error, userId, docId });
+      logger.error('Failed to update chat history collection', {
+        error,
+        userId,
+        docId,
+      });
       throw new Error(`Failed to update chat history collection: ${error}`);
     }
   }
-  
-  async addTranslatedText(chatBotHistory: Partial<IChatBotHistory>): Promise<IChatBotHistory> {
+
+  async addTranslatedText(
+    chatBotHistory: Partial<IChatBotHistory>,
+  ): Promise<IChatBotHistory> {
     try {
       if (!chatBotHistory || !chatBotHistory.userId || !chatBotHistory.docId) {
         throw new Error('Valid chat history data is required');
@@ -93,10 +116,11 @@ export class ChatBotService implements IChatBotService {
         throw new Error('Failed to retrieve New chat history collection');
       }
 
-      logger.info('New chat history collection successfully created');
-      return result
+      return result;
     } catch (error) {
-      logger.error('Failed to create chat history collection', { error: error });
+      logger.error('Failed to create chat history collection', {
+        error: error,
+      });
       throw new Error(`Failed to create chat history collection: ${error}`);
     }
   }
@@ -107,11 +131,7 @@ export class ChatBotService implements IChatBotService {
         throw new Error('User ID is required');
       }
 
-      const result = await ChatBotHistory.deleteMany({ userId }).exec();
-
-      if (result.deletedCount === 0) {
-        logger.info('No chat history found for user', { userId });
-      }
+      await ChatBotHistory.deleteMany({ userId }).exec();
 
       logger.info('Chat history deleted successfully', { userId });
       return true;
@@ -121,7 +141,10 @@ export class ChatBotService implements IChatBotService {
     }
   }
 
-  async deleteChatHistoryByDocument(userId: string, docId: string): Promise<boolean> {
+  async deleteChatHistoryByDocument(
+    userId: string,
+    docId: string,
+  ): Promise<boolean> {
     try {
       if (!userId || !docId) {
         throw new Error('User ID is required');
@@ -141,4 +164,3 @@ export class ChatBotService implements IChatBotService {
     }
   }
 }
-

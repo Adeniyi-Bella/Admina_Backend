@@ -79,7 +79,12 @@ const downgradeUserPlan = async (req: Request, res: Response): Promise<void> => 
 
     logger.info(
       `User downgraded successfully from ${currentPlan} to ${planToDowngradeTo} and documents updated`,
-      { user }
+       {
+          user: {
+            id: user.userId,
+            email: user.email,
+          },
+        },
     );
 
     ApiResponse.ok(res, 'User downgraded successfully');

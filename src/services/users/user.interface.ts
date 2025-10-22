@@ -15,6 +15,7 @@ export interface UserDTO {
   userId: string;
   plan: string;
   lengthOfDocs: IPlans;
+  email? : string
 }
 
 export interface IUserService {
