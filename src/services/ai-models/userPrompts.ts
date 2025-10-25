@@ -33,29 +33,14 @@ ${text}
 `.trim();
   }
 
-  /**
-   * Builds the userPrompt for Gemini AI with the document text and target language.
-   * @param translatedText - The document text to process.
-   * @param targetLanguage - The language for the response.
-   * @returns The formatted userPrompt string.
-   */
-  public buildPromptForGeminiAI(targetLanguage: string): string {
+  public buildPromptForTranslateDocument(targetLanguage: string): string {
     return `
-You are an assistant that reads documents, translates them into ${targetLanguage}, and extracts the following fields from the translated text:
+You are an assistant that reads documents, translates them into ${targetLanguage}, and restrucutures the translated document as described below:
 
 - translatedText (string)
-- title of the Document (string)
-- date document was received (date string in ISO 8601 format, e.g. "2024-05-24T00:00:00Z" or "${new Date().toISOString()}" if no date is provided)
-- sender of document (from which institution) (string)
-- A very good comprehensive summary of the document. This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.
-- actionPlan: an array of { title: string, reason: string }
-- actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
 - structuredTranslatedText: an object containing HTML strings for each page { page1: string, page2: string, ... }.
   Each page must include the **fully translated text** (no original language remains), structured in semantic HTML with inline Tailwind CSS classes.
   The translation inside the HTML must exactly match the translatedText field.
-
-Assume the current date is "${new Date().toISOString()}".
-If there is no due date for any of the actionPlans, use this current date as the due date.
 
 **CRITICAL INSTRUCTIONS**:
 - Respond with *raw JSON only*. Do NOT wrap the response in markdown, code fences (e.g., \`\`\`json or \`\`\`), or any other text.
@@ -69,7 +54,31 @@ If there is no due date for any of the actionPlans, use this current date as the
   "translatedText": "This is the translated text",
   "structuredTranslatedText": {
     "page1": "<p>Helios</p><h2>Helios Dr. Horst Schmidt</h2><h3>Wiesbaden Clinics</h3><p>Academic Teaching Hospital</p><p>of Johannes Gutenberg University Mainz</p><p>Helios Dr. Horst Schmidt Kliniken Wiesbaden</p><p>Gynecology and Obstetrics</p><p>Ludwig-Erhard-Straße 100 65199 Wiesbaden</p>"
-  },
+  }
+}
+`;
+  }
+
+  public buildPromptForSummarizeDocument(tranlatedText: string): string {
+    return `
+You are an assistant that extracts the following fields from this document: ${tranlatedText}:
+
+- title of the Document (string)
+- date document was received (date string in ISO 8601 format, e.g. "2024-05-24T00:00:00Z" or "${new Date().toISOString()}" if no date is provided)
+- sender of document (from which institution) (string)
+- A very good comprehensive summary of the document. This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.
+- actionPlan: an array of { title: string, reason: string }
+- actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
+
+Assume the current date is "${new Date().toISOString()}".
+If there is no due date for any of the actionPlans, use this current date as the due date.
+
+**CRITICAL INSTRUCTIONS**:
+- Respond with *raw JSON only*. Do NOT wrap the response in markdown, code fences (e.g., \`\`\`json or \`\`\`), or any other text.
+- Ensure the response is valid JSON that can be parsed directly with JSON.parse().
+- Do NOT include any explanatory text, comments, or extra characters outside the JSON object.
+- Example of a correct response:
+{
   "title": "Residence Permit Decision",
   "receivedDate": "2024-05-24T00:00:00Z",
   "sender": "Auslander Behorde",

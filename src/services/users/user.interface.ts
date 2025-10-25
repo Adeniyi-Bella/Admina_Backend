@@ -29,12 +29,4 @@ export interface IUserService {
   ): Promise<boolean>;
   deleteUser(userId: string): Promise<boolean>;
   deleteUserFromEntraId(userId: string): Promise<boolean>;
-  analyzeDocumentContentForFreemiumUser(
-    file: Express.Multer.File,
-    targetLanguage: string,
-    user: UserDTO,
-    res: Response,
-    geminiAIService: IGeminiAIService,
-    documentService: IDocumentService,
-  ): Promise<void>;
 }

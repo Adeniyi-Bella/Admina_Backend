@@ -11,10 +11,12 @@ import { IDocument } from '@/models/document.model';
 import { OpenAI } from 'openai';
 
 export interface IGeminiAIService {
-  
-    analyzePDFDocument(
+  summarizeDocument(
+    tranlatedText: string,
+  ): Promise<Partial<IDocument>>;
+
+  translateDocument(
     file: Express.Multer.File,
     targetLanguage: string,
-  ): Promise<Partial<IDocument>>
-
+  ): Promise<Partial<IDocument>>;
 }

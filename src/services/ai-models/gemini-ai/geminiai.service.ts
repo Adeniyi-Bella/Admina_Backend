@@ -41,16 +41,15 @@ export class GeminiAIService implements IGeminiAIService {
     this.userPrompt = new Prompt();
   }
 
-  public async analyzePDFDocument(
+     public async translateDocument(
     file: Express.Multer.File,
     targetLanguage: string,
   ): Promise<Partial<IDocument>> {
-    // Validate inputs
     if (!file || !file.buffer) {
       throw new Error('PDF file buffer is required');
     }
 
-    const userPrompt = this.userPrompt.buildPromptForGeminiAI(targetLanguage);
+    const userPrompt = this.userPrompt.buildPromptForTranslateDocument(targetLanguage);
 
     try {
       const contents = [
@@ -82,12 +81,36 @@ export class GeminiAIService implements IGeminiAIService {
     }
   }
 
-  /**
-   * Parses the OpenAI response and normalizes it to match the IDocument interface.
-   * @param response - The raw JSON response from OpenAI.
-   * @returns The parsed and normalized document fields.
-   * @throws Error if JSON parsing fails.
-   */
+  public async summarizeDocument(
+   tranlatedText: string
+  ): Promise<Partial<IDocument>> {
+
+    const userPrompt = this.userPrompt.buildPromptForSummarizeDocument(tranlatedText);
+
+    try {
+      const contents = [
+        { text: userPrompt },
+      ];
+
+      const response = await this.geminiAi.models.generateContent({
+        model: this.model,
+        contents,
+      });
+
+      const responseText = response.text;
+      if (!responseText) {
+        throw new Error('No response received from Gemini AI');
+      }
+
+      return this.parseResponse(responseText);
+    } catch (error: any) {
+      logger.error('Failed to generate action plan with Gemini AI', {
+        error: error.message,
+      });
+      throw new Error('Failed to generate action plan with Gemini AI');
+    }
+  }
+
   private parseResponse(response: string): Partial<IDocument> {
     try {
       const cleanResponse = response

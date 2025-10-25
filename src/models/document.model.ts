@@ -25,10 +25,10 @@ export interface IDocument {
   title?: string;
   sender?: string;
   receivedDate?: Date;
-  summary: string;
+  summary?: string;
   translatedText?: string;
   pdfBlobStorage: boolean;
-  targetLanguage: string;
+  targetLanguage?: string;
   structuredTranslatedText?: Record<string, string>;
   actionPlan?: { title?: string; reason?: string }[];
   actionPlans?: IActionPlan[];

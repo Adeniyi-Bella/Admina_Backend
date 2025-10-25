@@ -22,11 +22,12 @@ import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
  * Controllers
  */
 import getAllDocuments from '@/controllers/document/getAllDocument';
-import createDocument from '@/controllers/document/createDocument';
 import getDocument from '@/controllers/document/getDocument';
 import deleteDocument from '@/controllers/document/deleteDocument';
 import updateActionPlan from '@/controllers/document/update-document/updateActionPlan';
 import getDocumentChatbotLimit from '@/controllers/document/getDocumentChatbotLimit';
+import translateDocument from '@/controllers/document/translateDocument.controller';
+import summarizeDocument from '@/controllers/document/summarizeDocument.controller';
 
 const router = Router();
 
@@ -81,9 +82,7 @@ router.get(
   getDocumentChatbotLimit,
 );
 
-// Route to create a new document
-// Requires authentication and file upload
-// Used by the scan and translate feature
+// Route to translate document
 router.post(
   '/',
   upload.single('file'),
@@ -105,18 +104,19 @@ router.post(
     .isLength({ min: 2, max: 5 })
     .withMessage('Must be 2–5 characters')
     .matches(/^[a-zA-Z]{2,5}$/)
-    .withMessage('Must be a valid language code')
-    .custom((value, { req }) => {
-      if (value === req.body.docLanguage) {
-        throw new Error(
-          'Target language must be different from source language',
-        );
-      }
-      return true;
-    }),
+    .withMessage('Must be a valid language code'),
   validationError,
-  createDocument,
+  translateDocument,
 );
+
+// route to summarize document
+router.patch(
+  '/summary/:docId',
+  param('docId').notEmpty().isUUID().withMessage('Invalid docId'),
+  validationError,
+  summarizeDocument,
+);
+
 
 router.delete(
   '/:docId',

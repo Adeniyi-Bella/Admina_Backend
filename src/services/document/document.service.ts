@@ -55,19 +55,6 @@ export class DocumentService implements IDocumentService {
       .lean()
       .exec();
 
-    if (user.plan === 'free') {
-      // const freeDocuments: IDocumentResponseFreeUsersDTO[] = documents.map(
-      //   (doc) => ({
-      //     receivedDate: doc.receivedDate,
-      //     docId: doc.docId,
-      //     title: doc.title,
-      //     sender: doc.sender,
-      //     structuredTranslatedText: doc.structuredTranslatedText,
-      //   }),
-      // );
-      return { total, documents };
-    }
-
     return { total, documents };
   }
 

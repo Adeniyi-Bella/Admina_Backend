@@ -12,15 +12,11 @@ import User from '@/models/user.model';
  * Interfaces
  */
 import { IUserService, UserDTO } from './user.interface';
-import { IDocumentService } from '../document/document.interface';
-import { IGeminiAIService } from '../ai-models/gemini-ai/geminiai.interface';
 
 /**
  * Node modules
  */
 import { injectable } from 'tsyringe';
-import { v4 as uuidv4 } from 'uuid';
-import pdf from 'pdf-parse';
 
 /**
  * Custom modules
@@ -34,8 +30,6 @@ import type { Request, Response } from 'express';
 import config from '@/config';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
-import { IDocument } from '@/models/document.model';
-import { handleSseAsyncOperation, sendSseMessage } from '../azure/utils';
 
 @injectable()
 export class UserService implements IUserService {
@@ -46,122 +40,6 @@ export class UserService implements IUserService {
       authority: config.AZURE_CLIENT_AUTHORITY,
     },
   };
-
-  /**
-   * Count PDF pages using pdf-parse
-   */
-  private async countPdfPages(buffer: Buffer): Promise<number> {
-    const data = await pdf(buffer);
-    return data.numpages || 0;
-  }
-
-  async analyzeDocumentContentForFreemiumUser(
-    file: Express.Multer.File,
-    targetLanguage: string,
-    user: UserDTO,
-    res: Response,
-    geminiAIService: IGeminiAIService,
-    documentService: IDocumentService,
-  ): Promise<void> {
-    const pageCount = await this.countPdfPages(file.buffer);
-    if (user.plan === 'free' && pageCount > 2) {
-      logger.error('Page count exceeds limit for free users', {
-        userId: user.userId,
-        pageCount,
-      });
-      sendSseMessage(res, 'error', {
-        message: 'Free users can only upload up to 2 pages',
-      });
-      sendSseMessage(res, 'complete', { status: 'failed' });
-      return;
-    }
-
-    // Send initial event
-    sendSseMessage(res, 'message', 'Started Document Analysis for User');
-
-    const analyzedDocument = await handleSseAsyncOperation(
-      res,
-      () => geminiAIService.analyzePDFDocument(file, targetLanguage),
-      'Failed to analyze document',
-    );
-
-    // Send translated text event
-    sendSseMessage(res, 'status', {
-      message: 'Document Analyzed Successfully with gemini',
-    });
-
-    const docId = uuidv4();
-
-    // Create document in MongoDB
-    const documentData: IDocument = {
-      userId: user.userId.toString(),
-      docId,
-      title: analyzedDocument.title || '',
-      sender: analyzedDocument.sender || '',
-      receivedDate: analyzedDocument.receivedDate || new Date(),
-      summary: analyzedDocument.summary || '',
-      translatedText: analyzedDocument.translatedText || '',
-      structuredTranslatedText: analyzedDocument.structuredTranslatedText,
-      targetLanguage,
-      actionPlan: analyzedDocument.actionPlan || [],
-      actionPlans: (analyzedDocument.actionPlans || []).map((plan: any) => ({
-        id: plan.id || uuidv4(),
-        title: plan.title || '',
-        dueDate: plan.dueDate || new Date(),
-        completed: plan.completed ?? false,
-        location: plan.location || '',
-      })),
-      pdfBlobStorage: false,
-    };
-
-    await handleSseAsyncOperation(
-      res,
-      () => documentService.createDocumentByUserId(documentData),
-      'Failed to create document in MongoDB',
-    );
-
-    sendSseMessage(res, 'status', {
-      message: 'Document Created Successfully in MongoDB',
-    });
-
-    // Update lengthOfDocs
-    if (user.plan === 'free') {
-      await handleSseAsyncOperation(
-        res,
-        () =>
-          this.updateUser(
-            user.userId,
-            'lengthOfDocs.free.current',
-            true,
-            undefined,
-          ),
-        'Failed to update lengthOfDocs for user',
-      );
-    } else if (user.plan === 'standard') {
-      await handleSseAsyncOperation(
-        res,
-        () =>
-          this.updateUser(
-            user.userId,
-            'lengthOfDocs.standard.current',
-            true,
-            undefined,
-          ),
-        'Failed to update lengthOfDocs for user',
-      );
-    } else {
-      logger.error('Invalid user plan for document processing', {
-        userId: user.userId,
-        plan: user.plan,
-      });
-      sendSseMessage(res, 'error', { message: 'Invalid user plan' });
-      sendSseMessage(res, 'complete', { status: 'failed' });
-      return;
-    }
-
-    // Signal completion
-    sendSseMessage(res, 'complete', { status: 'completed', docId });
-  }
 
   async deleteUserFromEntraId(userId: string): Promise<boolean> {
     try {
@@ -255,7 +133,7 @@ export class UserService implements IUserService {
     const user = await User.findOne({ userId }).select('-__v').exec();
 
     if (!user) return null;
-    
+
     logger.info('user from db', {
       user: {
         id: user.userId,
