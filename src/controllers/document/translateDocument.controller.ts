@@ -24,6 +24,7 @@ import { ApiResponse } from '@/lib/api_response';
 import { IPlans } from '@/types';
 import pdf from 'pdf-parse';
 import { v4 as uuidv4 } from 'uuid';
+import { IDocument } from '@/models/document.model';
 
 const translateDocument = async (
   req: Request,
@@ -76,7 +77,6 @@ const translateDocument = async (
       ApiResponse.badRequest(res, 'Page count exceeds limit for free users.');
       return;
     }
-
     const translatedDocument = await geminiAIService.translateDocument(
       file,
       targetLanguage,
@@ -84,12 +84,13 @@ const translateDocument = async (
 
     const docId = uuidv4();
 
-    const documentData = {
+    const documentData: IDocument = {
       userId: user.userId.toString(),
       docId,
       translatedText: translatedDocument.translatedText,
       structuredTranslatedText: translatedDocument.structuredTranslatedText,
       targetLanguage,
+      pdfBlobStorage: false
     };
 
     const createDocument =

@@ -41,7 +41,7 @@ export class GeminiAIService implements IGeminiAIService {
     this.userPrompt = new Prompt();
   }
 
-     public async translateDocument(
+  public async translateDocument(
     file: Express.Multer.File,
     targetLanguage: string,
   ): Promise<Partial<IDocument>> {
@@ -49,48 +49,59 @@ export class GeminiAIService implements IGeminiAIService {
       throw new Error('PDF file buffer is required');
     }
 
-    const userPrompt = this.userPrompt.buildPromptForTranslateDocument(targetLanguage);
+    const userPrompt =
+      this.userPrompt.buildPromptForTranslateDocument(targetLanguage);
 
-    try {
-      const contents = [
-        { text: userPrompt },
-        {
-          inlineData: {
-            mimeType: 'application/pdf',
-            data: file.buffer.toString('base64'),
-          },
+    const contents = [
+      { text: userPrompt },
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: file.buffer.toString('base64'),
         },
-      ];
-
+      },
+    ];
+    try {
       const response = await this.geminiAi.models.generateContent({
         model: this.model,
         contents,
       });
 
+      if (!response) {
+        logger.error('Gemini returned empty response', { response });
+        throw new Error('Gemini returned empty response');
+      }
+
       const responseText = response.text;
       if (!responseText) {
-        throw new Error('No response received from Gemini AI');
+        throw new Error('No text returned from Gemini');
       }
 
       return this.parseResponse(responseText);
     } catch (error: any) {
-      logger.error('Failed to generate action plan with Gemini AI', {
-        error: error.message,
+      logger.error('❌ Gemini document translation failed', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        cause: error.cause,
+        isNetworkError: error.message?.includes('fetch failed'),
+        hint: error.message?.includes('fetch failed')
+          ? 'Likely a network or API connection issue (check endpoint and key).'
+          : 'Internal Gemini processing error.',
       });
-      throw new Error('Failed to generate action plan with Gemini AI');
+
+      throw new Error('Failed to translate document');
     }
   }
 
   public async summarizeDocument(
-   tranlatedText: string
+    tranlatedText: string,
   ): Promise<Partial<IDocument>> {
-
-    const userPrompt = this.userPrompt.buildPromptForSummarizeDocument(tranlatedText);
+    const userPrompt =
+      this.userPrompt.buildPromptForSummarizeDocument(tranlatedText);
 
     try {
-      const contents = [
-        { text: userPrompt },
-      ];
+      const contents = [{ text: userPrompt }];
 
       const response = await this.geminiAi.models.generateContent({
         model: this.model,

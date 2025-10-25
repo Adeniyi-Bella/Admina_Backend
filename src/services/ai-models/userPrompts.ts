@@ -61,22 +61,43 @@ You are an assistant that reads documents, translates them into ${targetLanguage
 
   public buildPromptForSummarizeDocument(tranlatedText: string): string {
     return `
-You are an assistant that extracts the following fields from this document: ${tranlatedText}:
+You are a document analysis assistant.
 
-- title of the Document (string)
-- date document was received (date string in ISO 8601 format, e.g. "2024-05-24T00:00:00Z" or "${new Date().toISOString()}" if no date is provided)
-- sender of document (from which institution) (string)
-- A very good comprehensive summary of the document. This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.
-- actionPlan: an array of { title: string, reason: string }
-- actionPlans: an array of { title: string, due_date: date string ISO 8601, completed: boolean, location: string }
+Your task is to:
+1. Read and understand the following document.
+2. Extract structured information from it.
+3. Produce a clear, comprehensive summary and related metadata.
 
-Assume the current date is "${new Date().toISOString()}".
-If there is no due date for any of the actionPlans, use this current date as the due date.
+---
+
+### DOCUMENT CONTENT
+${tranlatedText}
+
+---
+
+### OUTPUT FORMAT
+Return only **raw JSON**, no markdown, no explanations, and no extra text, no code fences (e.g., \`\`\`json or \`\`\`), or any other text..  
+The JSON must include:
+
+{
+    "title": "string — inferred title of the document",
+    "receivedDate": "date document was received (date string in ISO 8601 format, e.g. "2024-05-24T00:00:00Z" or "${new Date().toISOString()}" if no date is provided)",
+    "sender": "string — the sender or institution mentioned in the document",
+    "summary": "A clear, comprehensive summary of the document This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.",
+    "actionPlan": [
+      { "title": "string", "reason": "string" }
+    ],
+    "actionPlans": [
+        { "title": "string", "due_date": "ISO 8601 date string (use $${new Date().toISOString()} if missing)", "completed": false, "location": "string" }
+      ]
+}
 
 **CRITICAL INSTRUCTIONS**:
-- Respond with *raw JSON only*. Do NOT wrap the response in markdown, code fences (e.g., \`\`\`json or \`\`\`), or any other text.
+- Be concise and factual.
 - Ensure the response is valid JSON that can be parsed directly with JSON.parse().
 - Do NOT include any explanatory text, comments, or extra characters outside the JSON object.
+- Never return a single dot or empty response.
+
 - Example of a correct response:
 {
   "title": "Residence Permit Decision",
