@@ -35,7 +35,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
-    const allowedFileTypes = ['application/pdf', 'image/png', 'image/jpeg'];
+    const allowedFileTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
     if (allowedFileTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
