@@ -17,7 +17,7 @@ export interface IDocumentService {
     offset: number,
   ): Promise<{
     total: number;
-    documents: IDocument[] | IDocumentResponseFreeUsersDTO[];
+    documents: IDocument[];
   }>;
 
   createDocumentByUserId(document: Partial<IDocument>): Promise<IDocument>;

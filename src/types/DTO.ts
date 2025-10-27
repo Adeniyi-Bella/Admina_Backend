@@ -18,3 +18,18 @@ export interface IDocumentResponseFreeUsersDTO {
   structuredTranslatedText?: Record<string, string>;
   pdfBlobStorage?: boolean;
 }
+
+export interface IActionPlanPreview {
+  title?: string;
+  dueDate?: string | Date;
+  completed?: boolean;
+  location?: string;
+}
+
+export interface IDocumentPreview {
+  docId: string;
+  title?: string;
+  sender?: string;
+  receivedDate?: Date;
+  actionPlans?: IActionPlanPreview[];
+}

@@ -35,82 +35,103 @@ ${text}
 
   public buildPromptForTranslateDocument(targetLanguage: string): string {
     return `
-You are an assistant that reads documents, translates them into ${targetLanguage}, and restrucutures the translated document as described below:
+      You are a translation assistant. ALL OUTPUT MUST BE IN ${targetLanguage}. 
+      If you ever include any text that is not in ${targetLanguage}, the response will be considered INVALID.
 
-- translatedText (string)
-- structuredTranslatedText: an object containing HTML strings for each page { page1: string, page2: string, ... }.
-  Each page must include the **fully translated text** (no original language remains), structured in semantic HTML with inline Tailwind CSS classes.
-  The translation inside the HTML must exactly match the translatedText field.
+      Task:
+      Read the document content supplied to you and produce a JSON object with the following properties only:
 
-**CRITICAL INSTRUCTIONS**:
-- Respond with *raw JSON only*. Do NOT wrap the response in markdown, code fences (e.g., \`\`\`json or \`\`\`), or any other text.
-- Ensure the response is valid JSON that can be parsed directly with JSON.parse().
-- Do NOT include any explanatory text, comments, or extra characters outside the JSON object.
-- Do NOT include any original-language content inside structuredTranslatedText.
-- All text, including within structuredTranslatedText, must be in ${targetLanguage}.
-- The structuredTranslatedText must reflect the same translation as translatedText, but formatted in HTML per page.
-- Example of a correct response:
-{
-  "translatedText": "This is the translated text",
-  "structuredTranslatedText": {
-    "page1": "<p>Helios</p><h2>Helios Dr. Horst Schmidt</h2><h3>Wiesbaden Clinics</h3><p>Academic Teaching Hospital</p><p>of Johannes Gutenberg University Mainz</p><p>Helios Dr. Horst Schmidt Kliniken Wiesbaden</p><p>Gynecology and Obstetrics</p><p>Ludwig-Erhard-Straße 100 65199 Wiesbaden</p>"
+      - "translatedText": a single string containing the FULL translated document text in ${targetLanguage}.
+      - "structuredTranslatedText": an object mapping page keys to HTML strings for each page, e.g. { "page1": "...", "page2": "..." }.
+        Each page string must be valid HTML (semantic tags) and include only the translated text (no original-language text), with inline Tailwind CSS classes allowed.
+
+      REQUIRED FORMAT (must be raw JSON only):
+      - Respond with raw JSON only. Do NOT add any surrounding text, Markdown, or code fences.
+      - The JSON must parse with JSON.parse() without error.
+      - Property names must be exactly: translatedText, structuredTranslatedText.
+
+      IMPORTANT BEHAVIORAL RULES:
+      1. ALL textual content (including inside structuredTranslatedText HTML) MUST BE IN ${targetLanguage}. Do NOT include any original-language fragments or English.
+      2. The value of translatedText MUST EXACTLY MATCH the textual content inside the structuredTranslatedText HTML (ignoring HTML tags). They must contain the same translation.
+      3. Use semantic HTML elements (p, h1-h6, ul/li, etc.). You may include inline Tailwind classes on those tags.
+      4. Do NOT include any additional properties, metadata, comments, or explanatory text.
+      5. If you cannot translate or detect the language, return this JSON with an "error" property explaining the issue, and no other text: { "error": "explanation in ${targetLanguage}" }.
+      6. If the translation would be identical to the input (e.g., input already in ${targetLanguage}), still return the JSON object with translatedText in ${targetLanguage}.
+
+      PLACEHOLDER EXAMPLE (do NOT return this example; output must be real JSON as specified):
+      {
+        "translatedText": "<TRANSLATED_TEXT_IN_${targetLanguage}>",
+        "structuredTranslatedText": {
+          "page1": "<p class=\"text-base\">&lt;TRANSLATED_TEXT_FOR_PAGE_1_IN_${targetLanguage}&gt;</p>"
+        }
+      }
+
+      Remember:
+      - Raw JSON only. No markdown, no code fences, no explanation.
+      - All content must be in ${targetLanguage}.
+      `;
   }
-}
-`;
-  }
 
-  public buildPromptForSummarizeDocument(tranlatedText: string): string {
+  public buildPromptForSummarizeDocument(
+    translatedText: string,
+    language: string,
+  ): string {
     return `
-You are a document analysis assistant.
+You are a multilingual document analysis assistant.
 
-Your task is to:
-1. Read and understand the following document.
-2. Extract structured information from it.
-3. Produce a clear, comprehensive summary and related metadata.
+Your task:
+1. Read and understand the following document written in ${language}.
+2. Extract structured information and produce a JSON summary.
+3. **All textual fields (title, sender, summary, action plans, etc.) must be written entirely in ${language}.**
 
 ---
 
 ### DOCUMENT CONTENT
-${tranlatedText}
+${translatedText}
 
 ---
 
 ### OUTPUT FORMAT
-Return only **raw JSON**, no markdown, no explanations, and no extra text, no code fences (e.g., \`\`\`json or \`\`\`), or any other text..  
-The JSON must include:
+Return only **raw JSON** (no markdown, no explanations, no extra text, no code fences).
+The JSON must include these keys:
 
 {
-    "title": "string — inferred title of the document",
-    "receivedDate": "date document was received (date string in ISO 8601 format, e.g. "2024-05-24T00:00:00Z" or "${new Date().toISOString()}" if no date is provided)",
-    "sender": "string — the sender or institution mentioned in the document",
-    "summary": "A clear, comprehensive summary of the document This part is really important as the user needs to have a very good overview of the document with this comprehensive summary.",
-    "actionPlan": [
-      { "title": "string", "reason": "string" }
-    ],
-    "actionPlans": [
-        { "title": "string", "due_date": "ISO 8601 date string (use $${new Date().toISOString()} if missing)", "completed": false, "location": "string" }
-      ]
-}
-
-**CRITICAL INSTRUCTIONS**:
-- Be concise and factual.
-- Ensure the response is valid JSON that can be parsed directly with JSON.parse().
-- Do NOT include any explanatory text, comments, or extra characters outside the JSON object.
-- Never return a single dot or empty response.
-
-- Example of a correct response:
-{
-  "title": "Residence Permit Decision",
-  "receivedDate": "2024-05-24T00:00:00Z",
-  "sender": "Auslander Behorde",
-  "summary": "Your residence permit is expiring soon and you need to apply for an extension at least 8 weeks before the expiration date (2023-12-15). You'll need to provide several documents and book an appointment online.",
+  "title": "string — inferred title of the document (in ${language})",
+  "receivedDate": "date document was received (ISO 8601 format, e.g. ${new Date().toISOString()})",
+  "sender": "string — sender or institution mentioned (in ${language})",
+  "summary": "comprehensive summary of the document (entirely in ${language})",
   "actionPlan": [
-    { "title": "Prepare valid passport", "reason": "A valid passport is required for the application." },
-    { "title": "Gather current employment contract", "reason": "An employment contract is needed to prove employment status." }
+    { "title": "string (in ${language})", "reason": "string (in ${language})" }
   ],
   "actionPlans": [
-    { "title": "Apply for residence permit extension", "due_date": "2025-07-01T00:00:00Z", "completed": false, "location": "Auslander Behorde office" },
-    { "title": "Submit all required documents online", "due_date": "${new Date().toISOString()}", "completed": false, "location": "online portal" }
+    { "title": "string (in ${language})", "due_date": "ISO 8601 date string", "completed": false, "location": "string (in ${language})" }
+  ]
+}
+
+---
+
+### CRITICAL INSTRUCTIONS
+- ALL textual fields must be in ${language}. Do NOT include English anywhere.
+- If the input document is already in ${language}, summarize in that same language.
+- The summary must be complete, factual, and fluent in ${language}.
+- Do NOT translate or rewrite into English.
+- Return only raw JSON — no markdown, code fences, comments, or extra explanations.
+- The JSON must parse directly with JSON.parse().
+- If a field is missing, infer it or leave it as an empty string ("").
+
+---
+
+### EXAMPLE (placeholders only — do not copy in English):
+{
+  "title": "<TITOLO_DEL_DOCUMENTO>",
+  "receivedDate": "${new Date().toISOString()}",
+  "sender": "<MITTENTE>",
+  "summary": "<RIASSUNTO_COMPLETO_DEL_DOCUMENTO_IN_${language.toUpperCase()}>",
+  "actionPlan": [
+    { "title": "<ATTIVITÀ_DA_COMPIERE>", "reason": "<MOTIVO_DELL'ATTIVITÀ>" }
+  ],
+  "actionPlans": [
+    { "title": "<ATTIVITÀ>", "due_date": "${new Date().toISOString()}", "completed": false, "location": "<LUOGO>" }
   ]
 }
 `;

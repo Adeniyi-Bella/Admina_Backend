@@ -71,7 +71,7 @@ const summarizeDocument = async (
     }
 
     const summarizedTextDocument = await geminiAIService.summarizeDocument(
-      document.translatedText!,
+      document.translatedText!, document.targetLanguage!,
     );
 
     const documentData = {

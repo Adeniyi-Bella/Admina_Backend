@@ -13,6 +13,7 @@ import { OpenAI } from 'openai';
 export interface IGeminiAIService {
   summarizeDocument(
     tranlatedText: string,
+    targetLanguage: string,
   ): Promise<Partial<IDocument>>;
 
   translateDocument(

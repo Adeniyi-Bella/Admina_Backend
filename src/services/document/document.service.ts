@@ -37,7 +37,7 @@ export class DocumentService implements IDocumentService {
     offset: number,
   ): Promise<{
     total: number;
-    documents: IDocument[] | IDocumentResponseFreeUsersDTO[];
+    documents: IDocument[];
   }> {
     if (!user.userId) {
       throw new Error('Valid userId is required');

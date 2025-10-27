@@ -85,8 +85,8 @@ router.get(
 // Route to translate document
 router.post(
   '/',
-  upload.single('file'),
   verifyUploadedFile,
+  upload.single('file'),
   body('docLanguage')
     .exists()
     .withMessage('Source language is required')
@@ -116,7 +116,6 @@ router.patch(
   validationError,
   summarizeDocument,
 );
-
 
 router.delete(
   '/:docId',

@@ -8,6 +8,7 @@ import { IDocumentService } from '@/services/document/document.interface';
 import type { Request, Response } from 'express';
 import { ApiResponse } from '@/lib/api_response';
 import { IUserService } from '@/services/users/user.interface';
+import { IDocumentPreview } from '@/types/DTO';
 
 const getAllDocuments = async (req: Request, res: Response): Promise<void> => {
   const documentService =
@@ -29,11 +30,24 @@ const getAllDocuments = async (req: Request, res: Response): Promise<void> => {
       offset,
     );
 
+    const responseDocuments: IDocumentPreview[] = documents.map((doc) => ({
+      docId: doc.docId!,
+      title: doc.title!,
+      sender: doc.sender!,
+      receivedDate: doc.receivedDate,
+      actionPlans: doc.actionPlans?.map((ap) => ({
+        title: ap.title,
+        dueDate: ap.dueDate,
+        completed: ap.completed,
+        location: ap.location,
+      })),
+    }));
+
     res.status(200).json({
       limit,
       offset,
       total,
-      documents,
+      documents: responseDocuments,
       userPlan: user.plan,
     });
   } catch (error: unknown) {

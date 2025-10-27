@@ -96,9 +96,10 @@ export class GeminiAIService implements IGeminiAIService {
 
   public async summarizeDocument(
     tranlatedText: string,
+    targetLanguage: string,
   ): Promise<Partial<IDocument>> {
     const userPrompt =
-      this.userPrompt.buildPromptForSummarizeDocument(tranlatedText);
+      this.userPrompt.buildPromptForSummarizeDocument(tranlatedText, targetLanguage);
 
     try {
       const contents = [{ text: userPrompt }];
