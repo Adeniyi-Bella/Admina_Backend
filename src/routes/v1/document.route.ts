@@ -35,7 +35,12 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
-    const allowedFileTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    const allowedFileTypes = [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+    ];
     if (allowedFileTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -85,8 +90,8 @@ router.get(
 // Route to translate document
 router.post(
   '/',
-  verifyUploadedFile,
   upload.single('file'),
+  verifyUploadedFile,
   body('docLanguage')
     .exists()
     .withMessage('Source language is required')
