@@ -67,15 +67,17 @@ const translateDocument = async (
       return;
     }
 
-    const data = await pdf(file.buffer);
-    const numpages = data.numpages || 0;
-    if (user.plan === 'free' && numpages > 2) {
-      logger.error('Page count exceeds limit for free users', {
-        userId: user.userId,
-        numpages,
-      });
-      ApiResponse.badRequest(res, 'Page count exceeds limit for free users.');
-      return;
+    if (file.mimetype === 'application/pdf') {
+      const data = await pdf(file.buffer);
+      const numpages = data.numpages || 0;
+      if (user.plan === 'free' && numpages > 2) {
+        logger.error('Page count exceeds limit for free users', {
+          userId: user.userId,
+          numpages,
+        });
+        ApiResponse.badRequest(res, 'Page count exceeds limit for free users.');
+        return;
+      }
     }
     const translatedDocument = await geminiAIService.translateDocument(
       file,
@@ -90,7 +92,7 @@ const translateDocument = async (
       translatedText: translatedDocument.translatedText,
       structuredTranslatedText: translatedDocument.structuredTranslatedText,
       targetLanguage,
-      pdfBlobStorage: false
+      pdfBlobStorage: false,
     };
 
     const createDocument =

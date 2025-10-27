@@ -46,7 +46,7 @@ export class GeminiAIService implements IGeminiAIService {
     targetLanguage: string,
   ): Promise<Partial<IDocument>> {
     if (!file || !file.buffer) {
-      throw new Error('PDF file buffer is required');
+      throw new Error('Valid file is required for translation');
     }
 
     const userPrompt =
@@ -56,7 +56,7 @@ export class GeminiAIService implements IGeminiAIService {
       { text: userPrompt },
       {
         inlineData: {
-          mimeType: 'application/pdf',
+          mimeType: file.mimetype,
           data: file.buffer.toString('base64'),
         },
       },
