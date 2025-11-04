@@ -69,7 +69,7 @@ router.patch(
   downgradeUserPlan,
 );
 
-router.get("/", validationError, getUserDetails)
+router.get("/", validationError, resetPropertiesIfNewMonth, getUserDetails)
 
 router.delete('/', resetPropertiesIfNewMonth, deleteUser);
 

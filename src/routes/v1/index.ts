@@ -14,6 +14,7 @@ const router = Router();
 import userRoutes from '@/routes/v1/user.route';
 import documentRoutes from '@/routes/v1/document.route';
 import chatbotRoutes from '@/routes/v1/chatbot.route'
+import jobQueuedRoutes from '@/routes/v1/jobs.route'
 import { ApiResponse } from '@/lib/api_response';
 
 /**
@@ -26,5 +27,6 @@ router.get('/', (_, res) => {
 router.use('/users', userRoutes);
 router.use('/document', documentRoutes);
 router.use('/chatbot', chatbotRoutes);
+router.use('/jobs', jobQueuedRoutes);
 
 export default router;

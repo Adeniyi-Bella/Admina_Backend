@@ -80,9 +80,9 @@ ${text}
 You are a multilingual document analysis assistant.
 
 Your task:
-1. Read and understand the following document written in ${language}.
-2. Extract structured information and produce a JSON summary.
-3. **All textual fields (title, sender, summary, action plans, etc.) must be written entirely in ${language}.**
+1. Carefully read the following document written in ${language}.
+2. Extract structured information and produce a concise, factual JSON summary.
+3. **All textual fields (title, sender, summary, action plan, action plans, etc.) must be written fully in ${language}.**
 
 ---
 
@@ -92,46 +92,63 @@ ${translatedText}
 ---
 
 ### OUTPUT FORMAT
-Return only **raw JSON** (no markdown, no explanations, no extra text, no code fences).
-The JSON must include these keys:
+Return only **raw JSON** (no markdown, no code fences, no explanations).
+The JSON must include these exact keys and meanings:
 
 {
-  "title": "string — inferred title of the document (in ${language})",
-  "receivedDate": "date document was received (ISO 8601 format, e.g. ${new Date().toISOString()})",
-  "sender": "string — sender or institution mentioned (in ${language})",
-  "summary": "comprehensive summary of the document (entirely in ${language})",
+  "title": "string — short descriptive title of the document (in ${language})",
+  "receivedDate": "string — date when the document was received (ISO 8601 format, e.g. ${new Date().toISOString()})",
+  "sender": "string — name of the person, organization, or institution that sent or authored the document (in ${language})",
+  "summary": "string — comprehensive and factual summary of the document’s full content (in ${language})",
+
   "actionPlan": [
-    { "title": "string (in ${language})", "reason": "string (in ${language})" }
+    {
+      "title": "string — key point, recommendation, or insight derived from the document (in ${language})",
+      "reason": "string — explanation or context for why this key point or recommendation is important (in ${language})"
+    }
   ],
+
   "actionPlans": [
-    { "title": "string (in ${language})", "due_date": "ISO 8601 date string", "completed": false, "location": "string (in ${language})" }
+    {
+      "title": "string — specific actionable task the user should perform based on this document (in ${language})",
+      "due_date": "string — ISO 8601 date by which this task should be completed",
+      "completed": false,
+      "location": "string — where or in what context this action should take place (in ${language})"
+    }
   ]
 }
 
 ---
 
-### CRITICAL INSTRUCTIONS
-- ALL textual fields must be in ${language}. Do NOT include English anywhere.
-- If the input document is already in ${language}, summarize in that same language.
-- The summary must be complete, factual, and fluent in ${language}.
-- Do NOT translate or rewrite into English.
-- Return only raw JSON — no markdown, code fences, comments, or extra explanations.
-- The JSON must parse directly with JSON.parse().
-- If a field is missing, infer it or leave it as an empty string ("").
+### DIFFERENCE BETWEEN actionPlan AND actionPlans
+- **actionPlan** = Key insights or recommendations *summarized from* the document. Think of them as what the document is *telling or advising* the reader.
+  - Example: “Renew your ID before expiry.” / “Keep record of transaction history.”
+- **actionPlans** = Specific actionable tasks the *user needs to do* as a result of the document.
+  - Example: “Visit the municipal office to renew ID before 2025-12-31.” / “Send follow-up email to finance department.”
 
 ---
 
-### EXAMPLE (placeholders only — do not copy in English):
+### CRITICAL INSTRUCTIONS
+- All text must be written fully in ${language}.
+- If the document is already in ${language}, keep it in that same language.
+- Avoid English or mixed-language responses.
+- Ensure the JSON is valid and can be parsed directly with \`JSON.parse()\`.
+- Do NOT include markdown, explanations, or text outside the JSON.
+- If any information is missing, infer it if possible, or leave the field as an empty string ("").
+
+---
+
+### EXAMPLE (placeholders only — do not output in English):
 {
   "title": "<TITOLO_DEL_DOCUMENTO>",
   "receivedDate": "${new Date().toISOString()}",
   "sender": "<MITTENTE>",
-  "summary": "<RIASSUNTO_COMPLETO_DEL_DOCUMENTO_IN_${language.toUpperCase()}>",
+  "summary": "<RIASSUNTO_COMPLETO_IN_${language.toUpperCase()}>",
   "actionPlan": [
-    { "title": "<ATTIVITÀ_DA_COMPIERE>", "reason": "<MOTIVO_DELL'ATTIVITÀ>" }
+    { "title": "<PUNTO_CHIAVE>", "reason": "<SPIEGAZIONE>" }
   ],
   "actionPlans": [
-    { "title": "<ATTIVITÀ>", "due_date": "${new Date().toISOString()}", "completed": false, "location": "<LUOGO>" }
+    { "title": "<AZIONE_DA_FARE>", "due_date": "${new Date().toISOString()}", "completed": false, "location": "<LUOGO>" }
   ]
 }
 `;

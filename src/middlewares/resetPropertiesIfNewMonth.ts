@@ -102,6 +102,8 @@ const resetPropertiesIfNewMonth = async (
       mostRecentUpdate.getUTCMonth() !== now.getUTCMonth();
 
     if (isNewMonth) {
+      console.log('New Month Detected');
+
       // Set reset values based on user plan
       const resetLengthOfDocs: { lengthOfDocs: IPlans; updatedAt: Date } = {
         lengthOfDocs: {
@@ -132,7 +134,7 @@ const resetPropertiesIfNewMonth = async (
       ).exec();
 
       if (
-        lengthOfDocsResult.modifiedCount === 0 ||
+        lengthOfDocsResult.modifiedCount === 0 &&
         documentsResult.modifiedCount === 0
       ) {
         logger.warn('Failed to reset user properties', { userId });
@@ -144,7 +146,7 @@ const resetPropertiesIfNewMonth = async (
         user: {
           id: user.userId,
           email: user.email,
-          plan: user.plan
+          plan: user.plan,
         },
       });
     }

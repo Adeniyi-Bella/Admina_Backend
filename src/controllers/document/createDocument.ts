@@ -24,17 +24,12 @@ import { ApiResponse } from '@/lib/api_response';
 import { IPlans } from '@/types';
 import pdf from 'pdf-parse';
 import { v4 as uuidv4 } from 'uuid';
-import { IDocument } from '@/models/document.model';
+import { TranslateQueueService } from '@/services/ai-models/jobs/job-queues.service';
 
-const translateDocument = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const geminiAIService =
-    container.resolve<IGeminiAIService>('IGeminiAIService');
+const queueService = new TranslateQueueService();
+
+const createDocument = async (req: Request, res: Response): Promise<void> => {
   const userService = container.resolve<IUserService>('IUserService');
-  const documentService =
-    container.resolve<IDocumentService>('IDocumentService');
 
   try {
     // Get data from request body
@@ -47,6 +42,17 @@ const translateDocument = async (
       ApiResponse.notFound(res, 'User not found');
       return;
     }
+
+    if (queueService.isUserProcessing(user.email!)) {
+      ApiResponse.badRequest(
+        res,
+        'You already have a document being processed',
+      );
+      return;
+    }
+
+    // Mark user as processing
+    queueService.addUserToProcessing(user.email!);
 
     const userPlan = user.plan as keyof IPlans;
 
@@ -79,31 +85,16 @@ const translateDocument = async (
         return;
       }
     }
-    const translatedDocument = await geminiAIService.translateDocument(
+    const docId = uuidv4();
+    await queueService.enqueueTranslationJob(docId, {
       file,
       targetLanguage,
-    );
-
-    const docId = uuidv4();
-
-    const documentData: IDocument = {
-      userId: user.userId.toString(),
-      docId,
-      translatedText: translatedDocument.translatedText,
-      structuredTranslatedText: translatedDocument.structuredTranslatedText,
-      targetLanguage,
-      pdfBlobStorage: false,
-    };
-
-    const createDocument =
-      await documentService.createDocumentByUserId(documentData);
-
-    if (!createDocument) throw new Error('Error during document Creation');
-
-    ApiResponse.ok(res, 'Translation complete', {
-      docId: createDocument.docId,
+      user,
     });
+
+    ApiResponse.ok(res, 'Document queued for translation', { docId });
   } catch (error: any) {
+    if (req.userId && req.email) queueService.removeUserFromProcessing(req.email);
     logger.error('Error during document processing', {
       error: error.message,
     });
@@ -116,4 +107,4 @@ const translateDocument = async (
   }
 };
 
-export default translateDocument;
+export default createDocument;

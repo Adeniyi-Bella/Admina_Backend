@@ -90,7 +90,7 @@ export class GeminiAIService implements IGeminiAIService {
           : 'Internal Gemini processing error.',
       });
 
-      throw new Error('Failed to translate document');
+      throw new Error(error || 'Gemini document translation failed');
     }
   }
 
@@ -98,8 +98,10 @@ export class GeminiAIService implements IGeminiAIService {
     tranlatedText: string,
     targetLanguage: string,
   ): Promise<Partial<IDocument>> {
-    const userPrompt =
-      this.userPrompt.buildPromptForSummarizeDocument(tranlatedText, targetLanguage);
+    const userPrompt = this.userPrompt.buildPromptForSummarizeDocument(
+      tranlatedText,
+      targetLanguage,
+    );
 
     try {
       const contents = [{ text: userPrompt }];
@@ -116,10 +118,18 @@ export class GeminiAIService implements IGeminiAIService {
 
       return this.parseResponse(responseText);
     } catch (error: any) {
-      logger.error('Failed to generate action plan with Gemini AI', {
-        error: error.message,
+      logger.error('❌ Gemini document summarization failed', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        cause: error.cause,
+        isNetworkError: error.message?.includes('fetch failed'),
+        hint: error.message?.includes('fetch failed')
+          ? 'Likely a network or API connection issue (check endpoint and key).'
+          : 'Internal Gemini processing error.',
       });
-      throw new Error('Failed to generate action plan with Gemini AI');
+
+      throw new Error(error || 'Gemini summarization translation failed');
     }
   }
 

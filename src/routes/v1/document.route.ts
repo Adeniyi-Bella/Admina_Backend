@@ -26,8 +26,7 @@ import getDocument from '@/controllers/document/getDocument';
 import deleteDocument from '@/controllers/document/deleteDocument';
 import updateActionPlan from '@/controllers/document/update-document/updateActionPlan';
 import getDocumentChatbotLimit from '@/controllers/document/getDocumentChatbotLimit';
-import translateDocument from '@/controllers/document/translateDocument.controller';
-import summarizeDocument from '@/controllers/document/summarizeDocument.controller';
+import createDocument from '@/controllers/document/createDocument';
 
 const router = Router();
 
@@ -111,15 +110,7 @@ router.post(
     .matches(/^[a-zA-Z]{2,5}$/)
     .withMessage('Must be a valid language code'),
   validationError,
-  translateDocument,
-);
-
-// route to summarize document
-router.patch(
-  '/summary/:docId',
-  param('docId').notEmpty().isUUID().withMessage('Invalid docId'),
-  validationError,
-  summarizeDocument,
+  createDocument,
 );
 
 router.delete(
