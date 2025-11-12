@@ -23,7 +23,7 @@ const plansSchema = new mongoose_1.Schema({
 const userSchema = new mongoose_1.Schema({
     plan: {
         type: String,
-        default: "free"
+        default: 'free',
     },
     email: {
         type: String,
@@ -33,6 +33,10 @@ const userSchema = new mongoose_1.Schema({
     username: {
         type: String,
         required: [true, 'Username is required'],
+    },
+    privacyPolicyAccepted: {
+        type: Boolean,
+        default: true,
     },
     lengthOfDocs: {
         type: plansSchema,
