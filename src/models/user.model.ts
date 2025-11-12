@@ -15,11 +15,10 @@ export interface IUser {
   lengthOfDocs: IPlans;
   userId: string;
   username: string;
-  createdAt: Date; 
-  updatedAt: Date; 
+  createdAt: Date;
+  updatedAt: Date;
+  privacyPolicyAccepted: boolean;
 }
-
-
 
 /**
  * Values Schema (reusable for free & premium)
@@ -30,7 +29,7 @@ const valuesSchema = new Schema<IValues>(
     min: { type: Number, default: 0, min: 0 },
     current: { type: Number, default: 0, min: 0 },
   },
-  { _id: false }
+  { _id: false },
 );
 
 /**
@@ -52,9 +51,8 @@ const plansSchema = new Schema<IPlans>(
       default: { max: 2, min: 0, current: 2 }, // default free plan
     },
   },
-  { _id: false }
+  { _id: false },
 );
-
 
 /**
  * User schema
@@ -63,7 +61,7 @@ const userSchema = new Schema<IUser>(
   {
     plan: {
       type: String,
-      default: "free"
+      default: 'free',
     },
     email: {
       type: String,
@@ -73,6 +71,10 @@ const userSchema = new Schema<IUser>(
     username: {
       type: String,
       required: [true, 'Username is required'],
+    },
+    privacyPolicyAccepted: {
+      type: Boolean,
+      default: true,
     },
     lengthOfDocs: {
       type: plansSchema,
@@ -95,4 +97,3 @@ const userSchema = new Schema<IUser>(
 );
 
 export default model<IUser>('User', userSchema);
-
