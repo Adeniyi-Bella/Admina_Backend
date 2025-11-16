@@ -20,11 +20,11 @@ import { IDocumentService } from '@/services/document/document.interface';
 // import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
-import { AzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.service';
+// import { AzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.service';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { ChatBotService } from '@/services/chatbot/chatbot.service';
 import { IAzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.interface';
-import { AzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.service';
+// import { AzureBlobService } from '@/services/azure/azure-blob-storage/azure.blobStorage.service';
 import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
 import { GeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.service';
 
@@ -39,15 +39,15 @@ container.register<IDocumentService>('IDocumentService', {
 container.register<IGeminiAIService>('IGeminiAIService', {
   useClass: GeminiAIService,
 });
-container.register<IAzurePremiumSubscriptionService>('IAzurePremiumSubscriptionService', {
-  useClass: AzurePremiumSubscriptionService,
-});
+// container.register<IAzurePremiumSubscriptionService>('IAzurePremiumSubscriptionService', {
+//   useClass: AzurePremiumSubscriptionService,
+// });
 container.register<IOpenAIService>('IOpenAIService', {
   useClass: OpenAIService,
 });
 container.register<IChatBotService>('IChatBotService', {
   useClass: ChatBotService,
 });
-container.register<IAzureBlobService>('IAzureBlobService', {
-  useClass: AzureBlobService,
-});
+// container.register<IAzureBlobService>('IAzureBlobService', {
+//   useClass: AzureBlobService,
+// });

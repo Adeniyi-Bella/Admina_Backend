@@ -16,7 +16,6 @@ const getDocument = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     const documentService = tsyringe_1.container.resolve('IDocumentService');
     const chatBotService = tsyringe_1.container.resolve('IChatBotService');
     const userService = tsyringe_1.container.resolve('IUserService');
-    const azureBlobService = tsyringe_1.container.resolve('IAzureBlobService');
     try {
         const userId = req.userId;
         const docId = req.params.docId;
@@ -41,26 +40,6 @@ const getDocument = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 docId,
                 error,
             });
-        }
-        if (user.plan === 'premium' && (document === null || document === void 0 ? void 0 : document.pdfBlobStorage)) {
-            try {
-                const pdfFile = yield azureBlobService.downloadPdfFromBlob('download', `${userId}/${docId}`);
-                api_response_1.ApiResponse.ok(res, 'Document fetched successfully', {
-                    document,
-                    chats,
-                    pdf: pdfFile.buffer.toString('base64'),
-                });
-                return;
-            }
-            catch (pdfError) {
-                winston_1.logger.error('Failed to download translated PDF for premium user', {
-                    userId,
-                    docId,
-                    error: pdfError.message,
-                });
-                api_response_1.ApiResponse.serverError(res, 'PDF Download error from blob storage', pdfError.message);
-                return;
-            }
         }
         api_response_1.ApiResponse.ok(res, 'Document fetched successfully', {
             document,

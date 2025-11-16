@@ -19,3 +19,6 @@ npx ts-node index.ts
 git pull
 npm run build
 pm2 restart admina_backend
+
+
+ export $(grep -v '^#' $HOME/.env | xargs)
