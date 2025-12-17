@@ -4,8 +4,8 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc && tsc-alias",
-    "start": "node dist/server.js",
+    "build": "node build.js",
+    "start": "node dist/app.js",
     "dev": "nodemon",
     "test": "jest"
   },
@@ -27,6 +27,7 @@
     "@types/node": "^24.0.15",
     "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^6.0.3",
+    "esbuild": "^0.27.2",
     "jest": "^30.0.5",
     "jest-mock-extended": "^4.0.0",
     "mongodb-memory-server": "^10.1.4",
