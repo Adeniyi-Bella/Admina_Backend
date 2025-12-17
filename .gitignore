@@ -135,3 +135,7 @@ out
 .pnp.*
 
 playground-1.mongodb.js
+
+.DS_Store
+package-lock.json
+dist

@@ -65,6 +65,9 @@ export class GeminiAIService implements IGeminiAIService {
       const response = await this.geminiAi.models.generateContent({
         model: this.model,
         contents,
+         config: {
+          responseMimeType: 'application/json', 
+        },
       });
 
       if (!response) {
@@ -109,6 +112,9 @@ export class GeminiAIService implements IGeminiAIService {
       const response = await this.geminiAi.models.generateContent({
         model: this.model,
         contents,
+         config: {
+          responseMimeType: 'application/json', 
+        },
       });
 
       const responseText = response.text;
@@ -135,11 +141,22 @@ export class GeminiAIService implements IGeminiAIService {
 
   private parseResponse(response: string): Partial<IDocument> {
     try {
-      const cleanResponse = response
-        .trim()
-        .replace(/^```(?:json)?/i, '')
-        .replace(/```$/, '')
-        .trim();
+      let cleanResponse = response.trim();
+
+      // 1. Try to extract strictly from Markdown code blocks first
+      const codeBlockMatch = cleanResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        cleanResponse = codeBlockMatch[1].trim();
+      } else {
+        // 2. Fallback: Find the first '{' and the last '}'
+        // This handles cases where the model doesn't use markdown but adds text like "Here is the JSON:"
+        const firstBrace = cleanResponse.indexOf('{');
+        const lastBrace = cleanResponse.lastIndexOf('}');
+
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleanResponse = cleanResponse.substring(firstBrace, lastBrace + 1);
+        }
+      }
 
       const parsed = JSON.parse(cleanResponse);
 
@@ -162,8 +179,8 @@ export class GeminiAIService implements IGeminiAIService {
           : [],
       };
     } catch (error) {
-      logger.error('Failed to parse OpenAI response', {
-        response,
+      logger.error('Failed to parse Gemini response', {
+        originalResponse: response, // Log the original to debug
         error: error,
       });
       throw error;

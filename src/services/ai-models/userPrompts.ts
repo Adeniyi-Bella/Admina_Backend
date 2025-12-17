@@ -39,7 +39,8 @@ ${text}
       If you ever include any text that is not in ${targetLanguage}, the response will be considered INVALID.
 
       Task:
-      Read the document content supplied to you and produce a JSON object with the following properties only:
+      Analyze the document provided. Ignore all images, photos, logos, diagrams, and visual artifacts. 
+      Extract only the legible text, translate it into ${targetLanguage}, and produce a JSON object with the following properties only:
 
       - "translatedText": a single string containing the FULL translated document text in ${targetLanguage}.
       - "structuredTranslatedText": an object mapping page keys to HTML strings for each page, e.g. { "page1": "...", "page2": "..." }.
@@ -57,6 +58,12 @@ ${text}
       4. Do NOT include any additional properties, metadata, comments, or explanatory text.
       5. If you cannot translate or detect the language, return this JSON with an "error" property explaining the issue, and no other text: { "error": "explanation in ${targetLanguage}" }.
       6. If the translation would be identical to the input (e.g., input already in ${targetLanguage}), still return the JSON object with translatedText in ${targetLanguage}.
+      
+      7. **STRICTLY IGNORE IMAGES AND GRAPHICS**: 
+         - Do NOT attempt to translate text inside complex logos, stamps, or low-quality images.
+         - Do NOT write descriptions of images (e.g., do NOT write "[Logo]", "[Signature]", or "[Image of house]"). 
+         - Do NOT use HTML <img> tags. 
+         - Focus ONLY on the main body text, headers, and tables.
 
       PLACEHOLDER EXAMPLE (do NOT return this example; output must be real JSON as specified):
       {
@@ -69,6 +76,7 @@ ${text}
       Remember:
       - Raw JSON only. No markdown, no code fences, no explanation.
       - All content must be in ${targetLanguage}.
+      - IGNORE IMAGES.
       `;
   }
 
