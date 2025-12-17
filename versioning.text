@@ -8,17 +8,12 @@ git fetch origin
 git checkout dev
 
 
-Python command line
-
-source venv/bin/activate  
-uvicorn main:app --host 0.0.0.0 --port 8000 
-
-
 npx ts-node index.ts
 
 git pull
-npm run build
-pm2 restart admina_backend
+pm2 stop admina_backend
+pm2 delete admina_backend
+pm2 start dist/app.js --name admina_backend
 
 
  export $(grep -v '^#' $HOME/.env | xargs)
