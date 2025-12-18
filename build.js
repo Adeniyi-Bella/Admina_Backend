@@ -6,5 +6,6 @@ esbuild.build({
   bundle: true,
   platform: "node",
   target: "node18",
-  external: ["pdf-parse"]
+  external: ["pdf-parse"],
+  minify: true,
 });

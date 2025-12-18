@@ -30,6 +30,7 @@ import type { Request, Response } from 'express';
 import config from '@/config';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
+import redis from '@/lib/redis';
 
 @injectable()
 export class UserService implements IUserService {
@@ -40,6 +41,19 @@ export class UserService implements IUserService {
       authority: config.AZURE_CLIENT_AUTHORITY,
     },
   };
+
+  private getCacheKey(userId: string): string {
+    return `user:${userId}`;
+  }
+
+  private mapUserToDTO(user: Required<UserDTO>): Required<UserDTO> {
+    return {
+      userId: String(user.userId),
+      plan: user.plan,
+      lengthOfDocs: user.lengthOfDocs,
+      email: user.email,
+    };
+  }
 
   async deleteUserFromEntraId(userId: string): Promise<boolean> {
     try {
@@ -86,6 +100,8 @@ export class UserService implements IUserService {
         return false;
       }
 
+      await redis.del(this.getCacheKey(userId));
+
       logger.info('User deleted successfully', { userId });
       return true;
     } catch (error) {
@@ -107,12 +123,19 @@ export class UserService implements IUserService {
         ? { $inc: { [property]: -1 }, $set: { updatedAt: new Date() } }
         : { $set: { [property]: value, updatedAt: new Date() } };
 
-      const result = await User.updateOne({ userId }, update).exec();
+      const updatedUser = await User.findOneAndUpdate({ userId }, update, {
+        new: true,
+        projection: { __v: 0 },
+      }).exec();
 
-      if (result.modifiedCount === 0) {
+      if (!updatedUser) {
         logger.warn(`User not found or ${property} not updated`, { userId });
         return false;
       }
+
+      const userDTO = this.mapUserToDTO(updatedUser);
+      const cacheKey = this.getCacheKey(userId);
+      await redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600);
 
       logger.info(
         `${property} ${decrement ? 'decremented' : 'updated'} successfully`,
@@ -129,10 +152,25 @@ export class UserService implements IUserService {
 
   async checkIfUserExist(req: Request): Promise<UserDTO | null> {
     const userId = req.userId;
-    logger.info('user id:', { userId: userId });
+    const cacheKey = this.getCacheKey(userId);
+
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        logger.info('Serving user from Redis Cache', { userId });
+        return JSON.parse(cachedData) as UserDTO;
+      }
+    } catch (err) {
+      logger.error('Redis get error', { error: err });
+    }
+
+    logger.info('User not in cache, fetching from DB', { userId });
+
     const user = await User.findOne({ userId }).select('-__v').exec();
 
     if (!user) return null;
+
+    const userDTO = this.mapUserToDTO(user);
 
     logger.info('user from db', {
       user: {
@@ -140,12 +178,11 @@ export class UserService implements IUserService {
         email: user.email,
       },
     });
-    return {
-      userId: String(user.userId),
-      plan: user.plan,
-      lengthOfDocs: user.lengthOfDocs,
-      email: user.email,
-    };
+    redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600).catch((err) => {
+      logger.error('Failed to set cache', { error: err });
+    });
+
+    return userDTO;
   }
 
   async createUserFromToken(req: Request): Promise<void> {
@@ -158,10 +195,5 @@ export class UserService implements IUserService {
       email: email,
       username: username,
     });
-
-    // return {
-    //   userId: String(newUser.userId),
-    //   plan: newUser.plan,
-    // };
   }
 }
