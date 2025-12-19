@@ -14,7 +14,7 @@ export class ApiResponse {
     status: 'ok' | 'error',
     code: string,
     message: string,
-    data?: any
+    data?: any,
   ) {
     return res.status(httpCode).json({
       status,
@@ -52,5 +52,8 @@ export class ApiResponse {
 
   static serverError(res: Response, message: string, error?: any) {
     return this.base(res, 500, 'error', 'SERVER_ERROR', message, error);
+  }
+  static forbidden(res: Response, message: string) {
+    return this.base(res, 403, 'error', 'FORBIDDEN', message);
   }
 }

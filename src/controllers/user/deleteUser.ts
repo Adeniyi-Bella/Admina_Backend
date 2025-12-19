@@ -38,9 +38,9 @@ const deleteUser = async (req: Request, res: Response): Promise<void> => {
     // Delete all chat history for the user
     await chatBotService.deleteChatHistoryByUserId(req.userId);
 
-    const deleteUserFromDb = await userService.deleteUser(req.userId);
+    const userEmail = await userService.deleteUser(req.userId);
 
-    if (!deleteUserFromDb) {
+    if (!userEmail) {
       logger.error('User not found in database for deletion');
       ApiResponse.notFound(res, 'User not found');
       return;
@@ -54,6 +54,9 @@ const deleteUser = async (req: Request, res: Response): Promise<void> => {
       ApiResponse.notFound(res, 'User not found in Entra Id');
       return;
     }
+
+    await userService.archiveUser(userEmail);
+    
     logger.info('User deleted successfully');
 
     ApiResponse.noContent(res);

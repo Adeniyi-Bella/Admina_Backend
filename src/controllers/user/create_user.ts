@@ -28,6 +28,7 @@ const createUser = async (
   const userService = container.resolve<IUserService>('IUserService');
 
   try {
+    await userService.checkUserEligibility(req);
     let user = await userService.checkIfUserExist(req);
 
     if (!user) {
@@ -36,12 +37,20 @@ const createUser = async (
 
     return next();
   } catch (error: unknown) {
-      logger.error('Error creating user', error);
-      // Check if error is an instance of Error to safely access message
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      ApiResponse.serverError(res, 'Internal server error', errorMessage);
+
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+
+    if (errorMessage.includes('You cannot re-register')) {
+      logger.warn('Deleted user trying to re-register:', errorMessage);
+      ApiResponse.forbidden(res, errorMessage);
+      return;
     }
+
+    logger.error('Error creating user', error);
+
+    ApiResponse.serverError(res, 'Internal server error', errorMessage);
+  }
 };
 
 export default createUser;

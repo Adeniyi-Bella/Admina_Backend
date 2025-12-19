@@ -7,6 +7,7 @@
  * Models
  */
 import User from '@/models/user.model';
+import DeletedUsers from '@/models/deletedUsers.model';
 
 /**
  * Interfaces
@@ -26,7 +27,7 @@ import { logger } from '@/lib/winston';
 /**
  * Types
  */
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import config from '@/config';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
@@ -91,19 +92,28 @@ export class UserService implements IUserService {
     }
   }
 
-  async deleteUser(userId: string): Promise<boolean> {
+  async deleteUser(userId: string): Promise<string | null> {
     try {
+      const user = await User.findOne({ userId });
+
+       if (!user) {
+        logger.warn('User not found for deletion', { userId });
+        return null;
+      }
+
+      const userEmail = user.email;
+
       const result = await User.deleteOne({ userId }).exec();
 
       if (result.deletedCount === 0) {
         logger.warn('User not found for deletion', { userId });
-        return false;
+        return null;
       }
 
       await redis.del(this.getCacheKey(userId));
 
       logger.info('User deleted successfully', { userId });
-      return true;
+      return userEmail;
     } catch (error) {
       logger.error('Error deleting user', { userId, error });
       throw new Error(
@@ -196,4 +206,42 @@ export class UserService implements IUserService {
       username: username,
     });
   }
+
+  async archiveUser(email: string): Promise<void> {
+    try {
+      await DeletedUsers.create({
+        email: email,
+        deletedAt: new Date(),
+      });
+      logger.info('User archived to DeletedUsers collection', { email });
+    } catch (error) {
+      // Log error but don't break the flow since the user is already deleted
+      logger.error('Failed to archive user', { email, error });
+    }
+  }
+
+  async checkUserEligibility(req: Request): Promise<void> {
+    const email = req.email;
+    const deletedUser = await DeletedUsers.findOne({ email });
+
+    if (!deletedUser) {
+      return;
+    }
+
+    const now = new Date();
+    const deletedAt = deletedUser.deletedAt;
+
+    const isSameMonth =
+      now.getMonth() === deletedAt.getMonth() &&
+      now.getFullYear() === deletedAt.getFullYear();
+
+    if (isSameMonth) {
+      await this.deleteUserFromEntraId(req.userId);
+      logger.warn('User attempted to re-register in the same month as deletion', { email });
+      throw new Error('You cannot re-register in the same month you deleted your account.');
+    }
+    await DeletedUsers.deleteOne({ email }).exec();
+    logger.info('User removed from DeletedUsers list (eligible for re-registration)', { email });
+  }
+
 }

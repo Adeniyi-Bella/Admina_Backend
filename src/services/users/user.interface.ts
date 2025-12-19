@@ -7,15 +7,13 @@
  * Types
  */
 import { IPlans } from '@/types';
-import type { Request, Response } from 'express';
-import { IDocumentService } from '../document/document.interface';
-import { IGeminiAIService } from '../ai-models/gemini-ai/geminiai.interface';
+import type { Request } from 'express';
 
 export interface UserDTO {
   userId: string;
   plan: string;
   lengthOfDocs: IPlans;
-  email? : string
+  email?: string;
 }
 
 export interface IUserService {
@@ -27,6 +25,8 @@ export interface IUserService {
     increment: boolean,
     value: string | undefined | number | {},
   ): Promise<boolean>;
-  deleteUser(userId: string): Promise<boolean>;
+  deleteUser(userId: string): Promise<string | null>;
   deleteUserFromEntraId(userId: string): Promise<boolean>;
+  archiveUser(email: string): Promise<void>;
+  checkUserEligibility(req: Request): Promise<void>;
 }
