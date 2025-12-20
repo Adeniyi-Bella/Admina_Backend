@@ -26,7 +26,7 @@ const config = {
   // OCR_TEXT_EXTRACTION_KEY: process.env.OCR_TEXT_EXTRACTION_KEY!,
   // OCR_TEXT_EXTRACTION_ENDPOINT: process.env.OCR_TEXT_EXTRACTION_ENDPOINT!,
   ADMINA_API_CLIENT_ID: process.env.ADMINA_API_CLIENT_ID!,
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+  // OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   defaultResLimit: 20,
   defaultResOffset: 0,
   // K6_API_TEST_TOKEN: process.env.K6_API_TEST_TOKEN,

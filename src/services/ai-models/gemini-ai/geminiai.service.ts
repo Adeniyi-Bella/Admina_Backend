@@ -26,6 +26,7 @@ import { IDocument } from '@/models/document.model';
  * Interfaces
  */
 import { IGeminiAIService } from './geminiai.interface';
+import { IChatBotHistory } from '@/models/chatbotHistory.model';
 
 @injectable()
 export class GeminiAIService implements IGeminiAIService {
@@ -184,6 +185,50 @@ export class GeminiAIService implements IGeminiAIService {
         error: error,
       });
       throw error;
+    }
+  }
+
+   async *chatBotStream(
+    chatBotHistory: IChatBotHistory,
+    userPrompt: string,
+    file?: Express.Multer.File 
+  ):  AsyncGenerator<string, void, unknown> {
+    try {
+      const { systemInstruction, contents } = this.userPrompt.buildChatBotPrompt(
+        chatBotHistory,
+        userPrompt,
+        file
+      );
+
+       const result = await this.geminiAi.models.generateContentStream({
+        model: this.model,
+        contents: contents,
+        config: {
+          systemInstruction: systemInstruction,
+        },
+      });
+
+      // 3. Yield chunks as they arrive
+      for await (const chunk of result) {
+        const chunkText = chunk.text;
+        if (chunkText) {
+          yield chunkText;
+        }
+      }
+
+    } catch (error: any) {
+      logger.error('❌ Gemini chat bot failed', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        cause: error.cause,
+        isNetworkError: error.message?.includes('fetch failed'),
+        hint: error.message?.includes('fetch failed')
+          ? 'Likely a network or API connection issue (check endpoint and key).'
+          : 'Internal Gemini processing error.',
+      });
+
+      throw new Error(error || 'Gemini chatbot failed');
     }
   }
 }

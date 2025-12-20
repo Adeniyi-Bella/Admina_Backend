@@ -19,16 +19,16 @@ import { IUserService } from '@/services/users/user.interface';
  */
 import type { Request, Response } from 'express';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
-import { IOpenAIService } from '@/services/ai-models/openai.interface';
 import { IChatBotHistory, IChatMessage } from '@/models/chatbotHistory.model';
 import { IDocumentService } from '@/services/document/document.interface';
 import { ApiResponse } from '@/lib/api_response';
 import { IDocument } from '@/models/document.model';
+import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
 
 const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
   const chatBotService = container.resolve<IChatBotService>('IChatBotService');
   const userService = container.resolve<IUserService>('IUserService');
-  const openAiService = container.resolve<IOpenAIService>('IOpenAIService');
+  const geminiService = container.resolve<IGeminiAIService>('IGeminiAIService');
   const documentService =
     container.resolve<IDocumentService>('IDocumentService');
 
@@ -36,10 +36,11 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
     const { userPrompt } = req.body;
     const userId = req.userId;
     const docId = req.params.docId;
+    const file = req.file;
 
     // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
-    if (!user ) {
+    if (!user) {
       logger.error(
         'User does not have a premium plan or user can no longer use the chatbot for the current month',
         { userId },
@@ -78,42 +79,45 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
         updatedAt: new Date(),
       };
 
+
       chatHistory = await chatBotService.addTranslatedText(newChatHistory);
       logger.info('Created new ChatBotHistory', { userId, docId });
     }
 
-   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    res.flushHeaders();
-
-    // Stream AI response
     let completeResponse = '';
-    const stream = await openAiService.chatBotStream(chatHistory, userPrompt);
+    let hasSentHeaders = false;
+
+    const stream = geminiService.chatBotStream(chatHistory, userPrompt, file);
+
     for await (const chunk of stream) {
-      if (chunk.choices[0]?.delta?.content) {
-        const content = chunk.choices?.[0]?.delta?.content;
-        completeResponse += content;        
-        res.write(content); 
+      // ONLY send headers if we successfully got the first chunk
+      if (!hasSentHeaders) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+        hasSentHeaders = true;
+      }
+
+      if (chunk) {
+        completeResponse += chunk;
+        res.write(chunk);
       }
     }
 
-    // Decrement chatBotPrompt.premium.current by -1 for users
-    await documentService.updateDocument(userId, docId, {
-      $inc: { [`chatBotPrompt.${user.plan}.current`]: -1 },
-    });
+    if (completeResponse) {
+      await documentService.updateDocument(userId, docId, {
+        $inc: { [`chatBotPrompt.${user.plan}.current`]: -1 },
+      });
 
-    // After streaming is complete, update ChatBotHistory with the new userPrompt and response
-    const newChat: IChatMessage = {
-      userPrompt,
-      response: completeResponse,
-      time: new Date(),
-    };
-    await chatBotService.updateDocumentChatBotHistory(userId, docId, newChat);
-
-    // End the response stream
+      const newChat: IChatMessage = {
+        userPrompt,
+        response: completeResponse,
+        time: new Date(),
+      };
+      await chatBotService.updateDocumentChatBotHistory(userId, docId, newChat);
+    }
     res.end();
   } catch (err: any) {
     ApiResponse.serverError(res, 'Internal server error', err.message);

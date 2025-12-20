@@ -20,4 +20,10 @@ export interface IGeminiAIService {
     file: Express.Multer.File,
     targetLanguage: string,
   ): Promise<Partial<IDocument>>;
+
+  chatBotStream(
+    chatBotHistory: IChatBotHistory,
+    userPrompt: string,
+    file?: Express.Multer.File,
+  ):  AsyncGenerator<string, void, unknown>;
 }
