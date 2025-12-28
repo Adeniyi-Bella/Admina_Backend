@@ -30,6 +30,7 @@ import v1Routes from '@/routes/v1';
  * Types
  */
 import type { CorsOptions } from 'cors';
+import { botGuard } from '@/lib/bot_detector';
 
 const app = express();
 
@@ -57,8 +58,6 @@ app.use(cors(corsOptions));
 // Enable JSON request body parsing
 app.use(express.json());
 
-// Enable URL-encoded request body parsing with extended mode
-// èxtended: true`allows rich objects and arrays via querystring library
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cookieParser());
@@ -74,6 +73,8 @@ app.use(helmet());
 
 // Apply rate limiting middleware to prevent excessive requests and enhance security
 app.use(limiter);
+
+app.use(botGuard);
 
 /**
  * Immediately Invoked Async Function Expression (IIFE) to start the server.

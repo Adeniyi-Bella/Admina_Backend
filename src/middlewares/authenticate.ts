@@ -55,12 +55,13 @@ const authenticate = async (
 
     if (!jwtPayload.oid) {
       logger.error('Token does not have an oid');
-      throw new Error('Access denied, invalid token');
+      throw new Error('Access denied.');
     }
     
     req.userId = jwtPayload.oid;
     req.email = jwtPayload.email;
     req.username = jwtPayload.username;
+    // req.tokenIssuedAt = jwtPayload.iat;
 
     // Proceed to the next middleware or route handler
     return next();
@@ -72,7 +73,7 @@ const authenticate = async (
       token,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    ApiResponse.unauthorized(res, 'Access denied, invalid token');
+    ApiResponse.unauthorized(res, 'Access denied.');
   }
 };
 

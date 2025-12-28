@@ -1,38 +1,38 @@
-name: Admina API CI-CD Pipeline
+# name: Admina API CI-CD Pipeline
 
-on: 
-  push:
-    branches:
-      - main
+# on: 
+#   push:
+#     branches:
+#       - main
 
 
-env:
-  AZURE_WEBAPP_NAME: admina-app-api   # Set this to your application's name
-  AZURE_WEBAPP_PACKAGE_PATH: './dist'      # Set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '22.x'                # Set this to the node version to use
+# env:
+#   AZURE_WEBAPP_NAME: admina-app-api   # Set this to your application's name
+#   AZURE_WEBAPP_PACKAGE_PATH: './dist'      # Set this to the path to your web app project, defaults to the repository root
+#   NODE_VERSION: '22.x'                # Set this to the node version to use
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-    # Check out the repo
-    - uses: actions/checkout@main
-    - name: Use Node.js ${{ env.NODE_VERSION }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#     # Check out the repo
+#     - uses: actions/checkout@main
+#     - name: Use Node.js ${{ env.NODE_VERSION }}
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: ${{ env.NODE_VERSION }}
     
-    - name: 'npm install, build, and test'
-      run: |
-        npm install
-        npm run build --if-present
-        npm run test --if-present
-      working-directory:  .
+#     - name: 'npm install, build, and test'
+#       run: |
+#         npm install
+#         npm run build --if-present
+#         npm run test --if-present
+#       working-directory:  .
                
-    # Deploy web app using Azure credentials
-    - name: 'Deploy to Azure WebApp'
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+#     # Deploy web app using Azure credentials
+#     - name: 'Deploy to Azure WebApp'
+#       uses: azure/webapps-deploy@v3
+#       with:
+#         app-name: ${{ env.AZURE_WEBAPP_NAME }}
+#         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+#         package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

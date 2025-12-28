@@ -25,6 +25,7 @@ import downgradeUserPlan from '@/controllers/user/downgradeUserPlan';
 import deleteUser from '@/controllers/user/deleteUser';
 import { param } from 'express-validator';
 import getUserDetails from '@/controllers/user/getUserDetails';
+// import logout from '@/controllers/user/logout';
 
 const router = Router();
 
@@ -69,8 +70,9 @@ router.patch(
   downgradeUserPlan,
 );
 
-router.get("/", validationError, resetPropertiesIfNewMonth, getUserDetails)
+router.get('/', validationError, resetPropertiesIfNewMonth, getUserDetails);
 
 router.delete('/', resetPropertiesIfNewMonth, deleteUser);
+// router.patch('/logout', validationError, logout);
 
 export default router;
