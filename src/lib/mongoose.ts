@@ -34,55 +34,54 @@ const clientOptions: ConnectOptions = {
 
 /**
  * Establishes a connection to the MongoDB database using Mongoose.
- * If an error occurs during the connection process, it throws an error
- * with a descriptive message.
  *
- * - Uses `MONGO_URI` as the connection string.
- * - `clientOptions` contains additional configuration for Mongoose.
- * - Errors are properly handled and rethrown for better debugging.
+ * @param context - The name of the process connecting (e.g., 'Server', 'Worker')
  */
-export const connectToDatabase = async (): Promise<void> => {
+export const connectToDatabase = async (
+  context: string = 'Application',
+): Promise<void> => {
   if (!config.MONGO_URI) {
     throw new Error('MongoDB URI is not defined in the configuration.');
+  }
+
+  // If already connected, skip
+  if (mongoose.connection.readyState === 1) {
+    logger.info(`${context} is already connected to MongoDB.`);
+    return;
   }
 
   try {
     await mongoose.connect(config.MONGO_URI, clientOptions);
 
-    logger.info('Connected to the database successfully.', {
+    logger.info(`✅ ${context} connected to the database successfully.`, {
       uri: config.MONGO_URI,
-      options: clientOptions,
+      context,
     });
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
-
-    logger.error('Error connecting to the database', err);
+    logger.error(`Error connecting ${context} to the database`, err);
+    throw new Error('Database connection failed');
   }
 };
 
 /**
  * Disconnects from the MongoDB database using Mongoose.
  *
- * This function attempts to disconnect from the database asynchronously.
- * If the disconnection is successful, a success message is logged.
- * If an error occurs, it is either re-thrown as a new Error (if it's an instance of Error)
- * or logged to the console.
+ * @param context - The name of the process disconnecting (e.g., 'Server', 'Worker')
  */
-export const disconnectFromDatabase = async (): Promise<void> => {
+export const disconnectFromDatabase = async (
+  context: string = 'Application',
+): Promise<void> => {
   try {
     await mongoose.disconnect();
 
-    logger.info('Disconnected from the database successfully.', {
-      uri: config.MONGO_URI,
-      options: clientOptions,
-    });
+    logger.info(`🛑 ${context} disconnected from the database successfully.`);
   } catch (err) {
     if (err instanceof Error) {
       throw new Error(err.message);
     }
-
-    logger.error('Error disconnecting from the database', err);
+    logger.error(`Error disconnecting ${context} from the database`, err);
   }
 };

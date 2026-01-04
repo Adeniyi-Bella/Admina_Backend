@@ -133,6 +133,11 @@ export class UserService implements IUserService {
         ? { $inc: { [property]: -1 }, $set: { updatedAt: new Date() } }
         : { $set: { [property]: value, updatedAt: new Date() } };
 
+        logger.info(`Updating User DB`, { 
+        searchingFor: userId, 
+        fieldToUpdate: property 
+    });
+
       const updatedUser = await User.findOneAndUpdate({ userId }, update, {
         new: true,
         projection: { __v: 0 },

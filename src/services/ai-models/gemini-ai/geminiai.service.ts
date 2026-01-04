@@ -6,6 +6,7 @@
 /**
  * Node modules
  */
+import 'multer';
 import { GoogleGenAI } from '@google/genai';
 import { v4 as uuidv4 } from 'uuid';
 import { injectable } from 'tsyringe';
@@ -27,6 +28,7 @@ import { IDocument } from '@/models/document.model';
  */
 import { IGeminiAIService } from './geminiai.interface';
 import { IChatBotHistory } from '@/models/chatbotHistory.model';
+import { FileMulter } from '@/types';
 
 @injectable()
 export class GeminiAIService implements IGeminiAIService {
@@ -43,7 +45,7 @@ export class GeminiAIService implements IGeminiAIService {
   }
 
   public async translateDocument(
-    file: Express.Multer.File,
+    file: FileMulter,
     targetLanguage: string,
   ): Promise<Partial<IDocument>> {
     if (!file || !file.buffer) {

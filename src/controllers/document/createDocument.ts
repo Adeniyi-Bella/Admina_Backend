@@ -12,8 +12,6 @@ import { logger } from '@/lib/winston';
  * Interfaces
  */
 import { IUserService } from '@/services/users/user.interface';
-import { IDocumentService } from '@/services/document/document.interface';
-import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
 
 /**
  * Node modules
@@ -26,7 +24,7 @@ import pdf from 'pdf-parse';
 import { v4 as uuidv4 } from 'uuid';
 import { TranslateQueueService } from '@/services/ai-models/jobs/job-queues.service';
 
-const queueService = new TranslateQueueService();
+const translateQueueService = new TranslateQueueService();
 
 const createDocument = async (req: Request, res: Response): Promise<void> => {
   const userService = container.resolve<IUserService>('IUserService');
@@ -42,17 +40,6 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
       ApiResponse.notFound(res, 'User not found');
       return;
     }
-
-    if (queueService.isUserProcessing(user.email!)) {
-      ApiResponse.badRequest(
-        res,
-        'You already have a document being processed',
-      );
-      return;
-    }
-
-    // Mark user as processing
-    queueService.addUserToProcessing(user.email!);
 
     const userPlan = user.plan as keyof IPlans;
 
@@ -85,20 +72,68 @@ const createDocument = async (req: Request, res: Response): Promise<void> => {
         return;
       }
     }
+
+    // Check Lock
+    const isProcessing = await translateQueueService.isUserProcessing(
+      user.email!,
+    );
+    if (isProcessing) {
+      ApiResponse.badRequest(
+        res,
+        'You already have a document being processed',
+      );
+      return;
+    }
+
     const docId = uuidv4();
-    await queueService.enqueueTranslationJob(docId, {
-      file,
+
+    // We convert the Buffer to a Base64 string so it can safely travel through Redis/BullMQ
+    const cleanFilePayload = {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      // encoding: file.encoding,
+      buffer: file.buffer.toString('base64'),
+    };
+
+    const jobPayload = {
+      file: cleanFilePayload,
       targetLanguage,
       user,
-    });
+      docId,
+    };
+
+    await translateQueueService.addTranslationJob(
+      docId,
+      jobPayload,
+      user.email!,
+    );
 
     ApiResponse.ok(res, 'Document queued for translation', { docId });
   } catch (error: any) {
-    if (req.userId && req.email) queueService.removeUserFromProcessing(req.email);
-    logger.error('Error during document processing', {
-      error: error.message,
-    });
+    // 1. HANDLE WORKER OFFLINE (503)
+    if (error.message === 'WORKER_OFFLINE') {
+      logger.error('Translation service is offline');
+      ApiResponse.serviceUnavailable(
+        res,
+        'Translation service is currently offline. Please try again later.',
+      );
+      return;
+    }
 
+    // 2. HANDLE MAX QUEUE ERROR (429)
+    if (error.message === 'QUEUE_FULL') {
+      logger.warn('Queue limit exceeded');
+      ApiResponse.tooManyRequests(
+        res,
+        'Server is busy. Max queue length exceeded. Please try again later.',
+      );
+      return;
+    }
+
+    // Cleanup lock if error occurred
+    if (req.email) await translateQueueService.releaseUserLock(req.email);
+
+    logger.error('Error during document processing', { error: error.message });
     ApiResponse.serverError(
       res,
       'Error during document processing',

@@ -46,14 +46,31 @@ export class ApiResponse {
     return this.base(res, 401, 'error', 'UNAUTHORIZED', message);
   }
 
+  static forbidden(res: Response, message: string) {
+    return this.base(res, 403, 'error', 'FORBIDDEN', message);
+  }
+
   static notFound(res: Response, message: string) {
     return this.base(res, 404, 'error', 'NOT_FOUND', message);
   }
 
+  /**
+   * HTTP 429: Too Many Requests
+   * Used when rate limits or queue limits are exceeded.
+   */
+  static tooManyRequests(res: Response, message: string = 'Too many requests, please try again later.') {
+    return this.base(res, 429, 'error', 'TOO_MANY_REQUESTS', message);
+  }
+
+  /**
+   * HTTP 503: Service Unavailable
+   * Used when the worker/service is offline or under maintenance.
+   */
+  static serviceUnavailable(res: Response, message: string = 'Service temporarily unavailable.') {
+    return this.base(res, 503, 'error', 'SERVICE_UNAVAILABLE', message);
+  }
+
   static serverError(res: Response, message: string, error?: any) {
     return this.base(res, 500, 'error', 'SERVER_ERROR', message, error);
-  }
-  static forbidden(res: Response, message: string) {
-    return this.base(res, 403, 'error', 'FORBIDDEN', message);
   }
 }

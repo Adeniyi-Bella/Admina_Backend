@@ -87,7 +87,7 @@ app.use(botGuard);
 
 (async () => {
   try {
-    await connectToDatabase();
+    await connectToDatabase("Server");
 
     app.use('/api/v1', v1Routes);
 
@@ -113,7 +113,7 @@ app.use(botGuard);
  */
 const handleServerShutdown = async () => {
   try {
-    await disconnectFromDatabase();
+    await disconnectFromDatabase("Server");
     logger.warn('Server SHUTDOWN');
     
     await logtail.flush(); // Ensure all logs are sent before exiting

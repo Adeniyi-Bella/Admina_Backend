@@ -6,7 +6,10 @@
   "scripts": {
     "build": "node build.js",
     "start": "node dist/app.js",
-    "dev": "nodemon",
+    "prod-worker": "node dist/worker.js",
+    "dev": "concurrently \"npm run server\" \"npm run worker\"",
+    "server": "nodemon --config nodemon.server.json",
+    "worker": "nodemon --config nodemon.worker.json",
     "test": "jest"
   },
   "keywords": [],
@@ -28,6 +31,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^6.0.3",
     "@types/ua-parser-js": "^0.7.39",
+    "concurrently": "^9.2.1",
     "esbuild": "^0.27.2",
     "jest": "^30.0.5",
     "jest-mock-extended": "^4.0.0",
@@ -51,6 +55,7 @@
     "@logtail/winston": "^0.5.5",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "axios": "^1.11.0",
+    "bullmq": "^5.66.4",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
