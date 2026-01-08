@@ -1,4 +1,4 @@
-import { UserDTO } from './services/users/user.interface';
+import { IUser } from './models/user.model';
 
 export interface IValues {
   max: number;
@@ -28,6 +28,10 @@ export interface GuardianConfig {
   threshold: number;
 }
 
+export type UserDTO = Pick<IUser, 'userId' | 'plan' | 'lengthOfDocs'> & {
+  email?: string;
+};
+
 export interface JobData {
   file: { originalname: string; mimetype: string; buffer: string };
   targetLanguage: string;
@@ -42,3 +46,4 @@ export interface FileMulter {
   buffer: Buffer<ArrayBuffer>;
   size: number;
 }
+

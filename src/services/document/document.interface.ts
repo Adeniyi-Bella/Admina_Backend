@@ -7,8 +7,7 @@
  * Types
  */
 import { IActionPlan, IDocument } from '@/models/document.model';
-import { UserDTO } from '../users/user.interface';
-import { IDocumentResponseFreeUsersDTO } from '@/types/DTO';
+import {  UserDTO } from '@/types';
 
 export interface IDocumentService {
   getAllDocumentsByUserId(

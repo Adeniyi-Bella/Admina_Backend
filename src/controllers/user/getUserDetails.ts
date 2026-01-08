@@ -19,7 +19,6 @@ const getUserDetails = async (req: Request, res: Response): Promise<void> => {
     const plan = user.plan as keyof IPlans; 
     const documentLimits = user.lengthOfDocs[plan];
 
-    // Free users → only document and chats
     ApiResponse.ok(res, 'User Details fetched successfully', {
       planName: user.plan,
       documentLimits

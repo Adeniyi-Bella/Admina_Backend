@@ -6,15 +6,15 @@
 /**
  * Types
  */
-import { IPlans } from '@/types';
+import {  UserDTO } from '@/types';
 import type { Request } from 'express';
 
-export interface UserDTO {
-  userId: string;
-  plan: string;
-  lengthOfDocs: IPlans;
-  email?: string;
-}
+// export interface UserDTO {
+//   userId: string;
+//   plan: string;
+//   lengthOfDocs: IPlans;
+//   email?: string;
+// }
 
 export interface IUserService {
   checkIfUserExist(req: Request): Promise<UserDTO | null>;
@@ -30,3 +30,5 @@ export interface IUserService {
   archiveUser(email: string): Promise<void>;
   checkUserEligibility(req: Request): Promise<void>;
 }
+export { UserDTO };
+

@@ -12,7 +12,8 @@ import DeletedUsers from '@/models/deletedUsers.model';
 /**
  * Interfaces
  */
-import { IUserService, UserDTO } from './user.interface';
+import { IUserService } from './user.interface';
+import { UserDTO } from '@/types';
 
 /**
  * Node modules
@@ -96,7 +97,7 @@ export class UserService implements IUserService {
     try {
       const user = await User.findOne({ userId });
 
-       if (!user) {
+      if (!user) {
         logger.warn('User not found for deletion', { userId });
         return null;
       }
@@ -133,10 +134,10 @@ export class UserService implements IUserService {
         ? { $inc: { [property]: -1 }, $set: { updatedAt: new Date() } }
         : { $set: { [property]: value, updatedAt: new Date() } };
 
-        logger.info(`Updating User DB`, { 
-        searchingFor: userId, 
-        fieldToUpdate: property 
-    });
+      logger.info(`Updating User DB`, {
+        searchingFor: userId,
+        fieldToUpdate: property,
+      });
 
       const updatedUser = await User.findOneAndUpdate({ userId }, update, {
         new: true,
@@ -242,11 +243,18 @@ export class UserService implements IUserService {
 
     if (isSameMonth) {
       await this.deleteUserFromEntraId(req.userId);
-      logger.warn('User attempted to re-register in the same month as deletion', { email });
-      throw new Error('You cannot re-register in the same month you deleted your account.');
+      logger.warn(
+        'User attempted to re-register in the same month as deletion',
+        { email },
+      );
+      throw new Error(
+        'You cannot re-register in the same month you deleted your account.',
+      );
     }
     await DeletedUsers.deleteOne({ email }).exec();
-    logger.info('User removed from DeletedUsers list (eligible for re-registration)', { email });
+    logger.info(
+      'User removed from DeletedUsers list (eligible for re-registration)',
+      { email },
+    );
   }
-
 }

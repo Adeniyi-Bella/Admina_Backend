@@ -6,8 +6,8 @@ import { injectable } from 'tsyringe';
 import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '@/lib/winston';
-import { UserDTO } from '../users/user.interface';
-import { IDocumentResponseFreeUsersDTO } from '@/types/DTO';
+import {  UserDTO } from '@/types';
+
 
 @injectable()
 export class DocumentService implements IDocumentService {
