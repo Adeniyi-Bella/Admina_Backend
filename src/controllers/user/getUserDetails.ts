@@ -21,6 +21,7 @@ const getUserDetails = async (req: Request, res: Response): Promise<void> => {
 
     ApiResponse.ok(res, 'User Details fetched successfully', {
       planName: user.plan,
+      email: user.email,
       documentLimits
     });
   } catch (error: unknown) {
