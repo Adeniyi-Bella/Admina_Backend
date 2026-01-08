@@ -88,6 +88,7 @@ const userSchema = new Schema<IUser>(
     userId: {
       type: String,
       required: [true, 'userId is required'],
+      unique: true,
     },
   },
   {

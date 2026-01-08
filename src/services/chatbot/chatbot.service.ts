@@ -67,16 +67,12 @@ export class ChatBotService implements IChatBotService {
         );
       }
 
-      const result = await ChatBotHistory.findOneAndUpdate(
+      const result = await ChatBotHistory.updateOne(
         { userId, docId },
         { $push: { chats: chat } },
-        { new: true },
-      )
-        .select('-__v')
-        .lean()
-        .exec();
+      ).exec();
 
-      if (!result) {
+      if (result.matchedCount === 0) {
         throw new Error('Chat history collection not found for update');
       }
 
@@ -94,7 +90,7 @@ export class ChatBotService implements IChatBotService {
     }
   }
 
-  async addTranslatedText(
+  async createChatHistory(
     chatBotHistory: Partial<IChatBotHistory>,
   ): Promise<IChatBotHistory> {
     try {
@@ -102,22 +98,17 @@ export class ChatBotService implements IChatBotService {
         throw new Error('Valid chat history data is required');
       }
 
-      await ChatBotHistory.create(chatBotHistory);
+      const result = await ChatBotHistory.create(chatBotHistory);
 
-      const result = await ChatBotHistory.findOne({
-        userId: chatBotHistory.userId,
-        docId: chatBotHistory.docId,
-      })
-        .select('-__v')
-        .lean()
-        .exec();
-
-      if (!result) {
-        throw new Error('Failed to retrieve New chat history collection');
+      return result.toObject() as IChatBotHistory;
+    } catch (error: any) {
+      if (error.code === 11000) {
+        logger.error('Chat history already exists for this document', {
+          userId: chatBotHistory.userId,
+          docId: chatBotHistory.docId,
+        });
+        throw new Error('Chat history already exists for this document');
       }
-
-      return result;
-    } catch (error) {
       logger.error('Failed to create chat history collection', {
         error: error,
       });
@@ -150,7 +141,7 @@ export class ChatBotService implements IChatBotService {
         throw new Error('User ID is required');
       }
 
-      const result = await ChatBotHistory.deleteMany({ userId, docId }).exec();
+      const result = await ChatBotHistory.deleteOne({ userId, docId }).exec();
 
       if (result.deletedCount === 0) {
         logger.info('No chat history found for user', { userId, docId });

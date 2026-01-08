@@ -10,7 +10,7 @@ import { IChatBotHistory, IChatMessage } from '@/models/chatbotHistory.model';
  */
 
 export interface IChatBotService {
-  addTranslatedText(chatBotHistory: Partial<IChatBotHistory>): Promise<IChatBotHistory>;
+  createChatHistory(chatBotHistory: Partial<IChatBotHistory>): Promise<IChatBotHistory>;
   getDocumentChatBotCollection(
     userId: string,
     docId: string,

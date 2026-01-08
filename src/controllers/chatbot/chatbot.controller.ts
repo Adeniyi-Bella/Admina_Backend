@@ -80,7 +80,7 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
       };
 
 
-      chatHistory = await chatBotService.addTranslatedText(newChatHistory);
+      chatHistory = await chatBotService.createChatHistory(newChatHistory);
       logger.info('Created new ChatBotHistory', { userId, docId });
     }
 

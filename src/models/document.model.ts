@@ -149,4 +149,7 @@ const documentSchema = new Schema<IDocument>(
   },
 );
 
+documentSchema.index({ userId: 1, createdAt: 1 });
+documentSchema.index({ userId: 1, docId: 1 }, { unique: true });
+
 export default model<IDocument>('Document', documentSchema);

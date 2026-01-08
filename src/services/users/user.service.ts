@@ -181,7 +181,7 @@ export class UserService implements IUserService {
 
     logger.info('User not in cache, fetching from DB', { userId });
 
-    const user = await User.findOne({ userId }).select('-__v').exec();
+    const user = await User.findOne({ userId }).select('-__v').lean().exec();
 
     if (!user) return null;
 

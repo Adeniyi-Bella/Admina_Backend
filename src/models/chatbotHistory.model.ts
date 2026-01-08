@@ -67,5 +67,8 @@ const chatBotHistorySchema = new Schema<IChatBotHistory>(
     timestamps: true,
   },
 );
+// Makes finding the history for a specific user and document more efficient
+chatBotHistorySchema.index({ userId: 1, docId: 1 }, { unique: true });
+
 
 export default model<IChatBotHistory>('ChatBotHistory', chatBotHistorySchema);

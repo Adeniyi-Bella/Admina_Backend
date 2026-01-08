@@ -19,7 +19,7 @@ import { IUserService } from '@/services/users/user.interface';
 import { IDocumentService } from '@/services/document/document.interface';
 // import { IAzureFreeSubscriptionService } from '@/services/azure/free-users/azure.free.interface';
 // import { IOpenAIService } from '@/services/ai-models/openai.interface';
-import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
+// import { IAzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.interface';
 // import { AzurePremiumSubscriptionService } from '@/services/azure/premium-users/azure.premium.service';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { ChatBotService } from '@/services/chatbot/chatbot.service';
