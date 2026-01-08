@@ -80,19 +80,30 @@ export const verifyAccessToken = async (token: string) => {
     });
 
     const userRes = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${(accessTokenPayload.oid)}`,
+      `https://graph.microsoft.com/v1.0/users/${accessTokenPayload.oid}`,
       {
         headers: { Authorization: `Bearer ${graphToken!.accessToken}` },
       },
     );
 
     const user = await userRes.json();
-    const email = user.mail
+    const email = user.mail;
     const username = user.displayName;
-    const oid = accessTokenPayload.oid as string
+    const oid = accessTokenPayload.oid as string;
 
-    return {oid, email, username};
-  } catch (error) {
+    return { oid, email, username };
+  } catch (error: any) {
+    const errorMessage = error.message || JSON.stringify(error);
+    if (errorMessage.includes('7000222') || errorMessage.includes('7000215')) {
+      logger.error(
+        '🚨 CRITICAL SERVER ERROR: AZURE CLIENT SECRET HAS EXPIRED 🚨',
+      );
+      logger.error('PLEASE GENERATE A NEW SECRET IN AZURE PORTAL IMMEDIATELY');
+
+      throw new Error('Internal Server Configuration Error');
+    }
+
+    logger.error('Token verification failed', { error });
     throw new Error('Unable to verify token');
   }
 };
