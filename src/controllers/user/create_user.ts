@@ -37,12 +37,19 @@ const createUser = async (
 
     return next();
   } catch (error: unknown) {
-
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
 
     if (errorMessage.includes('You cannot re-register')) {
       logger.warn('Deleted user trying to re-register:', errorMessage);
+      const deleteUserFromEntraId = await userService.deleteUserFromEntraId(
+        req.userId,
+      );
+      if (!deleteUserFromEntraId) {
+        logger.error('User not found in Entra Id for deletion');
+        ApiResponse.notFound(res, 'User not found in Entra Id');
+        return;
+      }
       ApiResponse.forbidden(res, errorMessage);
       return;
     }

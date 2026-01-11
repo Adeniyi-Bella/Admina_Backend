@@ -10,7 +10,8 @@
     "dev": "concurrently \"npm run server\" \"npm run worker\"",
     "server": "nodemon --config nodemon.server.json",
     "worker": "nodemon --config nodemon.worker.json",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "keywords": [],
   "author": "",
