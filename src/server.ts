@@ -6,12 +6,12 @@
  * Node modules
  */
 import 'reflect-metadata';
-import "./di/container";
+import './di/container';
 import express from 'express';
-import cors from 'cors'; // Apply CORS middleware
+import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import compression from 'compression'; // Enable response compression to reduce payload size and improve performance
-import helmet from 'helmet'; // Use Helmet to enhance security by setting various HTTP headers
+import compression from 'compression';
+import helmet from 'helmet';
 
 /**
  * Custom modules
@@ -22,113 +22,116 @@ import { connectToDatabase, disconnectFromDatabase } from '@/lib/mongoose';
 import { logger, logtail } from '@/lib/winston';
 
 /**
- * Router
+ * Routers
  */
 import v1Routes from '@/routes/v1';
+
+/**
+ * Middlewares
+ */
+import { botGuard } from '@/lib/bot_detector';
+import {
+  errorHandler,
+  handleUnhandledRejection,
+  handleUncaughtException,
+} from '@/middlewares/errorHandler';
 
 /**
  * Types
  */
 import type { CorsOptions } from 'cors';
-import { botGuard } from '@/lib/bot_detector';
 
 const app = express();
 
+/* -------------------------------------------------------------------------- */
+/*                         Process-level fatal handlers                        */
+/* -------------------------------------------------------------------------- */
+handleUncaughtException();
+handleUnhandledRejection();
+
+/* -------------------------------------------------------------------------- */
+/*                               CORS configuration                            */
+/* -------------------------------------------------------------------------- */
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
-    logger.info('Origin is:', {originIs: origin});
-    if (
-      !origin || 
-      config.WHITELIST_ORIGINS.includes(origin!)
-    ) {
+    logger.info('Origin is:', { origin });
+
+    if (!origin || config.WHITELIST_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
-      // Reject requests from non-whitelisted origins
-      callback(
-        new Error(`CORS error: ${origin} is not allowed by CORS`),
-        false,
-      );
       logger.warn(`CORS error: ${origin} is not allowed by CORS`);
+      callback(new Error(`CORS error: ${origin} is not allowed by CORS`), false);
     }
   },
 };
 
 app.use(cors(corsOptions));
 
-// Enable JSON request body parsing
+/* -------------------------------------------------------------------------- */
+/*                              Global middleware                              */
+/* -------------------------------------------------------------------------- */
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
 
 app.use(
   compression({
-    threshold: 1024, // Only allow compress responses larger than 1kb
+    threshold: 1024,
   }),
 );
 
-// Use Helmet to enhance security by setting various HTTP headers
 app.use(helmet());
-
-// Apply rate limiting middleware to prevent excessive requests and enhance security
 app.use(limiter);
-
 app.use(botGuard);
 
-/**
- * Immediately Invoked Async Function Expression (IIFE) to start the server.
- *
- * - Tries to connect to the database before initializing the server.
- * - Defines the API route (`/api/v1`).
- * - Starts the server on the specified PORT and logs the running URL.
- * - If an error occurs during startup, it is logged, and the process exits with status 1.
- */
-
+/* -------------------------------------------------------------------------- */
+/*                             Application bootstrap                           */
+/* -------------------------------------------------------------------------- */
 (async () => {
   try {
-    await connectToDatabase("Server");
+    await connectToDatabase('Server');
 
+    // Routes
     app.use('/api/v1', v1Routes);
+
+    app.use((_, res) => {
+      res.status(404).json({
+        status: 'error',
+        code: 'NOT_FOUND',
+        message: 'Route not found',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+      });
+    });
+
+    // Global Express error handler middleware
+    app.use(errorHandler);
 
     app.listen(config.PORT, () => {
       logger.info(`Server running: http://localhost:${config.PORT}`);
     });
   } catch (err) {
     logger.error('Failed to start the server', err);
-
-    if (config.NODE_ENV === 'production' || config.NODE_ENV === "development") {
-      process.exit(1);
-    }
+    process.exit(1);
   }
 })();
 
-/**
- * Handles server shutdown gracefully by disconnecting from the database.
- *
- * - Attempts to disconnect from the database before shutting down the server.
- * - Logs a success message if the disconnection is successful.
- * - If an error occurs during disconnection, it is logged to the console.
- * - Exits the process with status code `0` (indicating a successful shutdown).
- */
+/* -------------------------------------------------------------------------- */
+/*                           Graceful shutdown logic                            */
+/* -------------------------------------------------------------------------- */
 const handleServerShutdown = async () => {
   try {
-    await disconnectFromDatabase("Server");
-    logger.warn('Server SHUTDOWN');
-    
-    await logtail.flush(); // Ensure all logs are sent before exiting
+    logger.warn('Server SHUTDOWN initiated');
+
+    await disconnectFromDatabase('Server');
+    await logtail.flush();
+
     process.exit(0);
   } catch (err) {
     logger.error('Error during server shutdown', err);
+    process.exit(1);
   }
 };
 
-/**
- * Listens for termination signals (`SIGTERM` and `SIGINT`).
- *
- * - `SIGTERM` is typically sent when stopping a process (e.g., `kill` command or container shutdown).
- * - `SIGINT` is triggered when the user interrupts the process (e.g., pressing `Ctrl + C`).
- * - When either signal is received, `handleServerShutdown` is executed to ensure proper cleanup.
- */
 process.on('SIGTERM', handleServerShutdown);
 process.on('SIGINT', handleServerShutdown);

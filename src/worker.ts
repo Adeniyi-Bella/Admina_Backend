@@ -77,7 +77,7 @@ class TranslationWorker {
       };
 
       await redis.hset(jobKey, 'status', 'translate');
-      await redis.expire(jobKey, 300);
+      await redis.expire(jobKey, 1800);
 
       const translatedDocument = await geminiService.translateDocument(
         reconstructedFile,

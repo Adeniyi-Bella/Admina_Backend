@@ -7,15 +7,19 @@
  * Types
  */
 import { ApiResponse } from '@/lib/api_response';
+import { BadRequestError } from '@/lib/api_response/error';
 import type { Request, Response, NextFunction } from 'express';
 
-const verifyUploadedFile = (req: Request, res: Response, next: NextFunction) => {
-//   const errors = validationResult(req);
+const verifyUploadedFile = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
 
   if (!req.file) {
-
-    ApiResponse.badRequest(res, 'No file uploaded. Please include a PDF, PNG, or JPEG file.');
-    return;
+    throw new BadRequestError(
+      'No file uploaded. Please include a PDF, PNG, or JPEG file.',
+    );
   }
 
   next();

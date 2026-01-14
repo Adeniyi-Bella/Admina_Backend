@@ -11,21 +11,22 @@ import { Router } from 'express';
 /**
  * Middlewares
  */
-import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
 
 /**
  * Controllers
  */
-import createUser from '@/controllers/user/create_user';
 import getAllDocuments from '@/controllers/document/getAllDocument';
 import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
-import upgradeUserPlan from '@/controllers/user/upgradeUserPlan';
-import downgradeUserPlan from '@/controllers/user/downgradeUserPlan';
-import deleteUser from '@/controllers/user/deleteUser';
 import { param } from 'express-validator';
-import getUserDetails from '@/controllers/user/getUserDetails';
-// import logout from '@/controllers/user/logout';
+import {
+  createUser,
+  deleteUser,
+  downgradeUserPlan,
+  getUserDetails,
+  upgradeUserPlan,
+} from '@/controllers/user/user.controller';
+import authenticate from '@/middlewares/authenticate';
 
 const router = Router();
 

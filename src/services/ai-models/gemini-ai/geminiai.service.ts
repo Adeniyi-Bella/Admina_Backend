@@ -70,6 +70,9 @@ export class GeminiAIService implements IGeminiAIService {
         contents,
          config: {
           responseMimeType: 'application/json', 
+          httpOptions: {
+            timeout: 2 * 60 * 1000, // 2 minutes timeout for large files
+          },
         },
       });
 
@@ -96,7 +99,7 @@ export class GeminiAIService implements IGeminiAIService {
           : 'Internal Gemini processing error.',
       });
 
-      throw new Error(error || 'Gemini document translation failed');
+      throw new Error('Gemini document translation failed');
     }
   }
 

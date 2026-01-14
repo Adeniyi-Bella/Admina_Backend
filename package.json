@@ -2,7 +2,7 @@
   "name": "admina_backend",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/server.js",
+  "main": "dist/app.js",
   "scripts": {
     "build": "node build.js",
     "start": "node dist/app.js",

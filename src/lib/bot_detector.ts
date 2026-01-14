@@ -3,6 +3,7 @@ import { UAParser } from 'ua-parser-js';
 import { logger } from '@/lib/winston';
 import config from '@/config';
 import { GuardianConfig, BotDetectionResult } from '@/types';
+import { ForbiddenError } from './api_response/error';
 
 /**
  * Validates consistency between User-Agent and other HTTP Headers.
@@ -32,9 +33,13 @@ const analyzeHeaders = (req: Request, browserName: string) => {
       }
     }
   }
-  const isMajorBrowser = ['Chrome', 'Firefox', 'Safari', 'Edge', 'Opera'].includes(
-    browserName,
-  );
+  const isMajorBrowser = [
+    'Chrome',
+    'Firefox',
+    'Safari',
+    'Edge',
+    'Opera',
+  ].includes(browserName);
 
   if (isMajorBrowser) {
     if (!headers['accept-language']) {
@@ -76,7 +81,6 @@ const analyzeUserAgent = (userAgent: string) => {
     raw: result,
   };
 };
-
 
 class Guardian {
   private config: GuardianConfig;
@@ -154,37 +158,19 @@ class Guardian {
 const guardian = new Guardian({ threshold: 0.8 });
 
 export const botGuard = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const result = guardian.detect(req);
+  const result = guardian.detect(req);
 
-    logger.info('Guardian check', {
+  if (result.isBot) {
+    logger.error('Guardian blocked request', {
       path: req.path,
       ip: req.ip,
       reasons: result.reasons,
       score: result.score,
-      meta: result.meta,
       userAgent: req.headers['user-agent'],
     });
 
-    if (result.isBot) {
-      logger.warn('Guardian blocked request', {
-        path: req.path,
-        ip: req.ip,
-        reasons: result.reasons,
-        score: result.score,
-        userAgent: req.headers['user-agent'],
-      });
-
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Access denied',
-        reasons: process.env.NODE_ENV === 'local' ? result.reasons : undefined,
-      });
-    }
-
-    next();
-  } catch (error) {
-    logger.error('Guardian middleware error', error);
-    next();
+    throw new ForbiddenError('Access denied by Guardian Bot Detector');
   }
+
+  next();
 };

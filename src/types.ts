@@ -32,6 +32,8 @@ export type UserDTO = Pick<IUser, 'userId' | 'plan' | 'lengthOfDocs'> & {
   email?: string;
 };
 
+export type VerifiedUser = Pick<IUser, 'userId' | 'email' | 'username'>;
+
 export interface JobData {
   file: { originalname: string; mimetype: string; buffer: string };
   targetLanguage: string;

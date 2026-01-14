@@ -1,63 +1,63 @@
-/**
- * @copyright 2025 Adeniyi Bella
- * @license Apache-2.0
- */
+// /**
+//  * @copyright 2025 Adeniyi Bella
+//  * @license Apache-2.0
+//  */
 
-/**
- * Node modules
- */
-import { container } from 'tsyringe';
+// /**
+//  * Node modules
+//  */
+// import { container } from 'tsyringe';
 
-/**
- * Custom modules
- */
-import { logger } from '@/lib/winston';
-import { IUserService } from '@/services/users/user.interface';
+// /**
+//  * Custom modules
+//  */
+// import { logger } from '@/lib/winston';
+// import { IUserService } from '@/services/users/user.interface';
 
-/**
- * Types
- */
-import type { NextFunction, Request, Response } from 'express';
-import { ApiResponse } from '@/lib/api_response';
+// /**
+//  * Types
+//  */
+// import type { NextFunction, Request, Response } from 'express';
+// import { ApiResponse } from '@/lib/api_response';
 
-const createUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  const userService = container.resolve<IUserService>('IUserService');
+// const createUser = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction,
+// ): Promise<void> => {
+//   const userService = container.resolve<IUserService>('IUserService');
 
-  try {
-    await userService.checkUserEligibility(req);
-    let user = await userService.checkIfUserExist(req);
+//   try {
+//     await userService.checkUserEligibility(req);
+//     let user = await userService.checkIfUserExist(req);
 
-    if (!user) {
-      await userService.createUserFromToken(req);
-    }
+//     if (!user) {
+//       await userService.createUserFromToken(req);
+//     }
 
-    return next();
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+//     return next();
+//   } catch (error: unknown) {
+//     const errorMessage =
+//       error instanceof Error ? error.message : 'Unknown error';
 
-    if (errorMessage.includes('You cannot re-register')) {
-      logger.warn('Deleted user trying to re-register:', errorMessage);
-      const deleteUserFromEntraId = await userService.deleteUserFromEntraId(
-        req.userId,
-      );
-      if (!deleteUserFromEntraId) {
-        logger.error('User not found in Entra Id for deletion');
-        ApiResponse.notFound(res, 'User not found in Entra Id');
-        return;
-      }
-      ApiResponse.forbidden(res, errorMessage);
-      return;
-    }
+//     if (errorMessage.includes('You cannot re-register')) {
+//       logger.warn('Deleted user trying to re-register:', errorMessage);
+//       const deleteUserFromEntraId = await userService.deleteUserFromEntraId(
+//         req.userId,
+//       );
+//       if (!deleteUserFromEntraId) {
+//         logger.error('User not found in Entra Id for deletion');
+//         ApiResponse.notFound(res, 'User not found in Entra Id');
+//         return;
+//       }
+//       ApiResponse.forbidden(res, errorMessage);
+//       return;
+//     }
 
-    logger.error('Error creating user', error);
+//     logger.error('Error creating user', error);
 
-    ApiResponse.serverError(res, 'Internal server error', errorMessage);
-  }
-};
+//     ApiResponse.serverError(res, 'Internal server error', errorMessage);
+//   }
+// };
 
-export default createUser;
+// export default createUser;

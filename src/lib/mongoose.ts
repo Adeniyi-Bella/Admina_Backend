@@ -18,6 +18,7 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { ConnectOptions } from 'mongoose';
+import { DatabaseError } from './api_response/error';
 
 /**
  * Client option
@@ -41,7 +42,7 @@ export const connectToDatabase = async (
   context: string = 'Application',
 ): Promise<void> => {
   if (!config.MONGO_URI) {
-    throw new Error('MongoDB URI is not defined in the configuration.');
+    throw new DatabaseError('MongoDB URI is not defined in the configuration.');
   }
 
   // If already connected, skip
@@ -53,16 +54,13 @@ export const connectToDatabase = async (
   try {
     await mongoose.connect(config.MONGO_URI, clientOptions);
 
-    logger.info(`✅ ${context} connected to the database successfully.`, {
+    logger.info(`${context} connected to the database successfully.`, {
       uri: config.MONGO_URI,
       context,
     });
   } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    logger.error(`Error connecting ${context} to the database`, err);
-    throw new Error('Database connection failed');
+    logger.error(`Error connecting ${context} to the database:`, err);
+    throw new DatabaseError('Database connection failed');
   }
 };
 
@@ -80,7 +78,7 @@ export const disconnectFromDatabase = async (
     logger.info(`🛑 ${context} disconnected from the database successfully.`);
   } catch (err) {
     if (err instanceof Error) {
-      throw new Error(err.message);
+      throw new DatabaseError(err.message);
     }
     logger.error(`Error disconnecting ${context} from the database`, err);
   }

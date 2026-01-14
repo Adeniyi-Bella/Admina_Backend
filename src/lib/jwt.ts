@@ -14,6 +14,12 @@ import { logger } from '@/lib/winston';
  */
 import config from '@/config';
 import { ConfidentialClientApplication } from '@azure/msal-node';
+import { VerifiedUser } from '@/types';
+import {
+  AzureSecretExpiredError,
+  GraphAPIError,
+  UnauthorizedError,
+} from './api_response/error';
 
 const JWKS = createRemoteJWKSet(
   new URL(
@@ -21,12 +27,13 @@ const JWKS = createRemoteJWKSet(
   ),
 );
 
-export const verifyAccessToken = async (token: string) => {
+export const verifyAccessToken = async (
+  token: string,
+): Promise<VerifiedUser> => {
   const [idToken, accessToken] = token.split('auth');
 
-  // If there's no Bearer token, respond with 401 Unauthorized
   if (!idToken || !accessToken) {
-    throw new Error('Token does not follow the expected format');
+    throw new UnauthorizedError('No authentication token provided');
   }
 
   try {
@@ -49,7 +56,7 @@ export const verifyAccessToken = async (token: string) => {
       accessTokenPayload.tid !== idTokenPayload.tid ||
       accessTokenPayload.sid !== idTokenPayload.sid
     ) {
-      throw new Error(
+      throw new UnauthorizedError(
         'Token mismatch: Access and ID tokens are not from the same user/session.',
       );
     }
@@ -72,7 +79,7 @@ export const verifyAccessToken = async (token: string) => {
       logger.error('Failed to verify user with secrete', {
         accessTokenPayload,
       });
-      throw new Error('Failed to acquire Graph token');
+      throw new GraphAPIError('Failed to acquire Graph token');
     }
 
     const graphToken = await cca.acquireTokenByClientCredential({
@@ -89,21 +96,20 @@ export const verifyAccessToken = async (token: string) => {
     const user = await userRes.json();
     const email = user.mail;
     const username = user.displayName;
-    const oid = accessTokenPayload.oid as string;
+    const userId = accessTokenPayload.oid as string;
 
-    return { oid, email, username };
+    return { userId, email, username };
   } catch (error: any) {
     const errorMessage = error.message || JSON.stringify(error);
     if (errorMessage.includes('7000222') || errorMessage.includes('7000215')) {
       logger.error(
-        '🚨 CRITICAL SERVER ERROR: AZURE CLIENT SECRET HAS EXPIRED 🚨',
+        'CRITICAL SERVER ERROR: AZURE CLIENT SECRET HAS EXPIRED. PLEASE GENERATE A NEW SECRET IN AZURE PORTAL IMMEDIATELY',
       );
-      logger.error('PLEASE GENERATE A NEW SECRET IN AZURE PORTAL IMMEDIATELY');
 
-      throw new Error('Internal Server Configuration Error');
+      throw new AzureSecretExpiredError();
     }
 
     logger.error('Token verification failed', { error });
-    throw new Error('Unable to verify token');
+    throw new UnauthorizedError('Unable to verify token');
   }
 };

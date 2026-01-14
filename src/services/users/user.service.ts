@@ -33,6 +33,13 @@ import config from '@/config';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import redis from '@/lib/redis';
+import {
+  InvalidInputError,
+  AzureAuthError,
+  GraphAPIError,
+  DatabaseError,
+  ReregistrationBlockedError,
+} from '@/lib/api_response/error';
 
 @injectable()
 export class UserService implements IUserService {
@@ -58,11 +65,11 @@ export class UserService implements IUserService {
   }
 
   async deleteUserFromEntraId(userId: string): Promise<boolean> {
-    try {
-      if (!userId) {
-        throw new Error('Valid userId is required');
-      }
+    if (!userId) {
+      throw new InvalidInputError('Valid userId is required');
+    }
 
+    try {
       const cca = new ConfidentialClientApplication(this.config);
 
       const result = await cca.acquireTokenByClientCredential({
@@ -73,7 +80,7 @@ export class UserService implements IUserService {
         logger.error('Failed to acquire Graph token for Entra ID deletion', {
           userId,
         });
-        throw new Error('Failed to acquire Graph token');
+        throw new AzureAuthError('Failed to acquire Graph token');
       }
 
       const client = Client.init({
@@ -81,7 +88,6 @@ export class UserService implements IUserService {
       });
 
       await client.api(`/users/${userId}`).delete();
-      logger.info('User deleted successfully from Entra ID', { userId });
       return true;
     } catch (error: any) {
       if (error.statusCode === 404) {
@@ -89,7 +95,7 @@ export class UserService implements IUserService {
         return false;
       }
       logger.error('Failed to delete user from Entra ID', { userId, error });
-      throw new Error(`Failed to delete user from Entra ID`);
+      throw new GraphAPIError('Failed to delete user from Entra ID');
     }
   }
 
@@ -117,9 +123,7 @@ export class UserService implements IUserService {
       return userEmail;
     } catch (error) {
       logger.error('Error deleting user', { userId, error });
-      throw new Error(
-        `Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      throw new DatabaseError('Failed to delete user');
     }
   }
 
@@ -151,18 +155,18 @@ export class UserService implements IUserService {
 
       const userDTO = this.mapUserToDTO(updatedUser);
       const cacheKey = this.getCacheKey(userId);
-      await redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600);
 
-      logger.info(
-        `${property} ${decrement ? 'decremented' : 'updated'} successfully`,
-        { userId, property, value: decrement ? 1 : value },
-      );
+      try {
+        await redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600);
+      } catch (cacheErr) {
+        // Log cache error but don't fail the operation
+        logger.error('Failed to update cache', { error: cacheErr });
+      }
+
       return true;
     } catch (error) {
       logger.error(`Error updating ${property}`, { userId, property, error });
-      throw new Error(
-        `Failed to update ${property}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      throw new DatabaseError(`Failed to update ${property}`);
     }
   }
 
@@ -173,32 +177,31 @@ export class UserService implements IUserService {
     try {
       const cachedData = await redis.get(cacheKey);
       if (cachedData) {
-        logger.info('Serving user from Redis Cache', { userId });
         return JSON.parse(cachedData) as UserDTO;
       }
     } catch (err) {
       logger.error('Redis get error', { error: err });
+      // Continue to DB fetch if cache fails
     }
 
     logger.info('User not in cache, fetching from DB', { userId });
 
-    const user = await User.findOne({ userId }).select('-__v').lean().exec();
+    try {
+      const user = await User.findOne({ userId }).select('-__v').lean().exec();
 
-    if (!user) return null;
+      if (!user) return null;
 
-    const userDTO = this.mapUserToDTO(user);
+      const userDTO = this.mapUserToDTO(user);
 
-    logger.info('user from db', {
-      user: {
-        id: user.userId,
-        email: user.email,
-      },
-    });
-    redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600).catch((err) => {
-      logger.error('Failed to set cache', { error: err });
-    });
+      redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600).catch((err) => {
+        logger.error('Failed to set cache', { error: err });
+      });
 
-    return userDTO;
+      return userDTO;
+    } catch (error) {
+      logger.error('Error checking if user exists', { userId, error });
+      throw new DatabaseError('Failed to retrieve user');
+    }
   }
 
   async createUserFromToken(req: Request): Promise<void> {
@@ -206,11 +209,16 @@ export class UserService implements IUserService {
     const email = req.email;
     const username = req.username;
 
-    await User.create({
-      userId,
-      email: email,
-      username: username,
-    });
+    try {
+      await User.create({
+        userId,
+        email: email,
+        username: username,
+      });
+    } catch (error) {
+      logger.error('Error creating user', { userId, email, error });
+      throw new DatabaseError('Failed to create user');
+    }
   }
 
   async archiveUser(email: string): Promise<void> {
@@ -228,33 +236,41 @@ export class UserService implements IUserService {
 
   async checkUserEligibility(req: Request): Promise<void> {
     const email = req.email;
-    const deletedUser = await DeletedUsers.findOne({ email });
 
-    if (!deletedUser) {
-      return;
-    }
+    try {
+      const deletedUser = await DeletedUsers.findOne({ email });
 
-    const now = new Date();
-    const deletedAt = deletedUser.deletedAt;
+      if (!deletedUser) {
+        return;
+      }
 
-    const isSameMonth =
-      now.getMonth() === deletedAt.getMonth() &&
-      now.getFullYear() === deletedAt.getFullYear();
+      const now = new Date();
+      const deletedAt = deletedUser.deletedAt;
 
-    if (isSameMonth) {
-      await this.deleteUserFromEntraId(req.userId);
-      logger.warn(
-        'User attempted to re-register in the same month as deletion',
+      const isSameMonth =
+        now.getMonth() === deletedAt.getMonth() &&
+        now.getFullYear() === deletedAt.getFullYear();
+
+      if (isSameMonth) {
+        await this.deleteUserFromEntraId(req.userId);
+        logger.warn(
+          'User attempted to re-register in the same month as deletion',
+          { email },
+        );
+        throw new ReregistrationBlockedError();
+      }
+
+      await DeletedUsers.deleteOne({ email }).exec();
+      logger.info(
+        'User removed from DeletedUsers list (eligible for re-registration)',
         { email },
       );
-      throw new Error(
-        'You cannot re-register in the same month you deleted your account.',
-      );
+    } catch (error) {
+      if (error instanceof ReregistrationBlockedError) {
+        throw error; // Re-throw custom errors
+      }
+      logger.error('Error checking user eligibility', { email, error });
+      throw new DatabaseError('Failed to check user eligibility');
     }
-    await DeletedUsers.deleteOne({ email }).exec();
-    logger.info(
-      'User removed from DeletedUsers list (eligible for re-registration)',
-      { email },
-    );
   }
 }
