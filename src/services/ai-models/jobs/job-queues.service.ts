@@ -55,7 +55,7 @@ export class TranslateQueueService {
 
     // 3. Set Initial Job Status
     const jobKey = `job:${docId}`;
-    await redis.hmset(jobKey, { docId, status: 'queued' });
+    await redis.hset(jobKey, { docId, status: 'queued' });
     await redis.expire(jobKey, 60 * 60); // 1 hour TTL
 
     // 4. Add to BullMQ with Retry & Backoff

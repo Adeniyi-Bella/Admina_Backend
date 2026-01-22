@@ -124,7 +124,7 @@ class TranslationWorker {
       await redis.hset(jobKey, 'status', 'completed');
     } catch (error: any) {
       logger.error(`Job ${docId} failed:`, error);
-      await redis.hmset(jobKey, {
+      await redis.hset(jobKey, {
         status: 'error',
         error: error.message,
       });
