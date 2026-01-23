@@ -6,29 +6,37 @@ import { injectable } from 'tsyringe';
 import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '@/lib/winston';
-import {  UserDTO } from '@/types';
-
+import { UserDTO } from '@/types';
+import { DatabaseError, InvalidInputError } from '@/lib/api_response/error';
+import { cacheService } from '../redis-cache/redis-cache.service';
 
 @injectable()
 export class DocumentService implements IDocumentService {
+  private getDocumentCacheKey(userId: string, docId: string): string {
+    return `doc:${userId}:${docId}`;
+  }
+
+  private getDocumentListCacheKey(userId: string): string {
+    return `docs:list:${userId}`;
+  }
+
+  private getDocumentTag(userId: string): string {
+    return `tag:docs:${userId}`;
+  }
   async deleteAllDocuments(userId: string): Promise<boolean> {
+    if (!userId) {
+      throw new InvalidInputError('Valid userId is required');
+    }
     try {
       const result = await Document.deleteMany({ userId }).exec();
 
-      if (result.deletedCount === 0) {
-        logger.info('No documents found for deletion', { userId });
-      }
+      await cacheService.invalidateTag(this.getDocumentTag(userId));
+      await cacheService.delete(this.getDocumentListCacheKey(userId));
 
-      logger.info('All documents deleted successfully', {
-        userId,
-        deletedCount: result.deletedCount,
-      });
-      return true;
+      return result.deletedCount > 0;
     } catch (error) {
       logger.error('Failed to delete all documents', { userId, error });
-      throw new Error(
-        `Failed to delete all documents: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      throw new DatabaseError('Failed to delete all documents');
     }
   }
   async getAllDocumentsByUserId(
@@ -40,31 +48,61 @@ export class DocumentService implements IDocumentService {
     documents: IDocument[];
   }> {
     if (!user.userId) {
-      throw new Error('Valid userId is required');
+      throw new InvalidInputError('Valid userId is required');
     }
 
-    const userId = user.userId;
+    try {
+      const userId = user.userId;
 
-    const total = await Document.countDocuments({ userId });
+      const cacheKey = `${this.getDocumentListCacheKey(userId)}:${limit}:${offset}`;
 
-    const documents = await Document.find({ userId })
-      .sort({ createdAt: 1 })
-      .select('-__v')
-      .limit(limit)
-      .skip(offset)
-      .lean()
-      .exec();
+      const result = await cacheService.getOrFetch<{
+        total: number;
+        documents: IDocument[];
+      }>(
+        cacheKey,
+        async () => {
+          logger.info('Cache miss: fetching documents from DB', {
+            userId,
+            limit,
+            offset,
+          });
 
-    return { total, documents };
+          const [total, documents] = await Promise.all([
+            Document.countDocuments({ userId }),
+            Document.find({ userId })
+              .sort({ createdAt: 1 })
+              .select('-__v')
+              .limit(limit)
+              .skip(offset)
+              .lean()
+              .exec(),
+          ]);
+
+          // Add this key to the user's document tag for invalidation
+          await cacheService.addToTag(this.getDocumentTag(userId), cacheKey);
+
+          return { total, documents };
+        },
+        1800, // 30 minutes for lists
+      );
+
+      return result!;
+    } catch (error) {
+      logger.error('Failed to fetch documents', { userId: user.userId, error });
+      throw new DatabaseError('Failed to retrieve documents');
+    }
   }
 
   async createDocumentByUserId(
     document: Partial<IDocument>,
   ): Promise<IDocument> {
+    if (!document?.userId || !document?.docId) {
+      throw new InvalidInputError(
+        'Valid document data with userId and docId required',
+      );
+    }
     try {
-      if (!document || !document.userId || !document.docId) {
-        throw new Error('Valid document data is required');
-      }
       const createdDocument = await Document.create(document);
       const result = await Document.findById(createdDocument._id)
         .select('-__v')
@@ -72,55 +110,82 @@ export class DocumentService implements IDocumentService {
         .exec();
 
       if (!result) {
-        throw new Error('Failed to retrieve created document');
+        throw new DatabaseError('Failed to retrieve created document');
       }
+
+      await cacheService.invalidateTag(this.getDocumentTag(document.userId));
 
       return result as IDocument;
     } catch (error) {
-      logger.error('Failed to create document', { error: error });
-      throw new Error(`Failed to create document: ${error}`);
+      logger.error('Failed to create document', { error });
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to create document');
     }
   }
 
-  async getDocument(
-    user: UserDTO,
-    docId: string,
-  ): Promise<IDocument | null > {
+  async getDocument(user: UserDTO, docId: string): Promise<IDocument | null> {
     if (!user.userId || !docId) {
-      throw new Error('Valid userId and docId are required');
+      throw new InvalidInputError('Valid userId and docId are required');
     }
 
-    const document = await Document.findOne({ userId: user.userId, docId })
-      .select('-__v')
-      .exec();
+    try {
+      const cacheKey = this.getDocumentCacheKey(user.userId, docId);
 
-    if (!document) {
-      return null;
+      // SENIOR PATTERN: Use getOrFetch with Request Coalescing
+      return cacheService.getOrFetch(
+        cacheKey,
+        async () => {
+          logger.info('Cache miss: fetching document from DB', {
+            userId: user.userId,
+            docId,
+          });
+
+          const document = await Document.findOne({
+            userId: user.userId,
+            docId,
+          })
+            .select('-__v')
+            .exec();
+
+          if (document) {
+            // Add to tag for grouped invalidation
+            await cacheService.addToTag(
+              this.getDocumentTag(user.userId),
+              cacheKey,
+            );
+          }
+
+          return document;
+        },
+        3600, // 1 hour
+      );
+    } catch (error) {
+      logger.error('Failed to fetch document', {
+        userId: user.userId,
+        docId,
+        error,
+      });
+      throw new DatabaseError('Failed to retrieve document');
     }
-
-    return document;
   }
 
   async deleteDocument(userId: string, docId: string): Promise<boolean> {
+    if (!userId || !docId) {
+      throw new InvalidInputError('Valid userId and docId are required');
+    }
     try {
-      if (!userId || !docId) {
-        throw new Error('Valid userId and docId are required');
-      }
-
       const result = await Document.deleteOne({ userId, docId }).exec();
-
-      if (result.deletedCount === 0) {
-        logger.info('Document not found for deletion', { userId, docId });
-        return false;
+      if (result.deletedCount > 0) {
+        await cacheService.delete(this.getDocumentCacheKey(userId, docId));
+        await cacheService.invalidateTag(this.getDocumentTag(userId));
       }
 
-      logger.info('Document deleted successfully', { userId, docId });
-      return true;
+      return result.deletedCount > 0;
     } catch (error) {
       logger.error('Failed to delete document', { userId, docId, error });
-      throw new Error(
-        `Failed to delete document: ${error instanceof Error ? error.message : error}`,
-      );
+      throw new DatabaseError('Failed to delete document');
     }
   }
 
@@ -129,14 +194,14 @@ export class DocumentService implements IDocumentService {
     docId: string,
     updates: Partial<IDocument> | { $inc?: any },
   ): Promise<IDocument | null> {
-    try {
-      if (!userId || !docId) {
-        throw new Error('Valid userId and docId are required');
-      }
-      if (!updates || Object.keys(updates).length === 0) {
-        throw new Error('Valid update data is required');
-      }
+    if (!userId || !docId) {
+      throw new InvalidInputError('Valid userId and docId are required');
+    }
 
+    if (!updates || Object.keys(updates).length === 0) {
+      throw new InvalidInputError('Valid update data is required');
+    }
+    try {
       const updateQuery =
         '$inc' in updates
           ? { ...updates, $set: { updatedAt: new Date() } }
@@ -150,22 +215,15 @@ export class DocumentService implements IDocumentService {
         .lean()
         .exec();
 
-      if (!updatedDocument) {
-        logger.info('Document not found for update', { userId, docId });
-        return null;
+      if (updatedDocument) {
+        await cacheService.delete(this.getDocumentCacheKey(userId, docId));
+        await cacheService.invalidateTag(this.getDocumentTag(userId));
       }
 
       return updatedDocument as IDocument;
     } catch (error) {
-      logger.error('Failed to update document', {
-        userId,
-        docId,
-        updates,
-        error,
-      });
-      throw new Error(
-        `Failed to update document: ${error instanceof Error ? error.message : error}`,
-      );
+      logger.error('Failed to update document', { userId, docId, error });
+      throw new DatabaseError('Failed to update document');
     }
   }
 
@@ -176,82 +234,95 @@ export class DocumentService implements IDocumentService {
     actionPlanData?: Partial<IActionPlan>,
     actionPlanId?: string,
   ): Promise<IDocument | null> {
+    if (!userId || !docId) {
+      throw new InvalidInputError('Valid userId and docId are required');
+    }
+
     try {
-      if (!userId || !docId) {
-        throw new Error('Valid userId and docId are required');
+      const update = this.buildActionPlanUpdate(
+        action,
+        actionPlanData,
+        actionPlanId,
+      );
+      const options =
+        action === 'update' && actionPlanId
+          ? { arrayFilters: [{ 'elem.id': actionPlanId }] }
+          : {};
+
+      const updatedDocument = await Document.findOneAndUpdate(
+        { userId, docId },
+        update,
+        { new: true, runValidators: true, select: '-__v', ...options },
+      )
+        .lean()
+        .exec();
+
+      if (updatedDocument) {
+        await cacheService.delete(this.getDocumentCacheKey(userId, docId));
+        await cacheService.invalidateTag(this.getDocumentTag(userId));
       }
 
-      let update: any = {};
-      let options: { arrayFilters?: any[] } = {};
+      return updatedDocument as IDocument;
+    } catch (error) {
+      logger.error('Failed to update action plan', {
+        userId,
+        docId,
+        action,
+        error,
+      });
+      throw new DatabaseError('Failed to update action plan');
+    }
+  }
 
-      if (action === 'create') {
-        if (!actionPlanData || !actionPlanData.title) {
-          throw new Error('Title is required for creating an action plan');
+  private buildActionPlanUpdate(
+    action: 'create' | 'delete' | 'update',
+    actionPlanData?: Partial<IActionPlan>,
+    actionPlanId?: string,
+  ): any {
+    switch (action) {
+      case 'create':
+        if (!actionPlanData?.title) {
+          throw new InvalidInputError(
+            'Title is required for creating an action plan',
+          );
         }
-        const newActionPlan: IActionPlan = {
-          id: uuidv4(),
-          title: actionPlanData.title,
-          dueDate: actionPlanData.dueDate
-            ? new Date(actionPlanData.dueDate)
-            : new Date(),
-          completed: false,
-          location: actionPlanData.location ?? '',
-        };
-        update = {
-          $push: { actionPlans: newActionPlan },
+        return {
+          $push: {
+            actionPlans: {
+              id: uuidv4(),
+              title: actionPlanData.title,
+              dueDate: actionPlanData.dueDate
+                ? new Date(actionPlanData.dueDate)
+                : new Date(),
+              completed: false,
+              location: actionPlanData.location ?? '',
+            },
+          },
           $set: { updatedAt: new Date() },
         };
-      } else if (action === 'delete') {
+
+      case 'delete':
         if (!actionPlanId) {
-          throw new Error('Action plan ID is required for deletion');
+          throw new InvalidInputError(
+            'Action plan ID is required for deletion',
+          );
         }
-        const document = await Document.findOne({
-          userId,
-          docId,
-          'actionPlans.id': actionPlanId,
-        }).exec();
-        if (!document) {
-          logger.info('Document or action plan not found for deletion', {
-            userId,
-            docId,
-            actionPlanId,
-          });
-          return null;
-        }
-        update = {
+        return {
           $pull: { actionPlans: { id: actionPlanId } },
           $set: { updatedAt: new Date() },
         };
-      } else if (action === 'update') {
+
+      case 'update':
         if (!actionPlanId) {
-          throw new Error('Action plan ID is required for update');
+          throw new InvalidInputError('Action plan ID is required for update');
         }
-        const document = await Document.findOne({
-          userId,
-          docId,
-          'actionPlans.id': actionPlanId,
-        }).exec();
-        if (!document) {
-          logger.info('Document or action plan not found for update', {
-            userId,
-            docId,
-            actionPlanId,
-          });
-          return null;
-        }
-        if (
-          !actionPlanData ||
-          (!actionPlanData.title &&
-            !actionPlanData.dueDate &&
-            actionPlanData.completed === undefined &&
-            !actionPlanData.location)
-        ) {
-          throw new Error(
-            'At least one field (title, dueDate, completed, location) must be provided for update',
+        if (!actionPlanData || Object.keys(actionPlanData).length === 0) {
+          throw new InvalidInputError(
+            'At least one field must be provided for update',
           );
         }
 
-        const updateFields: any = {};
+        const updateFields: any = { updatedAt: new Date() };
         if (actionPlanData.title)
           updateFields['actionPlans.$[elem].title'] = actionPlanData.title;
         if (actionPlanData.dueDate)
@@ -264,46 +335,13 @@ export class DocumentService implements IDocumentService {
         if (actionPlanData.location)
           updateFields['actionPlans.$[elem].location'] =
             actionPlanData.location;
-        updateFields['updatedAt'] = new Date();
 
-        update = { $set: updateFields };
-        options = { arrayFilters: [{ 'elem.id': actionPlanId }] };
-      } else {
-        throw new Error(
+        return { $set: updateFields };
+
+      default:
+        throw new InvalidInputError(
           'Invalid action type. Must be "create", "delete", or "update"',
         );
-      }
-
-      const updatedDocument = await Document.findOneAndUpdate(
-        { userId, docId },
-        update,
-        { new: true, runValidators: true, select: '-__v', ...options },
-      )
-        .lean()
-        .exec();
-
-      if (!updatedDocument) {
-        logger.info('Document not found for action plan update', {
-          userId,
-          docId,
-          action,
-        });
-        return null;
-      }
-
-      logger.info('Action plan updated successfully', {
-        userId,
-        docId,
-        action,
-      });
-      return updatedDocument as IDocument;
-    } catch (error) {
-      logger.error('Failed to update action plan', {
-        error,
-      });
-      throw new Error(
-        `Failed to update action plan: ${error instanceof Error ? error.message : error}`,
-      );
     }
   }
 }

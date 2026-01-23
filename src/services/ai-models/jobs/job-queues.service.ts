@@ -2,6 +2,10 @@ import { Queue } from 'bullmq';
 import redis from '@/lib/redis';
 import { logger } from '@/lib/winston';
 import { JobData } from '@/types';
+import {
+  ServiceUnavailableError,
+  TooManyRequestsError,
+} from '@/lib/api_response/error';
 
 export class TranslateQueueService {
   // --- Class Properties (Config) ---
@@ -35,18 +39,21 @@ export class TranslateQueueService {
    * Add translation job to BullMQ
    */
   public async addTranslationJob(docId: string, data: JobData, email: string) {
-
     const workers = await this.queue.getWorkers();
 
     if (workers.length === 0) {
-      throw new Error('WORKER_OFFLINE');
+      if (email) await this.releaseUserLock(email);
+      throw new ServiceUnavailableError('ServiceUnavailableError');
     }
     // 1. Check Max Queue Length (Logic for Error 429)
     const counts = await this.queue.getJobCounts('waiting', 'active');
     const currentLoad = counts.waiting + counts.active;
 
     if (currentLoad >= this.maxQueueLength) {
-      throw new Error('QUEUE_FULL');
+      if (email) await this.releaseUserLock(email);
+      throw new TooManyRequestsError(
+        'Server is busy. Max queue length exceeded. Please try again later.',
+      );
     }
 
     // 2. Set User Lock (using your existing redis instance)

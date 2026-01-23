@@ -16,7 +16,6 @@ import validationError from '@/middlewares/validationError';
 /**
  * Controllers
  */
-import getAllDocuments from '@/controllers/document/getAllDocument';
 import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 import { param } from 'express-validator';
 import {
@@ -27,6 +26,7 @@ import {
   upgradeUserPlan,
 } from '@/controllers/user/user.controller';
 import authenticate from '@/middlewares/authenticate';
+import { getAllDocuments } from '@/controllers/document/document.controller';
 
 const router = Router();
 

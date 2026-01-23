@@ -25,6 +25,7 @@ import { injectable } from 'tsyringe';
  * Custom modules
  */
 import { logger } from '@/lib/winston';
+import { DatabaseError, InvalidInputError } from '@/lib/api_response/error';
 
 @injectable()
 export class ChatBotService implements IChatBotService {
@@ -32,11 +33,10 @@ export class ChatBotService implements IChatBotService {
     userId: string,
     docId: string,
   ): Promise<IChatBotHistory | null> {
+    if (!userId || !docId) {
+      throw new InvalidInputError('Valid userId and docId are required');
+    }
     try {
-      if (!userId || !docId) {
-        throw new Error('User ID and Document ID are required');
-      }
-
       const result = await ChatBotHistory.findOne({
         userId,
         docId,
@@ -52,7 +52,9 @@ export class ChatBotService implements IChatBotService {
         userId,
         docId,
       });
-      throw new Error(`Failed to retrieve chat history collection: ${error}`);
+      throw new DatabaseError(
+        `Failed to retrieve chat history collection: ${error}`,
+      );
     }
   }
   async updateDocumentChatBotHistory(
@@ -136,22 +138,16 @@ export class ChatBotService implements IChatBotService {
     userId: string,
     docId: string,
   ): Promise<boolean> {
+    if (!userId || !docId) {
+      throw new Error('User ID is required');
+    }
     try {
-      if (!userId || !docId) {
-        throw new Error('User ID is required');
-      }
-
       const result = await ChatBotHistory.deleteOne({ userId, docId }).exec();
 
-      if (result.deletedCount === 0) {
-        logger.info('No chat history found for user', { userId, docId });
-      }
-
-      logger.info('Chat history deleted successfully', { userId, docId });
-      return true;
+      return result.deletedCount > 0;
     } catch (error) {
       logger.error('Failed to delete chat history', { error, userId });
-      throw new Error(`Failed to delete chat history: ${error}`);
+      throw new DatabaseError(`Failed to delete chat history`);
     }
   }
 }

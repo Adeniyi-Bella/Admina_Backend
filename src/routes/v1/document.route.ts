@@ -17,16 +17,12 @@ import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
 import verifyUploadedFile from '@/middlewares/verifyUploadedFile';
 import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
+import { createDocument, deleteDocument, getAllDocuments, getDocument, getDocumentChatbotLimit, updateActionPlan } from '@/controllers/document/document.controller';
 
 /**
  * Controllers
  */
-import getAllDocuments from '@/controllers/document/getAllDocument';
-import getDocument from '@/controllers/document/getDocument';
-import deleteDocument from '@/controllers/document/deleteDocument';
-import updateActionPlan from '@/controllers/document/update-document/updateActionPlan';
-import getDocumentChatbotLimit from '@/controllers/document/getDocumentChatbotLimit';
-import createDocument from '@/controllers/document/createDocument';
+
 
 const router = Router();
 

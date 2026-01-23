@@ -40,6 +40,7 @@ import {
   DatabaseError,
   ReregistrationBlockedError,
 } from '@/lib/api_response/error';
+import { cacheService } from '../redis-cache/redis-cache.service';
 
 @injectable()
 export class UserService implements IUserService {
@@ -50,10 +51,6 @@ export class UserService implements IUserService {
       authority: config.AZURE_CLIENT_AUTHORITY,
     },
   };
-
-  private getCacheKey(userId: string): string {
-    return `user:${userId}`;
-  }
 
   private mapUserToDTO(user: Required<UserDTO>): Required<UserDTO> {
     return {
@@ -94,6 +91,10 @@ export class UserService implements IUserService {
         logger.warn('User not found in Entra ID for deletion', { userId });
         return false;
       }
+
+      if (error instanceof AzureAuthError) {
+        throw error; 
+      }
       logger.error('Failed to delete user from Entra ID', { userId, error });
       throw new GraphAPIError('Failed to delete user from Entra ID');
     }
@@ -117,7 +118,8 @@ export class UserService implements IUserService {
         return null;
       }
 
-      await redis.del(this.getCacheKey(userId));
+      await cacheService.delete(`user:${userId}`);
+      await cacheService.invalidateTag(`tag:user:${userId}`);
 
       logger.info('User deleted successfully', { userId });
       return userEmail;
@@ -138,11 +140,6 @@ export class UserService implements IUserService {
         ? { $inc: { [property]: -1 }, $set: { updatedAt: new Date() } }
         : { $set: { [property]: value, updatedAt: new Date() } };
 
-      logger.info(`Updating User DB`, {
-        searchingFor: userId,
-        fieldToUpdate: property,
-      });
-
       const updatedUser = await User.findOneAndUpdate({ userId }, update, {
         new: true,
         projection: { __v: 0 },
@@ -153,15 +150,8 @@ export class UserService implements IUserService {
         return false;
       }
 
-      const userDTO = this.mapUserToDTO(updatedUser);
-      const cacheKey = this.getCacheKey(userId);
-
-      try {
-        await redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600);
-      } catch (cacheErr) {
-        // Log cache error but don't fail the operation
-        logger.error('Failed to update cache', { error: cacheErr });
-      }
+      await cacheService.delete(`user:${userId}`);
+      await cacheService.invalidateTag(`tag:user:${userId}`);
 
       return true;
     } catch (error) {
@@ -172,36 +162,24 @@ export class UserService implements IUserService {
 
   async checkIfUserExist(req: Request): Promise<UserDTO | null> {
     const userId = req.userId;
-    const cacheKey = this.getCacheKey(userId);
+    const cacheKey = `user:${userId}`;
 
-    try {
-      const cachedData = await redis.get(cacheKey);
-      if (cachedData) {
-        return JSON.parse(cachedData) as UserDTO;
-      }
-    } catch (err) {
-      logger.error('Redis get error', { error: err });
-      // Continue to DB fetch if cache fails
-    }
+    return cacheService.getOrFetch<UserDTO | null>(
+      cacheKey,
+      async () => {
+        logger.info('Cache miss: fetching user from DB', { userId });
 
-    logger.info('User not in cache, fetching from DB', { userId });
+        const user = await User.findOne({ userId })
+          .select('-__v')
+          .lean()
+          .exec();
 
-    try {
-      const user = await User.findOne({ userId }).select('-__v').lean().exec();
+        if (!user) return null;
 
-      if (!user) return null;
-
-      const userDTO = this.mapUserToDTO(user);
-
-      redis.set(cacheKey, JSON.stringify(userDTO), 'EX', 3600).catch((err) => {
-        logger.error('Failed to set cache', { error: err });
-      });
-
-      return userDTO;
-    } catch (error) {
-      logger.error('Error checking if user exists', { userId, error });
-      throw new DatabaseError('Failed to retrieve user');
-    }
+        return this.mapUserToDTO(user);
+      },
+      3600 // 1 hour base TTL (jitter will be added automatically)
+    );
   }
 
   async createUserFromToken(req: Request): Promise<void> {
