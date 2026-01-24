@@ -38,6 +38,7 @@ import {
   GraphAPIError,
   DatabaseError,
   ReregistrationBlockedError,
+  ErrorSerializer,
 } from '@/lib/api_response/error';
 import { cacheService } from '../redis-cache/redis-cache.service';
 
@@ -171,14 +172,15 @@ export class UserService implements IUserService {
 
   async checkIfUserExist(req: Request): Promise<UserDTO | null> {
     const userId = req.userId;
+    const userEmail = req.email;
     const cacheKey = `user:${userId}`;
 
     return cacheService.getOrFetch<UserDTO | null>(
       cacheKey,
       async () => {
-        logger.info('Cache miss: fetching user from DB', { userId });
+        logger.info('Cache miss: fetching user from DB', { userEmail });
 
-        const user = await User.findOne({ userId })
+        const user = await User.findOne({ email: userEmail })
           .select('-__v')
           .lean()
           .exec();
@@ -188,7 +190,7 @@ export class UserService implements IUserService {
           logger.warn(
             'Blocked user attempted access in the same month of deletion',
             { userId },
-          )
+          );
           throw new ReregistrationBlockedError();
         }
 
@@ -216,9 +218,12 @@ export class UserService implements IUserService {
         });
         throw new ReregistrationBlockedError();
       }
-      logger.error('Error creating user', { userId, email, error });
+      logger.error('Error creating user', {
+        userId,
+        email,
+        error: ErrorSerializer.serialize(error),
+      });
       throw new DatabaseError('Failed to create user');
     }
   }
-
 }

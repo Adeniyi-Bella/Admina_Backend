@@ -137,7 +137,7 @@ describe('UserService - Complete Test Suite', () => {
         lengthOfDocs: { premium: { max: 5, min: 0, current: 3 } },
       });
 
-      expect(User.findOne).toHaveBeenCalledWith({ userId: 'test-user-id' });
+      expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
     });
 
     it('should return null when user does not exist in DB', async () => {

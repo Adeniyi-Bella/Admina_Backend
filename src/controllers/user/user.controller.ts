@@ -17,12 +17,16 @@ export const createUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userService = container.resolve<IUserService>('IUserService');
 
-    // await userService.checkUserEligibility(req);
     let user = await userService.checkIfUserExist(req);
 
     if (!user) {
       await userService.createUserFromToken(req);
     }
+
+    logger.info("user validation successful", {
+      userId: user?.userId,
+      userEmail: user?.email
+    })
 
     return next();
   },

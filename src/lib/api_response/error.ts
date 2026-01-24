@@ -191,3 +191,47 @@ export class CacheError extends InternalServerError {
     super(message, 'CACHE_ERROR');
   }
 }
+
+/**
+ * Error Serializer
+ * Safely converts Error objects into loggable JSON
+ */
+export class ErrorSerializer {
+  static serialize(error: unknown) {
+    if (!error) return undefined;
+
+    // AppError (your custom errors)
+    if (error instanceof AppError) {
+      return {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        statusCode: error.statusCode,
+        isOperational: error.isOperational,
+        stack: error.stack,
+        ...(error as any).errors && { errors: (error as any).errors },
+      };
+    }
+
+    // Native Error
+    if (error instanceof Error) {
+      return {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      };
+    }
+
+    // Mongo / Mongoose error object
+    if (typeof error === 'object') {
+      return {
+        ...error,
+      };
+    }
+
+    // Fallback (string, number, etc.)
+    return {
+      value: error,
+    };
+  }
+}
