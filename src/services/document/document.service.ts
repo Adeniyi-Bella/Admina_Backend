@@ -23,7 +23,7 @@ export class DocumentService implements IDocumentService {
   private getDocumentTag(userId: string): string {
     return `tag:docs:${userId}`;
   }
-  async deleteAllDocuments(userId: string): Promise<boolean> {
+  async deleteAllDocuments(userId: string): Promise<void> {
     if (!userId) {
       throw new InvalidInputError('Valid userId is required');
     }
@@ -33,7 +33,11 @@ export class DocumentService implements IDocumentService {
       await cacheService.invalidateTag(this.getDocumentTag(userId));
       await cacheService.delete(this.getDocumentListCacheKey(userId));
 
-      return result.deletedCount > 0;
+      logger.info('Document history cleanup completed', {
+        userId,
+        deletedCount: result.deletedCount,
+      });
+
     } catch (error) {
       logger.error('Failed to delete all documents', { userId, error });
       throw new DatabaseError('Failed to delete all documents');

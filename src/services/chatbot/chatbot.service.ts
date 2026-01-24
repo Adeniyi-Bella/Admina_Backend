@@ -25,7 +25,10 @@ import { injectable } from 'tsyringe';
  * Custom modules
  */
 import { logger } from '@/lib/winston';
-import { DatabaseError, InvalidInputError } from '@/lib/api_response/error';
+import {
+  DatabaseError,
+  InvalidInputError,
+} from '@/lib/api_response/error';
 
 @injectable()
 export class ChatBotService implements IChatBotService {
@@ -118,19 +121,19 @@ export class ChatBotService implements IChatBotService {
     }
   }
 
-  async deleteChatHistoryByUserId(userId: string): Promise<boolean> {
+  async deleteChatHistoryByUserId(userId: string): Promise<void> {
+    if (!userId) {
+      throw new InvalidInputError('User ID is required');
+    }
     try {
-      if (!userId) {
-        throw new Error('User ID is required');
-      }
-
-      await ChatBotHistory.deleteMany({ userId }).exec();
-
-      logger.info('Chat history deleted successfully', { userId });
-      return true;
+      const result = await ChatBotHistory.deleteMany({ userId }).exec();
+      logger.info('Chat history cleanup completed', { 
+      userId, 
+      deletedCount: result.deletedCount 
+    });
     } catch (error) {
-      logger.error('Failed to delete chat history', { error, userId });
-      throw new Error(`Failed to delete chat history: ${error}`);
+      logger.error('Failed to delete chat history', { userId, error });
+      throw new DatabaseError(`Failed to delete chat history`);
     }
   }
 

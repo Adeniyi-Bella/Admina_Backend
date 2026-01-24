@@ -21,6 +21,6 @@ export interface IChatBotService {
     chat: IChatMessage,
   ): Promise<void>;
 
-  deleteChatHistoryByUserId(userId: string): Promise<boolean>
+  deleteChatHistoryByUserId(userId: string): Promise<void>
   deleteChatHistoryByDocument(userId: string, docId: string): Promise<boolean>
 }

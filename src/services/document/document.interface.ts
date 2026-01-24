@@ -42,5 +42,5 @@ export interface IDocumentService {
     actionPlanId?: string,
   ): Promise<IDocument | null>;
 
-  deleteAllDocuments(userId: string): Promise<boolean>;
+  deleteAllDocuments(userId: string): Promise<void>;
 }

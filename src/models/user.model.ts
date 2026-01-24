@@ -18,6 +18,10 @@ export interface IUser {
   createdAt: Date;
   updatedAt: Date;
   privacyPolicyAccepted: boolean;
+  status: 'active' | 'deleted';
+  deletedAt?: Date;
+  permanentDeleteAt?: Date;
+
 }
 
 /**
@@ -39,11 +43,11 @@ const plansSchema = new Schema<IPlans>(
   {
     premium: {
       type: valuesSchema,
-      default: { max: 5, min: 0, current: 5 }, // default premium plan
+      default: { max: 7, min: 0, current: 7 }, // default premium plan
     },
     standard: {
       type: valuesSchema,
-      default: { max: 3, min: 0, current: 3 }, // default standard plan
+      default: { max: 5, min: 0, current: 5 }, // default standard plan
     },
 
     free: {
@@ -78,11 +82,6 @@ const userSchema = new Schema<IUser>(
     },
     lengthOfDocs: {
       type: plansSchema,
-      default: {
-        premium: { max: 7, min: 0, current: 7 },
-        standard: { max: 5, min: 0, current: 5 },
-        free: { max: 2, min: 0, current: 2 },
-      },
     },
 
     userId: {
@@ -90,11 +89,36 @@ const userSchema = new Schema<IUser>(
       required: [true, 'userId is required'],
       unique: true,
     },
+
+    /** 
+     * Status Management for Soft Delete 
+     */
+    status: {
+      type: String,
+      enum: ['active', 'deleted'],
+      default: 'active',
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    // This field controls when MongoDB actually removes the document
+    permanentDeleteAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
     strict: true,
   },
 );
+
+/**
+ * TTL INDEX CONFIGURATION
+ * MongoDB will auto-delete the document when the server time >= permanentDeleteAt
+ * expireAfterSeconds: 0 means "Delete immediately at the specified date"
+ */
+userSchema.index({ permanentDeleteAt: 1 }, { expireAfterSeconds: 0 });
 
 export default model<IUser>('User', userSchema);

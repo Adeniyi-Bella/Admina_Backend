@@ -9,13 +9,6 @@
 import {  UserDTO } from '@/types';
 import type { Request } from 'express';
 
-// export interface UserDTO {
-//   userId: string;
-//   plan: string;
-//   lengthOfDocs: IPlans;
-//   email?: string;
-// }
-
 export interface IUserService {
   checkIfUserExist(req: Request): Promise<UserDTO | null>;
   createUserFromToken(req: Request): Promise<void>;
@@ -25,10 +18,8 @@ export interface IUserService {
     increment: boolean,
     value: string | undefined | number | {},
   ): Promise<boolean>;
-  deleteUser(userId: string): Promise<string | null>;
+  deleteUser(userId: string): Promise<void>;
   deleteUserFromEntraId(userId: string): Promise<boolean>;
-  archiveUser(email: string): Promise<void>;
-  checkUserEligibility(req: Request): Promise<void>;
 }
 export { UserDTO };
 

@@ -1,18 +1,23 @@
 import { container } from 'tsyringe';
 import { Request, Response, NextFunction } from 'express';
-import { asyncHandler } from "@/middlewares/errorHandler";
+import { asyncHandler } from '@/middlewares/errorHandler';
 import { IUserService } from '@/services/users/user.interface';
 import { IDocumentService } from '@/services/document/document.interface';
-import { PlanDowngradeError, PlanUpgradeError, UserNotFoundError } from '@/lib/api_response/error';
+import {
+  PlanDowngradeError,
+  PlanUpgradeError,
+  UserNotFoundError,
+} from '@/lib/api_response/error';
 import { IPlans } from '@/types';
 import { logger } from '@/lib/winston';
 import { ApiResponse } from '@/lib/api_response';
+import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 
 export const createUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userService = container.resolve<IUserService>('IUserService');
 
-    await userService.checkUserEligibility(req);
+    // await userService.checkUserEligibility(req);
     let user = await userService.checkIfUserExist(req);
 
     if (!user) {
@@ -20,7 +25,7 @@ export const createUser = asyncHandler(
     }
 
     return next();
-  }
+  },
 );
 
 /**
@@ -42,7 +47,7 @@ export const upgradeUserPlan = asyncHandler(
 
     if (!allowedPlans.includes(planToUpgradeTo)) {
       throw new PlanUpgradeError(
-        `Invalid target plan: ${planToUpgradeTo}. Must be "standard" or "premium".`
+        `Invalid target plan: ${planToUpgradeTo}. Must be "standard" or "premium".`,
       );
     }
 
@@ -51,7 +56,9 @@ export const upgradeUserPlan = asyncHandler(
         break;
       case 'standard':
         if (planToUpgradeTo !== 'premium') {
-          throw new PlanUpgradeError('Standard plan can only be upgraded to premium');
+          throw new PlanUpgradeError(
+            'Standard plan can only be upgraded to premium',
+          );
         }
         break;
       case 'premium':
@@ -67,7 +74,12 @@ export const upgradeUserPlan = asyncHandler(
         ? { standard: { max: 3, min: 0, current: 3 } }
         : { premium: { max: 5, min: 0, current: 5 } };
 
-    await userService.updateUser(req.userId, 'lengthOfDocs', false, newLengthOfDocs);
+    await userService.updateUser(
+      req.userId,
+      'lengthOfDocs',
+      false,
+      newLengthOfDocs,
+    );
 
     const maxDocsForPrevPlan =
       currentPlan === 'free'
@@ -77,7 +89,7 @@ export const upgradeUserPlan = asyncHandler(
     const { documents } = await docService.getAllDocumentsByUserId(
       user,
       maxDocsForPrevPlan,
-      0
+      0,
     );
 
     const newChatBotPrompt: IPlans =
@@ -98,11 +110,11 @@ export const upgradeUserPlan = asyncHandler(
           id: user.userId,
           email: user.email,
         },
-      }
+      },
     );
 
     ApiResponse.ok(res, 'User upgraded successfully');
-  }
+  },
 );
 
 /**
@@ -124,7 +136,7 @@ export const downgradeUserPlan = asyncHandler(
 
     if (!allowedPlans.includes(planToDowngradeTo)) {
       throw new PlanDowngradeError(
-        `Invalid target plan: ${planToDowngradeTo}. Must be "standard" or "free".`
+        `Invalid target plan: ${planToDowngradeTo}. Must be "standard" or "free".`,
       );
     }
 
@@ -133,7 +145,9 @@ export const downgradeUserPlan = asyncHandler(
         throw new PlanDowngradeError('Free plan cannot be downgraded further');
       case 'standard':
         if (planToDowngradeTo !== 'free') {
-          throw new PlanDowngradeError('Standard plan can only be downgraded to free');
+          throw new PlanDowngradeError(
+            'Standard plan can only be downgraded to free',
+          );
         }
         break;
       case 'premium':
@@ -149,7 +163,12 @@ export const downgradeUserPlan = asyncHandler(
         ? { standard: { max: 3, min: 0, current: 3 } }
         : { free: { max: 2, min: 0, current: 2 } };
 
-    await userService.updateUser(req.userId, 'lengthOfDocs', false, newLengthOfDocs);
+    await userService.updateUser(
+      req.userId,
+      'lengthOfDocs',
+      false,
+      newLengthOfDocs,
+    );
 
     const maxDocsForPrevPlan =
       currentPlan === 'premium'
@@ -159,7 +178,7 @@ export const downgradeUserPlan = asyncHandler(
     const { documents } = await docService.getAllDocumentsByUserId(
       user,
       maxDocsForPrevPlan,
-      0
+      0,
     );
 
     const newChatBotPrompt: IPlans =
@@ -174,7 +193,7 @@ export const downgradeUserPlan = asyncHandler(
     }
 
     ApiResponse.ok(res, 'User downgraded successfully');
-  }
+  },
 );
 
 /**
@@ -184,24 +203,33 @@ export const deleteUser = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const userService = container.resolve<IUserService>('IUserService');
     const docService = container.resolve<IDocumentService>('IDocumentService');
+    const chatBotService =
+      container.resolve<IChatBotService>('IChatBotService');
 
-    const userEmail = await userService.deleteUser(req.userId);
-    if (!userEmail) {
+    const user = await userService.checkIfUserExist(req);
+    if (!user) {
       throw new UserNotFoundError();
     }
 
-    await docService.deleteAllDocuments(req.userId);
-    await userService.archiveUser(userEmail);
+    await Promise.allSettled([
+      chatBotService.deleteChatHistoryByUserId(req.userId),
+      docService.deleteAllDocuments(req.userId),
+    ]);
 
-    const deletedFromEntraId = await userService.deleteUserFromEntraId(req.userId);
+    await userService.deleteUser(req.userId);
+
+    const deletedFromEntraId = await userService.deleteUserFromEntraId(
+      req.userId,
+    );
     if (!deletedFromEntraId) {
-      logger.warn('User not found in Entra ID for deletion', { userId: req.userId });
+      logger.warn('User not found in Entra ID for deletion', {
+        userId: req.userId,
+      });
     }
 
     ApiResponse.noContent(res);
-  }
+  },
 );
-
 
 export const getUserDetails = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
@@ -220,5 +248,5 @@ export const getUserDetails = asyncHandler(
       email: user.email,
       documentLimits,
     });
-  }
+  },
 );

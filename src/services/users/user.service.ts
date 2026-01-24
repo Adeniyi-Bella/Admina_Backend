@@ -7,7 +7,6 @@
  * Models
  */
 import User from '@/models/user.model';
-import DeletedUsers from '@/models/deletedUsers.model';
 
 /**
  * Interfaces
@@ -52,6 +51,11 @@ export class UserService implements IUserService {
     },
   };
 
+  private getStartOfNextMonth(): Date {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
+
   private mapUserToDTO(user: Required<UserDTO>): Required<UserDTO> {
     return {
       userId: String(user.userId),
@@ -93,36 +97,39 @@ export class UserService implements IUserService {
       }
 
       if (error instanceof AzureAuthError) {
-        throw error; 
+        throw error;
       }
       logger.error('Failed to delete user from Entra ID', { userId, error });
       throw new GraphAPIError('Failed to delete user from Entra ID');
     }
   }
 
-  async deleteUser(userId: string): Promise<string | null> {
+  async deleteUser(userId: string): Promise<void> {
+    const nextMonthDate = this.getStartOfNextMonth();
+
     try {
-      const user = await User.findOne({ userId });
+      const result = await User.updateOne(
+        { userId: userId },
+        {
+          $set: {
+            status: 'deleted',
+            deletedAt: new Date(),
+            permanentDeleteAt: nextMonthDate,
+          },
+        },
+      ).exec();
 
-      if (!user) {
-        logger.warn('User not found for deletion', { userId });
-        return null;
-      }
-
-      const userEmail = user.email;
-
-      const result = await User.deleteOne({ userId }).exec();
-
-      if (result.deletedCount === 0) {
-        logger.warn('User not found for deletion', { userId });
-        return null;
+      if (result.matchedCount === 0) {
+        logger.warn('Attempted to delete non-existent user', { userId });
+      } else {
+        logger.info('User status successfully changed to delete', {
+          userId,
+          permanentDeleteAt: nextMonthDate,
+        });
       }
 
       await cacheService.delete(`user:${userId}`);
       await cacheService.invalidateTag(`tag:user:${userId}`);
-
-      logger.info('User deleted successfully', { userId });
-      return userEmail;
     } catch (error) {
       logger.error('Error deleting user', { userId, error });
       throw new DatabaseError('Failed to delete user');
@@ -136,11 +143,13 @@ export class UserService implements IUserService {
     value: string | undefined | number | {},
   ): Promise<boolean> {
     try {
+      const query = { userId, status: 'active' };
+
       const update = decrement
         ? { $inc: { [property]: -1 }, $set: { updatedAt: new Date() } }
         : { $set: { [property]: value, updatedAt: new Date() } };
 
-      const updatedUser = await User.findOneAndUpdate({ userId }, update, {
+      const updatedUser = await User.findOneAndUpdate(query, update, {
         new: true,
         projection: { __v: 0 },
       }).exec();
@@ -175,10 +184,17 @@ export class UserService implements IUserService {
           .exec();
 
         if (!user) return null;
+        if (user.status === 'deleted') {
+          logger.warn(
+            'Blocked user attempted access in the same month of deletion',
+            { userId },
+          )
+          throw new ReregistrationBlockedError();
+        }
 
         return this.mapUserToDTO(user);
       },
-      3600 // 1 hour base TTL (jitter will be added automatically)
+      3600, // 1 hour base TTL (jitter will be added automatically)
     );
   }
 
@@ -193,62 +209,16 @@ export class UserService implements IUserService {
         email: email,
         username: username,
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 11000) {
+        logger.warn('User creation failed: Email exists (Duplicate Key)', {
+          email,
+        });
+        throw new ReregistrationBlockedError();
+      }
       logger.error('Error creating user', { userId, email, error });
       throw new DatabaseError('Failed to create user');
     }
   }
 
-  async archiveUser(email: string): Promise<void> {
-    try {
-      await DeletedUsers.create({
-        email: email,
-        deletedAt: new Date(),
-      });
-      logger.info('User archived to DeletedUsers collection', { email });
-    } catch (error) {
-      // Log error but don't break the flow since the user is already deleted
-      logger.error('Failed to archive user', { email, error });
-    }
-  }
-
-  async checkUserEligibility(req: Request): Promise<void> {
-    const email = req.email;
-
-    try {
-      const deletedUser = await DeletedUsers.findOne({ email });
-
-      if (!deletedUser) {
-        return;
-      }
-
-      const now = new Date();
-      const deletedAt = deletedUser.deletedAt;
-
-      const isSameMonth =
-        now.getMonth() === deletedAt.getMonth() &&
-        now.getFullYear() === deletedAt.getFullYear();
-
-      if (isSameMonth) {
-        await this.deleteUserFromEntraId(req.userId);
-        logger.warn(
-          'User attempted to re-register in the same month as deletion',
-          { email },
-        );
-        throw new ReregistrationBlockedError();
-      }
-
-      await DeletedUsers.deleteOne({ email }).exec();
-      logger.info(
-        'User removed from DeletedUsers list (eligible for re-registration)',
-        { email },
-      );
-    } catch (error) {
-      if (error instanceof ReregistrationBlockedError) {
-        throw error; // Re-throw custom errors
-      }
-      logger.error('Error checking user eligibility', { email, error });
-      throw new DatabaseError('Failed to check user eligibility');
-    }
-  }
 }
