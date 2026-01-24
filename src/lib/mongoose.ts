@@ -18,7 +18,7 @@ import { logger } from '@/lib/winston';
  * Types
  */
 import type { ConnectOptions } from 'mongoose';
-import { DatabaseError } from './api_response/error';
+import { DatabaseError, ErrorSerializer } from './api_response/error';
 
 /**
  * Client option
@@ -58,8 +58,10 @@ export const connectToDatabase = async (
       uri: config.MONGO_URI,
       context,
     });
-  } catch (err) {
-    logger.error(`Error connecting ${context} to the database:`, err);
+  } catch (error) {
+    logger.error(`Error connecting ${context} to the database:`, {
+      error: ErrorSerializer.serialize(error),
+    });
     throw new DatabaseError('Database connection failed');
   }
 };
@@ -80,6 +82,8 @@ export const disconnectFromDatabase = async (
     if (err instanceof Error) {
       throw new DatabaseError(err.message);
     }
-    logger.error(`Error disconnecting ${context} from the database`, err);
+    logger.error(`Error disconnecting ${context} from the database`, {
+      error: ErrorSerializer.serialize(err),
+    });
   }
 };

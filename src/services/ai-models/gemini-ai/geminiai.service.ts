@@ -29,6 +29,7 @@ import { IDocument } from '@/models/document.model';
 import { IGeminiAIService } from './geminiai.interface';
 import { IChatBotHistory } from '@/models/chatbotHistory.model';
 import { FileMulter } from '@/types';
+import { ErrorSerializer } from '@/lib/api_response/error';
 
 @injectable()
 export class GeminiAIService implements IGeminiAIService {
@@ -68,8 +69,8 @@ export class GeminiAIService implements IGeminiAIService {
       const response = await this.geminiAi.models.generateContent({
         model: this.model,
         contents,
-         config: {
-          responseMimeType: 'application/json', 
+        config: {
+          responseMimeType: 'application/json',
           httpOptions: {
             timeout: 2 * 60 * 1000, // 2 minutes timeout for large files
           },
@@ -88,7 +89,7 @@ export class GeminiAIService implements IGeminiAIService {
 
       return this.parseResponse(responseText);
     } catch (error: any) {
-      logger.error('❌ Gemini document translation failed', {
+      logger.error('Gemini document translation failed', {
         message: error.message,
         name: error.name,
         stack: error.stack,
@@ -118,8 +119,8 @@ export class GeminiAIService implements IGeminiAIService {
       const response = await this.geminiAi.models.generateContent({
         model: this.model,
         contents,
-         config: {
-          responseMimeType: 'application/json', 
+        config: {
+          responseMimeType: 'application/json',
         },
       });
 
@@ -130,7 +131,7 @@ export class GeminiAIService implements IGeminiAIService {
 
       return this.parseResponse(responseText);
     } catch (error: any) {
-      logger.error('❌ Gemini document summarization failed', {
+      logger.error('Gemini document summarization failed', {
         message: error.message,
         name: error.name,
         stack: error.stack,
@@ -150,7 +151,9 @@ export class GeminiAIService implements IGeminiAIService {
       let cleanResponse = response.trim();
 
       // 1. Try to extract strictly from Markdown code blocks first
-      const codeBlockMatch = cleanResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+      const codeBlockMatch = cleanResponse.match(
+        /```(?:json)?\s*([\s\S]*?)\s*```/i,
+      );
       if (codeBlockMatch && codeBlockMatch[1]) {
         cleanResponse = codeBlockMatch[1].trim();
       } else {
@@ -186,26 +189,23 @@ export class GeminiAIService implements IGeminiAIService {
       };
     } catch (error) {
       logger.error('Failed to parse Gemini response', {
-        originalResponse: response, // Log the original to debug
-        error: error,
+        originalResponse: response,
+        error: ErrorSerializer.serialize(error),
       });
       throw error;
     }
   }
 
-   async *chatBotStream(
+  async *chatBotStream(
     chatBotHistory: IChatBotHistory,
     userPrompt: string,
-    file?: Express.Multer.File 
-  ):  AsyncGenerator<string, void, unknown> {
+    file?: Express.Multer.File,
+  ): AsyncGenerator<string, void, unknown> {
     try {
-      const { systemInstruction, contents } = this.userPrompt.buildChatBotPrompt(
-        chatBotHistory,
-        userPrompt,
-        file
-      );
+      const { systemInstruction, contents } =
+        this.userPrompt.buildChatBotPrompt(chatBotHistory, userPrompt, file);
 
-       const result = await this.geminiAi.models.generateContentStream({
+      const result = await this.geminiAi.models.generateContentStream({
         model: this.model,
         contents: contents,
         config: {
@@ -220,9 +220,8 @@ export class GeminiAIService implements IGeminiAIService {
           yield chunkText;
         }
       }
-
     } catch (error: any) {
-      logger.error('❌ Gemini chat bot failed', {
+      logger.error('Gemini chat bot failed', {
         message: error.message,
         name: error.name,
         stack: error.stack,

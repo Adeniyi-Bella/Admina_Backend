@@ -17,6 +17,7 @@ import { ConfidentialClientApplication } from '@azure/msal-node';
 import { VerifiedUser } from '@/types';
 import {
   AzureSecretExpiredError,
+  ErrorSerializer,
   GraphAPIError,
   UnauthorizedError,
 } from './api_response/error';
@@ -109,7 +110,9 @@ export const verifyAccessToken = async (
       throw new AzureSecretExpiredError();
     }
 
-    logger.error('Token verification failed', { error });
+    logger.error('Token verification failed', {
+      error: ErrorSerializer.serialize(error),
+    });
     throw new UnauthorizedError('Unable to verify token');
   }
 };

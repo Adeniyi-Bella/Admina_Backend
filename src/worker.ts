@@ -12,6 +12,7 @@ import { IActionPlan, IDocument } from '@/models/document.model';
 import { v4 as uuidv4 } from 'uuid';
 import { FileMulter, JobData } from './types';
 import { connectToDatabase, disconnectFromDatabase } from '@/lib/mongoose'; // Import shared logic
+import { ErrorSerializer } from './lib/api_response/error';
 
 class TranslationWorker {
   private readonly queueName = 'translation-queue';
@@ -49,7 +50,9 @@ class TranslationWorker {
         `Worker started on queue "${this.queueName}" with concurrency: ${this.concurrency}`,
       );
     } catch (error) {
-      logger.error('Failed to start worker:', error);
+      logger.error('Failed to start worker:', {
+        error: ErrorSerializer.serialize(error),
+      });
       process.exit(1);
     }
   }
@@ -123,7 +126,9 @@ class TranslationWorker {
 
       await redis.hset(jobKey, 'status', 'completed');
     } catch (error: any) {
-      logger.error(`Job ${docId} failed:`, error);
+      logger.error(`Job ${docId} failed:`, {
+        error: ErrorSerializer.serialize(error),
+      });
       await redis.hset(jobKey, {
         status: 'error',
         error: error.message,
@@ -141,16 +146,18 @@ class TranslationWorker {
 
     this.worker.on('failed', async (job, err) => {
       logger.error(`BullMQ Event: Job ${job?.id} failed`, {
-        error: err.message,
+        error: ErrorSerializer.serialize(err),
       });
       if (job && job.attemptsMade >= job.opts.attempts!) {
         await redis.del(`lock:user:${job.data.user.email}`);
-        logger.error(`Job ${job.id} permanently failed. Lock released.`);
+        logger.warn(`Job ${job.id} permanently failed. Lock released.`);
       }
     });
 
     this.worker.on('error', (err) => {
-      logger.error('Worker connection error:', err);
+      logger.error('Worker connection error:', {
+        error: ErrorSerializer.serialize(err),
+      });
     });
   }
 
@@ -176,7 +183,9 @@ class TranslationWorker {
         logger.info('Worker shutdown complete.');
         process.exit(0);
       } catch (err) {
-        logger.error('Error during worker shutdown', err);
+        logger.error('Error during worker shutdown', {
+        error: ErrorSerializer.serialize(err),
+      });
         process.exit(1);
       }
     };

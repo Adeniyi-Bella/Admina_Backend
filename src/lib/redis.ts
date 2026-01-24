@@ -5,6 +5,7 @@
 
 import Redis from 'ioredis';
 import { logger } from './winston';
+import { ErrorSerializer } from './api_response/error';
 
 const redis = new Redis({
   host: '127.0.0.1',
@@ -12,6 +13,8 @@ const redis = new Redis({
 });
 
 redis.on('connect', () => logger.info(' Redis connected'));
-redis.on('error', (err) => logger.error('Redis error:', err));
+redis.on('error', (error) =>
+  logger.error('Redis error:', { error: ErrorSerializer.serialize(error) }),
+);
 
 export default redis;

@@ -40,6 +40,7 @@ import {
  * Types
  */
 import type { CorsOptions } from 'cors';
+import { ErrorSerializer } from './lib/api_response/error';
 
 const app = express();
 
@@ -60,7 +61,10 @@ const corsOptions: CorsOptions = {
       callback(null, true);
     } else {
       logger.warn(`CORS error: ${origin} is not allowed by CORS`);
-      callback(new Error(`CORS error: ${origin} is not allowed by CORS`), false);
+      callback(
+        new Error(`CORS error: ${origin} is not allowed by CORS`),
+        false,
+      );
     }
   },
 };
@@ -110,8 +114,10 @@ app.use(botGuard);
     app.listen(config.PORT, () => {
       logger.info(`Server running: http://localhost:${config.PORT}`);
     });
-  } catch (err) {
-    logger.error('Failed to start the server', err);
+  } catch (error) {
+    logger.error('Failed to start the server', {
+      error: ErrorSerializer.serialize(error),
+    });
     process.exit(1);
   }
 })();
@@ -127,8 +133,10 @@ const handleServerShutdown = async () => {
     await logtail.flush();
 
     process.exit(0);
-  } catch (err) {
-    logger.error('Error during server shutdown', err);
+  } catch (error) {
+    logger.error('Error during server shutdown', {
+      error: ErrorSerializer.serialize(error),
+    });
     process.exit(1);
   }
 };
