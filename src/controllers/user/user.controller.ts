@@ -12,6 +12,8 @@ import { IPlans } from '@/types';
 import { logger } from '@/lib/winston';
 import { ApiResponse } from '@/lib/api_response';
 import { IChatBotService } from '@/services/chatbot/chatbot.interface';
+import { PlanLimits, PlanType } from '@/models/user.model';
+import { ChatbotPlanLimits } from '@/models/document.model';
 
 export const createUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -23,10 +25,10 @@ export const createUser = asyncHandler(
       await userService.createUserFromToken(req);
     }
 
-    logger.info("user validation successful", {
+    logger.info('user validation successful', {
       userId: user?.userId,
-      userEmail: user?.email
-    })
+      userEmail: user?.email,
+    });
 
     return next();
   },
@@ -46,7 +48,7 @@ export const upgradeUserPlan = asyncHandler(
     }
 
     const currentPlan = user.plan;
-    const planToUpgradeTo = req.params.plan;
+    const planToUpgradeTo = req.params.plan as PlanType;
     const allowedPlans = ['standard', 'premium'];
 
     if (!allowedPlans.includes(planToUpgradeTo)) {
@@ -73,10 +75,14 @@ export const upgradeUserPlan = asyncHandler(
 
     await userService.updateUser(req.userId, 'plan', false, planToUpgradeTo);
 
-    const newLengthOfDocs: IPlans =
-      planToUpgradeTo === 'standard'
-        ? { standard: { max: 3, min: 0, current: 3 } }
-        : { premium: { max: 5, min: 0, current: 5 } };
+    // const newLengthOfDocs: IPlans =
+    //   planToUpgradeTo === 'standard'
+    //     ? { standard: { max: 3, min: 0, current: 3 } }
+    //     : { premium: { max: 5, min: 0, current: 5 } };
+
+    const newLengthOfDocs: IPlans = {
+      [planToUpgradeTo]: PlanLimits[planToUpgradeTo],
+    };
 
     await userService.updateUser(
       req.userId,
@@ -96,10 +102,14 @@ export const upgradeUserPlan = asyncHandler(
       0,
     );
 
-    const newChatBotPrompt: IPlans =
-      planToUpgradeTo === 'standard'
-        ? { standard: { max: 5, min: 0, current: 5 } }
-        : { premium: { max: 10, min: 0, current: 10 } };
+    // const newChatBotPrompt: IPlans =
+    //   planToUpgradeTo === 'standard'
+    //     ? { standard: { max: 5, min: 0, current: 5 } }
+    //     : { premium: { max: 10, min: 0, current: 10 } };
+
+    const newChatBotPrompt: IPlans = {
+      [planToUpgradeTo]: ChatbotPlanLimits[planToUpgradeTo],
+    };
 
     for (const doc of documents) {
       await docService.updateDocument(req.userId, doc.docId, {
@@ -135,7 +145,7 @@ export const downgradeUserPlan = asyncHandler(
     }
 
     const currentPlan = user.plan;
-    const planToDowngradeTo = req.params.plan;
+    const planToDowngradeTo = req.params.plan as PlanType;
     const allowedPlans = ['standard', 'free'];
 
     if (!allowedPlans.includes(planToDowngradeTo)) {
@@ -162,10 +172,14 @@ export const downgradeUserPlan = asyncHandler(
 
     await userService.updateUser(req.userId, 'plan', false, planToDowngradeTo);
 
-    const newLengthOfDocs: IPlans =
-      planToDowngradeTo === 'standard'
-        ? { standard: { max: 3, min: 0, current: 3 } }
-        : { free: { max: 2, min: 0, current: 2 } };
+    // const newLengthOfDocs: IPlans =
+    //   planToDowngradeTo === 'standard'
+    //     ? { standard: { max: 3, min: 0, current: 3 } }
+    //     : { free: { max: 2, min: 0, current: 2 } };
+
+        const newLengthOfDocs: IPlans = {
+      [planToDowngradeTo]: PlanLimits[planToDowngradeTo],
+    };
 
     await userService.updateUser(
       req.userId,
@@ -185,10 +199,14 @@ export const downgradeUserPlan = asyncHandler(
       0,
     );
 
-    const newChatBotPrompt: IPlans =
-      planToDowngradeTo === 'standard'
-        ? { standard: { max: 5, min: 0, current: 5 } }
-        : { free: { max: 0, min: 0, current: 0 } };
+    // const newChatBotPrompt: IPlans =
+    //   planToDowngradeTo === 'standard'
+    //     ? { standard: { max: 5, min: 0, current: 5 } }
+    //     : { free: { max: 0, min: 0, current: 0 } };
+
+     const newChatBotPrompt: IPlans = {
+      [planToDowngradeTo]: ChatbotPlanLimits[planToDowngradeTo],
+    };
 
     for (const doc of documents) {
       await docService.updateDocument(req.userId, doc.docId, {
@@ -245,6 +263,8 @@ export const getUserDetails = asyncHandler(
     }
 
     const plan = user.plan as keyof IPlans;
+
+    console.log(plan);
     const documentLimits = user.lengthOfDocs[plan];
 
     ApiResponse.ok(res, 'User details fetched successfully', {

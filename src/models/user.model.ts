@@ -24,6 +24,13 @@ export interface IUser {
 
 }
 
+export const PlanLimits = {
+  free: { max: 2, min: 0, current: 2 },
+  standard: { max: 5, min: 0, current: 5 },
+  premium: { max: 7, min: 0, current: 7 },
+};
+
+export type PlanType = keyof typeof PlanLimits;
 /**
  * Values Schema (reusable for free & premium)
  */
@@ -43,16 +50,16 @@ const plansSchema = new Schema<IPlans>(
   {
     premium: {
       type: valuesSchema,
-      default: { max: 7, min: 0, current: 7 }, // default premium plan
+      default: PlanLimits.premium, // default premium plan
     },
     standard: {
       type: valuesSchema,
-      default: { max: 5, min: 0, current: 5 }, // default standard plan
+      default:PlanLimits.standard, // default standard plan
     },
 
     free: {
       type: valuesSchema,
-      default: { max: 2, min: 0, current: 2 }, // default free plan
+      default: PlanLimits.free, // default free plan
     },
   },
   { _id: false },
@@ -82,6 +89,11 @@ const userSchema = new Schema<IUser>(
     },
     lengthOfDocs: {
       type: plansSchema,
+      default: {
+        premium: PlanLimits.premium,
+        standard: PlanLimits.standard,
+        free: PlanLimits.free,
+      },
     },
 
     userId: {

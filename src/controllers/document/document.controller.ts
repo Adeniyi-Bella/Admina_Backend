@@ -130,6 +130,9 @@ export const getAllDocuments = asyncHandler(
       offset,
     );
 
+    const plan = user.plan as keyof IPlans;
+    const documentLimits = user.lengthOfDocs[plan];
+
     const responseDocuments: IDocumentPreview[] = documents.map((doc) => ({
       docId: doc.docId!,
       title: doc.title!,
@@ -143,13 +146,21 @@ export const getAllDocuments = asyncHandler(
       })),
     }));
 
-    res.status(200).json({
+    ApiResponse.ok(res, 'Documents fetched successfully', {
       limit,
       offset,
       total,
-      documents: responseDocuments,
       userPlan: user.plan,
+      documents: responseDocuments,
+      email: user.email,
+      documentLimits
     });
+    // res.status(200).json({
+    //   limit,
+    //   offset,
+    //   total,
+    //   data: { documents: responseDocuments, userPlan: user.plan },
+    // });
   },
 );
 
@@ -209,7 +220,7 @@ export const deleteDocument = asyncHandler(
       chatBotService.deleteChatHistoryByDocument(req.userId, docId),
     ]);
 
-    if (!documentDeleted ) {
+    if (!documentDeleted) {
       throw new DocumentNotFoundError();
     }
 

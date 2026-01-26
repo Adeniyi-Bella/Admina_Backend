@@ -33,7 +33,7 @@ const router = Router();
 router.use(authenticate);
 
 // Create a new user and or getAll documents for existing user
-router.post('/', validationError, createUser, getAllDocuments);
+router.get('/', validationError, createUser, getAllDocuments);
 
 // upgrade userplan
 router.patch(
@@ -71,7 +71,7 @@ router.patch(
   downgradeUserPlan,
 );
 
-router.get('/', validationError, resetPropertiesIfNewMonth, getUserDetails);
+router.get('/plan', validationError, resetPropertiesIfNewMonth, getUserDetails);
 
 router.delete('/', resetPropertiesIfNewMonth, deleteUser);
 // router.patch('/logout', validationError, logout);

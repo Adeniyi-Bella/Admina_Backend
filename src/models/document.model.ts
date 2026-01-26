@@ -18,6 +18,14 @@ export interface IActionPlan {
   location?: string;
 }
 
+export const ChatbotPlanLimits = {
+  free: { max: 20, min: 0, current: 20 },
+  standard: { max: 10, min: 0, current: 10 },
+  premium: { max: 5, min: 0, current: 5 },
+};
+
+export type ChatBotPlanType = keyof typeof ChatbotPlanLimits;
+
 export interface IDocument {
   userId: string;
   docId: string;
@@ -74,9 +82,9 @@ const documentSchema = new Schema<IDocument>(
     chatBotPrompt: {
       type: plansSchema,
       default: () => ({
-        premium: { max: 20, min: 0, current: 20 },
-        standard: { max: 10, min: 0, current: 10 },
-        free: { max: 5, min: 0, current: 5 },
+        premium: ChatbotPlanLimits.premium,
+        standard: ChatbotPlanLimits.standard,
+        free: ChatbotPlanLimits.free,
       }),
     },
 
