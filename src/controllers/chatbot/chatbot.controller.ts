@@ -24,6 +24,10 @@ import { IDocumentService } from '@/services/document/document.interface';
 import { ApiResponse } from '@/lib/api_response';
 import { IDocument } from '@/models/document.model';
 import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
+import {
+  DocumentNotFoundError,
+  UserNotFoundError,
+} from '@/lib/api_response/error';
 
 const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
   const chatBotService = container.resolve<IChatBotService>('IChatBotService');
@@ -41,25 +45,13 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
     // Retrieve user plan
     const user = await userService.checkIfUserExist(req);
     if (!user) {
-      logger.error(
-        'User does not have a premium plan or user can no longer use the chatbot for the current month',
-        { userId },
-      );
-
-      ApiResponse.badRequest(
-        res,
-        'User does not have a premium plan or user can no longer use the chatbot for the current month',
-      );
-      return;
+      throw new UserNotFoundError();
     }
 
     const document = await documentService.getDocument(user, docId);
 
     if (!document) {
-      logger.error('Document does not exist', { userId });
-
-      ApiResponse.badRequest(res, 'Document does not exist');
-      return;
+      throw new DocumentNotFoundError();
     }
 
     // Retrieve chat history
@@ -78,7 +70,6 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-
 
       chatHistory = await chatBotService.createChatHistory(newChatHistory);
       logger.info('Created new ChatBotHistory', { userId, docId });
@@ -119,14 +110,16 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
       await chatBotService.updateDocumentChatBotHistory(userId, docId, newChat);
     }
     res.end();
-  } catch (err: any) {
-    ApiResponse.serverError(res, 'Internal server error', err.message);
-
+  } catch (error: any) {
     logger.error('Error during chatbot interaction', {
       userId: req.userId,
       docId: req.params.docId,
-      error: err.message,
+      error: error.message,
     });
+
+    if (error.isOperational) throw error;
+
+    ApiResponse.serverError(res, 'Internal server error', error.message);
   }
 };
 

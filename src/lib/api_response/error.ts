@@ -12,7 +12,12 @@ export abstract class AppError extends Error {
   public readonly isOperational: boolean;
   public readonly code: string;
 
-  constructor(message: string, statusCode: number, code: string, isOperational = true) {
+  constructor(
+    message: string,
+    statusCode: number,
+    code: string,
+    isOperational = true,
+  ) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
@@ -79,13 +84,18 @@ export class TokenMismatchError extends UnauthorizedError {
  * 403 Forbidden Errors
  */
 export class ForbiddenError extends AppError {
-  constructor(message: string = 'Access forbidden', code: string = 'FORBIDDEN') {
+  constructor(
+    message: string = 'Access forbidden',
+    code: string = 'FORBIDDEN',
+  ) {
     super(message, 403, code);
   }
 }
 
 export class ReregistrationBlockedError extends ForbiddenError {
-  constructor(message: string = 'You cannot re-register in the same month you deleted your account.') {
+  constructor(
+    message: string = 'You cannot re-register in the same month you deleted your account.',
+  ) {
     super(message, 'REREGISTRATION_BLOCKED');
   }
 }
@@ -106,7 +116,10 @@ export class PlanDowngradeError extends ForbiddenError {
  * 404 Not Found Errors
  */
 export class NotFoundError extends AppError {
-  constructor(message: string = 'Resource not found', code: string = 'NOT_FOUND') {
+  constructor(
+    message: string = 'Resource not found',
+    code: string = 'NOT_FOUND',
+  ) {
     super(message, 404, code);
   }
 }
@@ -128,6 +141,11 @@ export class ActionPlanNotFoundError extends NotFoundError {
     super(message, 'ACTION_PLAN_NOT_FOUND');
   }
 }
+export class JobNotFoundError extends NotFoundError {
+  constructor(message: string = 'Job details not found') {
+    super(message, 'JOB_DETAILS_NOT_FOUND');
+  }
+}
 
 /**
  * 429 Too Many Requests
@@ -142,7 +160,10 @@ export class TooManyRequestsError extends AppError {
  * 500 Internal Server Errors
  */
 export class InternalServerError extends AppError {
-  constructor(message: string = 'Internal server error', code: string = 'SERVER_ERROR') {
+  constructor(
+    message: string = 'Internal server error',
+    code: string = 'SERVER_ERROR',
+  ) {
     super(message, 500, code, false);
   }
 }
@@ -154,7 +175,10 @@ export class DatabaseError extends InternalServerError {
 }
 
 export class ExternalServiceError extends InternalServerError {
-  constructor(message: string = 'External service error', code: string = 'EXTERNAL_SERVICE_ERROR') {
+  constructor(
+    message: string = 'External service error',
+    code: string = 'EXTERNAL_SERVICE_ERROR',
+  ) {
     super(message, code);
   }
 }
@@ -186,12 +210,6 @@ export class ServiceUnavailableError extends AppError {
   }
 }
 
-export class CacheError extends InternalServerError {
-  constructor(message: string = 'Cache operation failed') {
-    super(message, 'CACHE_ERROR');
-  }
-}
-
 /**
  * Error Serializer
  * Safely converts Error objects into loggable JSON
@@ -209,7 +227,7 @@ export class ErrorSerializer {
         statusCode: error.statusCode,
         isOperational: error.isOperational,
         stack: error.stack,
-        ...(error as any).errors && { errors: (error as any).errors },
+        ...((error as any).errors && { errors: (error as any).errors }),
       };
     }
 
@@ -233,5 +251,31 @@ export class ErrorSerializer {
     return {
       value: error,
     };
+  }
+}
+
+/**
+ * 502 Bad Gateway
+ * Use this when an external API/upstream service returns an invalid or error response
+ */
+export class BadGatewayError extends AppError {
+  constructor(
+    message: string = 'External service returned an error',
+    code: string = 'BAD_GATEWAY',
+  ) {
+    super(message, 502, code);
+  }
+}
+
+/**
+ * 504 Gateway Timeout
+ * Use this when an external API/upstream service fails to respond in time
+ */
+export class GatewayTimeoutError extends AppError {
+  constructor(
+    message: string = 'External service timed out',
+    code: string = 'GATEWAY_TIMEOUT',
+  ) {
+    super(message, 504, code);
   }
 }

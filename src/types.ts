@@ -49,3 +49,8 @@ export interface FileMulter {
   size: number;
 }
 
+export interface PollRequestReponse {
+  docId: string;
+  status: string;
+  error?: string;
+}

@@ -43,7 +43,7 @@ export class TranslateQueueService {
 
     if (workers.length === 0) {
       if (email) await this.releaseUserLock(email);
-      throw new ServiceUnavailableError('ServiceUnavailableError');
+      throw new ServiceUnavailableError('Our Document processor service is down. Please try again later');
     }
     // 1. Check Max Queue Length (Logic for Error 429)
     const counts = await this.queue.getJobCounts('waiting', 'active');

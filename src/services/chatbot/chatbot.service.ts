@@ -28,6 +28,7 @@ import { logger } from '@/lib/winston';
 import {
   DatabaseError,
   InvalidInputError,
+  NotFoundError,
 } from '@/lib/api_response/error';
 
 @injectable()
@@ -55,9 +56,7 @@ export class ChatBotService implements IChatBotService {
         userId,
         docId,
       });
-      throw new DatabaseError(
-        `Failed to retrieve chat history collection: ${error}`,
-      );
+      throw new DatabaseError(`Failed to retrieve chat history`);
     }
   }
   async updateDocumentChatBotHistory(
@@ -67,7 +66,7 @@ export class ChatBotService implements IChatBotService {
   ): Promise<void> {
     try {
       if (!userId || !docId || !chat || !chat.userPrompt || !chat.response) {
-        throw new Error(
+        throw new InvalidInputError(
           'User ID, Document ID, and valid chat data are required',
         );
       }
@@ -78,7 +77,11 @@ export class ChatBotService implements IChatBotService {
       ).exec();
 
       if (result.matchedCount === 0) {
-        throw new Error('Chat history collection not found for update');
+        logger.error('Chat history collection not found for update for user:', {
+          userId,
+          docId,
+        });
+        throw new NotFoundError('Chat history collection not found for update');
       }
 
       logger.info('Chat history collection updated successfully', {
@@ -91,7 +94,7 @@ export class ChatBotService implements IChatBotService {
         userId,
         docId,
       });
-      throw new Error(`Failed to update chat history collection: ${error}`);
+      throw new DatabaseError(`Failed to update chat history collection`);
     }
   }
 
@@ -127,10 +130,10 @@ export class ChatBotService implements IChatBotService {
     }
     try {
       const result = await ChatBotHistory.deleteMany({ userId }).exec();
-      logger.info('Chat history cleanup completed', { 
-      userId, 
-      deletedCount: result.deletedCount 
-    });
+      logger.info('Chat history cleanup completed', {
+        userId,
+        deletedCount: result.deletedCount,
+      });
     } catch (error) {
       logger.error('Failed to delete chat history', { userId, error });
       throw new DatabaseError(`Failed to delete chat history`);

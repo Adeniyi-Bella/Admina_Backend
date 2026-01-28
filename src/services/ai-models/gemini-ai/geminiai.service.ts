@@ -29,7 +29,12 @@ import { IDocument } from '@/models/document.model';
 import { IGeminiAIService } from './geminiai.interface';
 import { IChatBotHistory } from '@/models/chatbotHistory.model';
 import { FileMulter } from '@/types';
-import { ErrorSerializer } from '@/lib/api_response/error';
+import {
+  BadGatewayError,
+  ErrorSerializer,
+  GatewayTimeoutError,
+  InvalidInputError,
+} from '@/lib/api_response/error';
 
 @injectable()
 export class GeminiAIService implements IGeminiAIService {
@@ -50,7 +55,7 @@ export class GeminiAIService implements IGeminiAIService {
     targetLanguage: string,
   ): Promise<Partial<IDocument>> {
     if (!file || !file.buffer) {
-      throw new Error('Valid file is required for translation');
+      throw new InvalidInputError('A valid file is required for translation');
     }
 
     const userPrompt =
@@ -72,35 +77,35 @@ export class GeminiAIService implements IGeminiAIService {
         config: {
           responseMimeType: 'application/json',
           httpOptions: {
-            timeout: 2 * 60 * 1000, // 2 minutes timeout for large files
+            timeout: 2 * 60 * 1000,
           },
         },
       });
 
       if (!response) {
-        logger.error('Gemini returned empty response', { response });
-        throw new Error('Gemini returned empty response');
+        logger.error(
+          'Upstream Gemini AI provider returned a null response object',
+        );
+        throw new BadGatewayError(
+          'The translation service failed to generate a response. Please try again with a valid document.',
+        );
       }
 
       const responseText = response.text;
       if (!responseText) {
-        throw new Error('No text returned from Gemini');
+        logger.error(
+          'Upstream AI provider response contained no text content',
+          { response },
+        );
+        throw new BadGatewayError(
+          'The translation service failed to generate a response. Please try again with a valid document.',
+        );
       }
 
       return this.parseResponse(responseText);
     } catch (error: any) {
-      logger.error('Gemini document translation failed', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-        cause: error.cause,
-        isNetworkError: error.message?.includes('fetch failed'),
-        hint: error.message?.includes('fetch failed')
-          ? 'Likely a network or API connection issue (check endpoint and key).'
-          : 'Internal Gemini processing error.',
-      });
-
-      throw new Error('Gemini document translation failed');
+      if (error.isOperational) throw error;
+      this.handleGeminiError(error, 'document translation');
     }
   }
 
@@ -188,11 +193,13 @@ export class GeminiAIService implements IGeminiAIService {
           : [],
       };
     } catch (error) {
-      logger.error('Failed to parse Gemini response', {
+      logger.error('Failed to parse AI JSON response', {
         originalResponse: response,
         error: ErrorSerializer.serialize(error),
       });
-      throw error;
+      throw new BadGatewayError(
+        'The translation service returned an unreadable result. Please try again with a valid document.',
+      );
     }
   }
 
@@ -221,18 +228,54 @@ export class GeminiAIService implements IGeminiAIService {
         }
       }
     } catch (error: any) {
-      logger.error('Gemini chat bot failed', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-        cause: error.cause,
-        isNetworkError: error.message?.includes('fetch failed'),
-        hint: error.message?.includes('fetch failed')
-          ? 'Likely a network or API connection issue (check endpoint and key).'
-          : 'Internal Gemini processing error.',
-      });
-
-      throw new Error(error || 'Gemini chatbot failed');
+      this.handleGeminiError(error, 'chat');
     }
+  }
+
+  private handleGeminiError(error: any, context: string): never {
+    const errorMessage = error.message || '';
+
+    // Log the technical details for debugging (Includes "Gemini")
+    logger.error(`Upstream AI Provider Error during ${context}`, {
+      provider: 'Google Gemini',
+      technicalMessage: errorMessage,
+      stack: error.stack,
+      status: error.status,
+    });
+
+    // 1. Timeouts
+    if (
+      errorMessage.includes('deadline exceeded') ||
+      errorMessage.includes('timeout')
+    ) {
+      throw new GatewayTimeoutError(
+        'The request took too long to process. Please try again with a smaller file.',
+        'AI_PROCESSING_TIMEOUT',
+      );
+    }
+
+    // 2. Connectivity/Availability
+    if (
+      errorMessage.includes('fetch failed') ||
+      errorMessage.includes('network')
+    ) {
+      throw new BadGatewayError(
+        'The AI processing service is temporarily unreachable. Please try again later.',
+      );
+    }
+
+    // 3. Rate Limiting
+    if (error.status === 429) {
+      throw new BadGatewayError(
+        'AI processing limit reached. Please try again in a moment.',
+        'AI_RATE_LIMIT_EXCEEDED',
+      );
+    }
+
+    // 4. Default External Error
+    throw new BadGatewayError(
+      `An error occurred while processing the document.`,
+      'AI_PROVIDER_ERROR',
+    );
   }
 }

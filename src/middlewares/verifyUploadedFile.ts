@@ -6,7 +6,6 @@
 /**
  * Types
  */
-import { ApiResponse } from '@/lib/api_response';
 import { BadRequestError } from '@/lib/api_response/error';
 import type { Request, Response, NextFunction } from 'express';
 

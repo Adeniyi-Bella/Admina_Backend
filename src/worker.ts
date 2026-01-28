@@ -12,17 +12,20 @@ import { IActionPlan, IDocument } from '@/models/document.model';
 import { v4 as uuidv4 } from 'uuid';
 import { FileMulter, JobData } from './types';
 import { connectToDatabase, disconnectFromDatabase } from '@/lib/mongoose'; // Import shared logic
-import { ErrorSerializer } from './lib/api_response/error';
+import {
+  DatabaseError,
+  ErrorSerializer,
+  InternalServerError,
+  InvalidInputError,
+} from './lib/api_response/error';
 
 class TranslationWorker {
   private readonly queueName = 'translation-queue';
   private readonly concurrency = 5;
-
   private readonly connectionOptions = {
     host: '127.0.0.1',
     port: 6379,
   };
-
   private worker: Worker | undefined;
 
   constructor() {
@@ -58,19 +61,37 @@ class TranslationWorker {
   }
 
   private async processJob(job: Job<JobData>) {
-    const { data } = job;
+    const { data, id: jobId, attemptsMade } = job;
     const { docId, user, targetLanguage, file } = data;
     const jobKey = `job:${docId}`;
+    const startTime = Date.now();
 
-    const fileBuffer = Buffer.from(file.buffer as unknown as string, 'base64');
-
-    const geminiService =
-      container.resolve<IGeminiAIService>('IGeminiAIService');
-    const documentService =
-      container.resolve<IDocumentService>('IDocumentService');
-    const userService = container.resolve<IUserService>('IUserService');
+    logger.info(
+      `[Job Start] ID: ${jobId} | Doc: ${docId} | Attempt: ${attemptsMade + 1}`,
+      {
+        user: user.email,
+        attempt: attemptsMade + 1,
+      },
+    );
 
     try {
+      const geminiService =
+        container.resolve<IGeminiAIService>('IGeminiAIService');
+      const documentService =
+        container.resolve<IDocumentService>('IDocumentService');
+      const userService = container.resolve<IUserService>('IUserService');
+
+      if (!file?.buffer || !docId) {
+        throw new InvalidInputError(
+          'Job missing required file buffer or document ID',
+        );
+      }
+
+      const fileBuffer = Buffer.from(
+        file.buffer as unknown as string,
+        'base64',
+      );
+
       const reconstructedFile: FileMulter = {
         fieldname: 'file',
         originalname: file.originalname,
@@ -79,13 +100,21 @@ class TranslationWorker {
         size: fileBuffer.length,
       };
 
-      await redis.hset(jobKey, 'status', 'translate');
-      await redis.expire(jobKey, 1800);
+      logger.info(`[Job Progress] Doc: ${docId} -> Translating`, { jobId });
+
+      try {
+        await redis.hset(jobKey, 'status', 'translate');
+        await redis.expire(jobKey, 1800);
+      } catch (e) {
+        throw new DatabaseError('Failed to initialize job status in Redis');
+      }
 
       const translatedDocument = await geminiService.translateDocument(
         reconstructedFile,
         targetLanguage,
       );
+
+      logger.info(`[Job Progress] Doc: ${docId} -> Summarizing`, { jobId });
 
       await redis.hset(jobKey, 'status', 'summarize');
       const summarizedTextDocument = await geminiService.summarizeDocument(
@@ -116,6 +145,8 @@ class TranslationWorker {
         pdfBlobStorage: false,
       };
 
+      logger.info(`[Job Progress] Doc: ${docId} -> Saving to DB`, { jobId });
+
       await documentService.createDocumentByUserId(documentData);
 
       const planKey =
@@ -124,11 +155,23 @@ class TranslationWorker {
           : 'lengthOfDocs.standard.current';
       await userService.updateUser(user.userId, planKey, true, undefined);
 
+      const duration = (Date.now() - startTime) / 1000;
+      logger.info(
+        `[Job Success] ID: ${jobId} | Doc: ${docId} | Duration: ${duration}s`,
+      );
+
       await redis.hset(jobKey, 'status', 'completed');
     } catch (error: any) {
-      logger.error(`Job ${docId} failed:`, {
-        error: ErrorSerializer.serialize(error),
-      });
+      const isFinalAttempt = attemptsMade + 1 >= (job.opts.attempts || 1);
+
+      logger.error(
+        `[Job Failed] ID: ${jobId} | Doc: ${docId} | Attempt: ${attemptsMade + 1}`,
+        {
+          error: ErrorSerializer.serialize(error),
+          isFinalAttempt,
+          code: error.code || 'UNKNOWN',
+        },
+      );
       await redis.hset(jobKey, {
         status: 'error',
         error: error.message,
@@ -184,8 +227,8 @@ class TranslationWorker {
         process.exit(0);
       } catch (err) {
         logger.error('Error during worker shutdown', {
-        error: ErrorSerializer.serialize(err),
-      });
+          error: ErrorSerializer.serialize(err),
+        });
         process.exit(1);
       }
     };
