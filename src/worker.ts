@@ -18,6 +18,7 @@ import {
   InternalServerError,
   InvalidInputError,
 } from './lib/api_response/error';
+import fs from 'fs/promises';
 
 class TranslationWorker {
   private readonly queueName = 'translation-queue';
@@ -81,16 +82,7 @@ class TranslationWorker {
         container.resolve<IDocumentService>('IDocumentService');
       const userService = container.resolve<IUserService>('IUserService');
 
-      if (!file?.buffer || !docId) {
-        throw new InvalidInputError(
-          'Job missing required file buffer or document ID',
-        );
-      }
-
-      const fileBuffer = Buffer.from(
-        file.buffer as unknown as string,
-        'base64',
-      );
+      const fileBuffer = await fs.readFile(file.filePath);
 
       const reconstructedFile: FileMulter = {
         fieldname: 'file',
@@ -161,6 +153,10 @@ class TranslationWorker {
       );
 
       await redis.hset(jobKey, 'status', 'completed');
+      await fs
+        .unlink(file.filePath)
+        .catch((err) => logger.error('Failed to delete temp file', err));
+
     } catch (error: any) {
       const isFinalAttempt = attemptsMade + 1 >= (job.opts.attempts || 1);
 
@@ -176,6 +172,10 @@ class TranslationWorker {
         status: 'error',
         error: error.message,
       });
+      if (job.attemptsMade + 1 >= (job.opts.attempts || 1)) {
+        await fs.unlink(file.filePath).catch(() => {});
+    }
+
       throw error;
     }
   }

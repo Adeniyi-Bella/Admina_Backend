@@ -196,7 +196,7 @@ export class UserService implements IUserService {
 
         return this.mapUserToDTO(user);
       },
-      3600, // 1 hour base TTL (jitter will be added automatically)
+      3600,
     );
   }
 

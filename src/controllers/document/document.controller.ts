@@ -7,7 +7,7 @@ import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { ApiResponse } from '@/lib/api_response';
 import { IPlans } from '@/types';
 import { IDocumentPreview } from '@/types/DTO';
-import pdf from 'pdf-parse';
+import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import config from '@/config';
 import { TranslateQueueService } from '@/services/ai-models/jobs/job-queues.service';
@@ -21,6 +21,8 @@ import {
 import { logger } from '@/lib/winston';
 import { IChatMessage } from '@/models/chatbotHistory.model';
 import { IDocument } from '@/models/document.model';
+import { validateDocument } from '@/utils/validateDocument';
+import path from 'path';
 
 const translateQueueService = new TranslateQueueService();
 
@@ -32,12 +34,14 @@ export const createDocument = asyncHandler(
     const userService = container.resolve<IUserService>('IUserService');
 
     const { targetLanguage } = req.body;
-    const file = req.file!;
+    const file = req.file as Express.Multer.File;
+    if (!file)
+      throw new BadRequestError(
+        'No file uploaded. Please include a PDF, PNG, or JPEG file.',
+      );
 
     const user = await userService.checkIfUserExist(req);
-    if (!user) {
-      throw new UserNotFoundError();
-    }
+    if (!user) throw new UserNotFoundError();
 
     const userPlan = user.plan as keyof IPlans;
 
@@ -59,19 +63,7 @@ export const createDocument = asyncHandler(
       );
     }
 
-    if (file.mimetype === 'application/pdf') {
-      const data = await pdf(file.buffer);
-      if (user.plan === 'free' && (data.numpages || 0) > 2) {
-        logger.warn(
-          'User trying to process a document beyond the plans limit.',
-          {
-            userId: user.userId,
-            numpages: data.numpages,
-          },
-        );
-        throw new BadRequestError('Page count exceeds limit for free users.');
-      }
-    }
+    await validateDocument(file, user.plan!, user.userId.toString());
 
     // Check if user already has a document being processed
     const isProcessing = await translateQueueService.isUserProcessing(
@@ -85,11 +77,20 @@ export const createDocument = asyncHandler(
 
     const docId = uuidv4();
 
+    // SAVE TO DISK INSTEAD OF BASE64 CONVERSION
+    // This is non-blocking (handled by libuv)
+    const tempPath = path.join(
+      __dirname,
+      `../../temp/${docId}-${file.originalname}`,
+    );
+    await fs.mkdir(path.dirname(tempPath), { recursive: true });
+    await fs.writeFile(tempPath, file.buffer);
+
     const jobPayload = {
       file: {
         originalname: file.originalname,
         mimetype: file.mimetype,
-        buffer: file.buffer.toString('base64'),
+        filePath: tempPath,
       },
       targetLanguage,
       user,
@@ -153,14 +154,8 @@ export const getAllDocuments = asyncHandler(
       userPlan: user.plan,
       documents: responseDocuments,
       email: user.email,
-      documentLimits
+      documentLimits,
     });
-    // res.status(200).json({
-    //   limit,
-    //   offset,
-    //   total,
-    //   data: { documents: responseDocuments, userPlan: user.plan },
-    // });
   },
 );
 
