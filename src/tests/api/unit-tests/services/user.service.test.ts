@@ -5,13 +5,22 @@ import { Request } from 'express';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { cacheService } from '@/services/redis-cache/redis-cache.service';
-import { ReregistrationBlockedError } from '@/lib/api_response/error';
+import {
+  DatabaseError,
+  ReregistrationBlockedError,
+  UserNotFoundError,
+} from '@/lib/api_response/error';
+import Document from '@/models/document.model';
+import { getPlanMetadata } from '@/utils/user.utils';
+import mongoose from 'mongoose';
 
 jest.mock('@/models/user.model');
 jest.mock('@/lib/redis');
 jest.mock('@azure/msal-node');
 jest.mock('@microsoft/microsoft-graph-client');
 jest.mock('@/services/redis-cache/redis-cache.service');
+jest.mock('@/models/document.model');
+jest.mock('@/utils/user.utils');
 
 describe('UserService - Complete Test Suite', () => {
   let userService: UserService;
@@ -42,7 +51,7 @@ describe('UserService - Complete Test Suite', () => {
       (User.create as jest.Mock).mockResolvedValue(mockUser);
 
       await expect(
-        userService.createUserFromToken(mockRequest as Request)
+        userService.createUserFromToken(mockRequest as Request),
       ).resolves.not.toThrow();
 
       expect(User.create).toHaveBeenCalledWith({
@@ -57,7 +66,7 @@ describe('UserService - Complete Test Suite', () => {
       (User.create as jest.Mock).mockRejectedValue(duplicateError);
 
       await expect(
-        userService.createUserFromToken(mockRequest as Request)
+        userService.createUserFromToken(mockRequest as Request),
       ).rejects.toThrow(ReregistrationBlockedError);
 
       expect(User.create).toHaveBeenCalledWith({
@@ -68,10 +77,12 @@ describe('UserService - Complete Test Suite', () => {
     });
 
     it('should throw DatabaseError for other creation failures', async () => {
-      (User.create as jest.Mock).mockRejectedValue(new Error('DB Connection Lost'));
+      (User.create as jest.Mock).mockRejectedValue(
+        new Error('DB Connection Lost'),
+      );
 
       await expect(
-        userService.createUserFromToken(mockRequest as Request)
+        userService.createUserFromToken(mockRequest as Request),
       ).rejects.toThrow('Failed to create user');
     });
 
@@ -119,7 +130,7 @@ describe('UserService - Complete Test Suite', () => {
       };
 
       (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn()
+        async (key, fetchFn) => fetchFn(),
       );
 
       (User.findOne as jest.Mock).mockReturnValue({
@@ -142,7 +153,7 @@ describe('UserService - Complete Test Suite', () => {
 
     it('should return null when user does not exist in DB', async () => {
       (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn()
+        async (key, fetchFn) => fetchFn(),
       );
 
       (User.findOne as jest.Mock).mockReturnValue({
@@ -165,7 +176,7 @@ describe('UserService - Complete Test Suite', () => {
       };
 
       (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn()
+        async (key, fetchFn) => fetchFn(),
       );
 
       (User.findOne as jest.Mock).mockReturnValue({
@@ -175,7 +186,7 @@ describe('UserService - Complete Test Suite', () => {
       });
 
       await expect(
-        userService.checkIfUserExist(mockRequest as Request)
+        userService.checkIfUserExist(mockRequest as Request),
       ).rejects.toThrow(ReregistrationBlockedError);
     });
 
@@ -222,18 +233,20 @@ describe('UserService - Complete Test Suite', () => {
         'test-user-id',
         'plan',
         false,
-        'premium'
+        'premium',
       );
 
       expect(result).toBe(true);
       expect(User.findOneAndUpdate).toHaveBeenCalledWith(
         { userId: 'test-user-id', status: 'active' },
         { $set: { plan: 'premium', updatedAt: expect.any(Date) } },
-        { new: true, projection: { __v: 0 } }
+        { new: true, projection: { __v: 0 } },
       );
 
       expect(cacheService.delete).toHaveBeenCalledWith('user:test-user-id');
-      expect(cacheService.invalidateTag).toHaveBeenCalledWith('tag:user:test-user-id');
+      expect(cacheService.invalidateTag).toHaveBeenCalledWith(
+        'tag:user:test-user-id',
+      );
     });
 
     it('should decrement property with $inc when decrement=true', async () => {
@@ -253,7 +266,7 @@ describe('UserService - Complete Test Suite', () => {
         'test-user-id',
         'lengthOfDocs.free.current',
         true,
-        undefined
+        undefined,
       );
 
       expect(result).toBe(true);
@@ -263,7 +276,7 @@ describe('UserService - Complete Test Suite', () => {
           $inc: { 'lengthOfDocs.free.current': -1 },
           $set: { updatedAt: expect.any(Date) },
         },
-        { new: true, projection: { __v: 0 } }
+        { new: true, projection: { __v: 0 } },
       );
     });
 
@@ -276,7 +289,7 @@ describe('UserService - Complete Test Suite', () => {
         'non-existent',
         'plan',
         false,
-        'premium'
+        'premium',
       );
 
       expect(result).toBe(false);
@@ -309,7 +322,7 @@ describe('UserService - Complete Test Suite', () => {
             updatedAt: expect.any(Date),
           },
         },
-        { new: true, projection: { __v: 0 } }
+        { new: true, projection: { __v: 0 } },
       );
     });
 
@@ -319,7 +332,7 @@ describe('UserService - Complete Test Suite', () => {
       });
 
       await expect(
-        userService.updateUser('test-user-id', 'plan', false, 'premium')
+        userService.updateUser('test-user-id', 'plan', false, 'premium'),
       ).rejects.toThrow('Failed to update plan');
     });
 
@@ -340,7 +353,7 @@ describe('UserService - Complete Test Suite', () => {
         'test-user-id',
         'plan',
         false,
-        'premium'
+        'premium',
       );
 
       expect(result).toBe(true);
@@ -371,15 +384,17 @@ describe('UserService - Complete Test Suite', () => {
             deletedAt: expect.any(Date),
             permanentDeleteAt: expect.any(Date),
           },
-        }
+        },
       );
 
       const updateCall = (User.updateOne as jest.Mock).mock.calls[0][1];
       const permanentDeleteAt = updateCall.$set.permanentDeleteAt;
-      
+
       // Verify permanentDeleteAt is first day of next month
       expect(permanentDeleteAt.getDate()).toBe(1);
-      expect(permanentDeleteAt.getMonth()).toBeGreaterThanOrEqual(new Date().getMonth());
+      expect(permanentDeleteAt.getMonth()).toBeGreaterThanOrEqual(
+        new Date().getMonth(),
+      );
     });
 
     it('should invalidate cache and tags after soft delete', async () => {
@@ -393,7 +408,9 @@ describe('UserService - Complete Test Suite', () => {
       await userService.deleteUser('test-user-id');
 
       expect(cacheService.delete).toHaveBeenCalledWith('user:test-user-id');
-      expect(cacheService.invalidateTag).toHaveBeenCalledWith('tag:user:test-user-id');
+      expect(cacheService.invalidateTag).toHaveBeenCalledWith(
+        'tag:user:test-user-id',
+      );
     });
 
     it('should handle deletion of non-existent user gracefully', async () => {
@@ -405,7 +422,7 @@ describe('UserService - Complete Test Suite', () => {
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
 
       await expect(
-        userService.deleteUser('non-existent-id')
+        userService.deleteUser('non-existent-id'),
       ).resolves.not.toThrow();
 
       // Should still attempt cache invalidation
@@ -417,9 +434,9 @@ describe('UserService - Complete Test Suite', () => {
         exec: jest.fn().mockRejectedValue(new Error('DB Error')),
       });
 
-      await expect(
-        userService.deleteUser('test-user-id')
-      ).rejects.toThrow('Failed to delete user');
+      await expect(userService.deleteUser('test-user-id')).rejects.toThrow(
+        'Failed to delete user',
+      );
     });
   });
 
@@ -485,14 +502,14 @@ describe('UserService - Complete Test Suite', () => {
       (Client.init as jest.Mock).mockReturnValue(mockClient);
 
       await expect(
-        userService.deleteUserFromEntraId('test-user-id')
+        userService.deleteUserFromEntraId('test-user-id'),
       ).rejects.toThrow('Failed to delete user from Entra ID');
     });
 
     it('should throw InvalidInputError when userId is empty', async () => {
-      await expect(
-        userService.deleteUserFromEntraId('')
-      ).rejects.toThrow('Valid userId is required');
+      await expect(userService.deleteUserFromEntraId('')).rejects.toThrow(
+        'Valid userId is required',
+      );
     });
 
     it('should throw AzureAuthError when token acquisition fails', async () => {
@@ -502,7 +519,7 @@ describe('UserService - Complete Test Suite', () => {
       (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
 
       await expect(
-        userService.deleteUserFromEntraId('test-user-id')
+        userService.deleteUserFromEntraId('test-user-id'),
       ).rejects.toThrow('Failed to acquire Graph token');
     });
   });
@@ -516,7 +533,7 @@ describe('UserService - Complete Test Suite', () => {
       (User.create as jest.Mock).mockRejectedValue({ code: 11000 });
 
       await expect(
-        userService.createUserFromToken(mockRequest as Request)
+        userService.createUserFromToken(mockRequest as Request),
       ).rejects.toThrow(ReregistrationBlockedError);
     });
 
@@ -528,7 +545,7 @@ describe('UserService - Complete Test Suite', () => {
       };
 
       (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn()
+        async (key, fetchFn) => fetchFn(),
       );
 
       (User.findOne as jest.Mock).mockReturnValue({
@@ -538,7 +555,7 @@ describe('UserService - Complete Test Suite', () => {
       });
 
       await expect(
-        userService.checkIfUserExist(mockRequest as Request)
+        userService.checkIfUserExist(mockRequest as Request),
       ).rejects.toThrow(ReregistrationBlockedError);
     });
 
@@ -551,13 +568,13 @@ describe('UserService - Complete Test Suite', () => {
       });
 
       await expect(
-        userService.createUserFromToken(mockRequest as Request)
+        userService.createUserFromToken(mockRequest as Request),
       ).resolves.not.toThrow();
     });
 
     it('SCENARIO 4: New month, checkIfUserExist returns null (fresh start)', async () => {
       (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn()
+        async (key, fetchFn) => fetchFn(),
       );
 
       (User.findOne as jest.Mock).mockReturnValue({
@@ -569,6 +586,106 @@ describe('UserService - Complete Test Suite', () => {
       const result = await userService.checkIfUserExist(mockRequest as Request);
 
       expect(result).toBeNull();
+    });
+  });
+
+  // ==========================================================================
+  // CHANGE USER PLAN - Atomic Upgrade/Downgrade logic
+  // ==========================================================================
+  describe('changeUserPlan - Transactional Update', () => {
+    let mockSession: any;
+
+    beforeEach(() => {
+      mockSession = {
+        startTransaction: jest.fn(),
+        commitTransaction: jest.fn(),
+        abortTransaction: jest.fn(),
+        endSession: jest.fn(),
+      };
+      (mongoose.startSession as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(mockSession);
+
+      (getPlanMetadata as jest.Mock).mockReturnValue({
+        limits: { max: 5, current: 5, min: 0 },
+        botLimits: { max: 10, current: 10, min: 0 },
+      });
+    });
+
+    it('should successfully update user and documents within a transaction', async () => {
+      const userId = 'test-user-id';
+      const targetPlan = 'premium';
+
+      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ userId, plan: targetPlan }),
+      });
+
+      // 2. Mock Document bulk update success
+      (Document.updateMany as jest.Mock).mockResolvedValue({
+        acknowledged: true,
+      });
+
+      await userService.changeUserPlan(userId, targetPlan as any);
+
+      // Verify Transaction Flow
+      expect(mongoose.startSession).toHaveBeenCalled();
+      expect(mockSession.startTransaction).toHaveBeenCalled();
+
+      // Verify User update was called with the session
+      expect(User.findOneAndUpdate).toHaveBeenCalledWith(
+        { userId, status: 'active' },
+        expect.any(Object),
+        expect.objectContaining({ session: mockSession }),
+      );
+
+      // Verify Document Bulk update was called with the session
+      expect(Document.updateMany).toHaveBeenCalledWith(
+        { userId },
+        expect.any(Object),
+        { session: mockSession },
+      );
+
+      // Verify Commit and Cleanup
+      expect(mockSession.commitTransaction).toHaveBeenCalled();
+      expect(cacheService.delete).toHaveBeenCalledWith(`user:${userId}`);
+      expect(cacheService.invalidateTag).toHaveBeenCalledWith(
+        `tag:user:${userId}`,
+      );
+      expect(mockSession.endSession).toHaveBeenCalled();
+    });
+
+    it('should rollback transaction and throw UserNotFoundError if user is missing', async () => {
+      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        userService.changeUserPlan('invalid-id', 'premium' as any),
+      ).rejects.toThrow(UserNotFoundError);
+
+      expect(mockSession.abortTransaction).toHaveBeenCalled();
+      expect(mockSession.commitTransaction).not.toHaveBeenCalled();
+      expect(mockSession.endSession).toHaveBeenCalled();
+    });
+
+    it('should rollback transaction and throw DatabaseError if document update fails', async () => {
+      // User update succeeds
+      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ userId: 'test-user-id' }),
+      });
+
+      // Document update fails
+      (Document.updateMany as jest.Mock).mockRejectedValue(
+        new Error('Update failed'),
+      );
+
+      await expect(
+        userService.changeUserPlan('test-user-id', 'premium' as any),
+      ).rejects.toThrow(DatabaseError);
+
+      expect(mockSession.abortTransaction).toHaveBeenCalled();
+      expect(cacheService.delete).not.toHaveBeenCalled();
+      expect(mockSession.endSession).toHaveBeenCalled();
     });
   });
 });

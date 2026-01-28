@@ -6,7 +6,7 @@
 /**
  * Models
  */
-import User from '@/models/user.model';
+import User, { PlanType } from '@/models/user.model';
 
 /**
  * Interfaces
@@ -31,7 +31,6 @@ import type { Request } from 'express';
 import config from '@/config';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
-import redis from '@/lib/redis';
 import {
   InvalidInputError,
   AzureAuthError,
@@ -39,8 +38,12 @@ import {
   DatabaseError,
   ReregistrationBlockedError,
   ErrorSerializer,
+  UserNotFoundError,
 } from '@/lib/api_response/error';
 import { cacheService } from '../redis-cache/redis-cache.service';
+import mongoose from 'mongoose';
+import { getPlanMetadata } from '@/utils/user.utils';
+import Document from '@/models/document.model';
 
 @injectable()
 export class UserService implements IUserService {
@@ -224,6 +227,50 @@ export class UserService implements IUserService {
         error: ErrorSerializer.serialize(error),
       });
       throw new DatabaseError('Failed to create user');
+    }
+  }
+
+  async changeUserPlan(userId: string, targetPlan: PlanType): Promise<void> {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const { limits, botLimits } = getPlanMetadata(targetPlan);
+
+      const updatedUser = await User.findOneAndUpdate(
+        { userId, status: 'active' },
+        {
+          $set: {
+            plan: targetPlan,
+            lengthOfDocs: { [targetPlan]: limits },
+            updatedAt: new Date(),
+          },
+        },
+        { session, new: true },
+      ).exec();
+
+      if (!updatedUser) throw new UserNotFoundError();
+
+      await Document.updateMany(
+        { userId },
+        { $set: { chatBotPrompt: { [targetPlan]: botLimits } } },
+        { session },
+      );
+
+      await session.commitTransaction();
+      await cacheService.delete(`user:${userId}`);
+      await cacheService.invalidateTag(`tag:user:${userId}`);
+      logger.info(`Plan changed to ${targetPlan} for user ${userId}`);
+    } catch (error) {
+      await session.abortTransaction();
+      logger.error('Plan change failed, transaction rolled back', {
+        userId,
+        error,
+      });
+      if (error instanceof UserNotFoundError) throw error;
+      throw new DatabaseError('Failed to change user plan');
+    } finally {
+      session.endSession();
     }
   }
 }

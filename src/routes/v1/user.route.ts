@@ -19,11 +19,10 @@ import validationError from '@/middlewares/validationError';
 import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 import { param } from 'express-validator';
 import {
+  changeUserPlan,
   createUser,
   deleteUser,
-  downgradeUserPlan,
   getUserDetails,
-  upgradeUserPlan,
 } from '@/controllers/user/user.controller';
 import authenticate from '@/middlewares/authenticate';
 import { getAllDocuments } from '@/controllers/document/document.controller';
@@ -37,24 +36,7 @@ router.get('/', validationError, createUser, getAllDocuments);
 
 // upgrade userplan
 router.patch(
-  '/plan/upgrade/:plan',
-  param('plan')
-    .isString()
-    .withMessage('Invalid plan. Plan must be a string.')
-    .notEmpty()
-    .withMessage('Invalid plan. Plan must not be empty.')
-    .isLength({ min: 7, max: 8 })
-    .withMessage('Invalid plan. Plan must be between 7 and 8 characters long.')
-    .isIn(['premium', 'standard'])
-    .withMessage(
-      'Invalid plan. Plan must be one of the following: premium, standard.',
-    ),
-  validationError,
-  resetPropertiesIfNewMonth,
-  upgradeUserPlan,
-);
-router.patch(
-  '/plan/downgrade/:plan',
+  '/plan/:plan',
   param('plan')
     .isString()
     .withMessage('Invalid plan. Plan must be a string.')
@@ -62,14 +44,31 @@ router.patch(
     .withMessage('Invalid plan. Plan must not be empty.')
     .isLength({ min: 4, max: 8 })
     .withMessage('Invalid plan. Plan must be between 4 and 8 characters long.')
-    .isIn(['free', 'standard'])
+    .isIn(['free','premium', 'standard'])
     .withMessage(
-      'Invalid plan. Plan must be one of the following: free, standard.',
+      'Invalid plan. Plan must be one of the following: free, premium, standard.',
     ),
   validationError,
   resetPropertiesIfNewMonth,
-  downgradeUserPlan,
+  changeUserPlan,
 );
+// router.patch(
+//   '/plan/downgrade/:plan',
+//   param('plan')
+//     .isString()
+//     .withMessage('Invalid plan. Plan must be a string.')
+//     .notEmpty()
+//     .withMessage('Invalid plan. Plan must not be empty.')
+//     .isLength({ min: 4, max: 8 })
+//     .withMessage('Invalid plan. Plan must be between 4 and 8 characters long.')
+//     .isIn(['free', 'standard'])
+//     .withMessage(
+//       'Invalid plan. Plan must be one of the following: free, standard.',
+//     ),
+//   validationError,
+//   resetPropertiesIfNewMonth,
+//   downgradeUserPlan,
+// );
 
 router.get('/plan', validationError, resetPropertiesIfNewMonth, getUserDetails);
 

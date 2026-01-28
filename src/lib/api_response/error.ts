@@ -100,15 +100,9 @@ export class ReregistrationBlockedError extends ForbiddenError {
   }
 }
 
-export class PlanUpgradeError extends ForbiddenError {
+export class PlanChangeError extends ForbiddenError {
   constructor(message: string) {
-    super(message, 'PLAN_UPGRADE_ERROR');
-  }
-}
-
-export class PlanDowngradeError extends ForbiddenError {
-  constructor(message: string) {
-    super(message, 'PLAN_DOWNGRADE_ERROR');
+    super(message, 'PLAN_CHANGE_ERROR');
   }
 }
 

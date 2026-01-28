@@ -21,8 +21,8 @@ import {
 import { logger } from '@/lib/winston';
 import { IChatMessage } from '@/models/chatbotHistory.model';
 import { IDocument } from '@/models/document.model';
-import { validateDocument } from '@/utils/validateDocument';
 import path from 'path';
+import { validateDocument } from '@/utils/document.utils';
 
 const translateQueueService = new TranslateQueueService();
 

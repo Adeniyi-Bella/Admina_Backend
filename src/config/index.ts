@@ -8,11 +8,6 @@
  */
 import dotenv from 'dotenv';
 
-/**
- * Types
- */
-import type ms from 'ms';
-
 dotenv.config();
 
 const config = {

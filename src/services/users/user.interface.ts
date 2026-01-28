@@ -6,6 +6,7 @@
 /**
  * Types
  */
+import { PlanType } from '@/models/user.model';
 import {  UserDTO } from '@/types';
 import type { Request } from 'express';
 
@@ -20,6 +21,7 @@ export interface IUserService {
   ): Promise<boolean>;
   deleteUser(userId: string): Promise<void>;
   deleteUserFromEntraId(userId: string): Promise<boolean>;
+  changeUserPlan(userId: string, targetPlan: PlanType): Promise<void>;
 }
 export { UserDTO };
 
