@@ -214,149 +214,84 @@ describe('UserService - Complete Test Suite', () => {
   // ==========================================================================
   // UPDATE USER - Property Updates & Cache Invalidation
   // ==========================================================================
-  describe('updateUser - User Property Updates', () => {
-    it('should update user property with $set and invalidate cache', async () => {
-      const mockUser = {
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        plan: 'premium',
-      };
+  describe('updateUser - Plan Limit Decrement', () => {
+    const userId = 'test-user-id';
 
-      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
+    it('should dynamically target the "free" plan path and invalidate cache', async () => {
+      // Mock updateOne to return a dummy result
+      (User.updateOne as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ matchedCount: 1 }),
       });
 
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
-      (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
+      await userService.updateUser(userId, 'free');
 
-      const result = await userService.updateUser(
-        'test-user-id',
-        'plan',
-        false,
-        'premium',
-      );
-
-      expect(result).toBe(true);
-      expect(User.findOneAndUpdate).toHaveBeenCalledWith(
-        { userId: 'test-user-id', status: 'active' },
-        { $set: { plan: 'premium', updatedAt: expect.any(Date) } },
-        { new: true, projection: { __v: 0 } },
-      );
-
-      expect(cacheService.delete).toHaveBeenCalledWith('user:test-user-id');
-      expect(cacheService.invalidateTag).toHaveBeenCalledWith(
-        'tag:user:test-user-id',
-      );
-    });
-
-    it('should decrement property with $inc when decrement=true', async () => {
-      const mockUser = {
-        userId: 'test-user-id',
-        lengthOfDocs: { free: { current: 1 } },
-      };
-
-      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
-      });
-
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
-      (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
-
-      const result = await userService.updateUser(
-        'test-user-id',
-        'lengthOfDocs.free.current',
-        true,
-        undefined,
-      );
-
-      expect(result).toBe(true);
-      expect(User.findOneAndUpdate).toHaveBeenCalledWith(
-        { userId: 'test-user-id', status: 'active' },
+      // 1. Verify dynamic path construction and atomic guard ($gt: 0)
+      expect(User.updateOne).toHaveBeenCalledWith(
+        {
+          userId,
+          status: 'active',
+          'lengthOfDocs.free.current': { $gt: 0 },
+        },
         {
           $inc: { 'lengthOfDocs.free.current': -1 },
           $set: { updatedAt: expect.any(Date) },
         },
-        { new: true, projection: { __v: 0 } },
+      );
+
+      // 2. Verify both specific key delete and tag invalidation
+      expect(cacheService.delete).toHaveBeenCalledWith(`user:${userId}`);
+      expect(cacheService.invalidateTag).toHaveBeenCalledWith(
+        `tag:user:${userId}`,
       );
     });
 
-    it('should return false when user not found or not active', async () => {
-      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
+    it('should dynamically target the "standard" plan path', async () => {
+      (User.updateOne as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ matchedCount: 1 }),
       });
 
-      const result = await userService.updateUser(
-        'non-existent',
-        'plan',
-        false,
-        'premium',
-      );
+      await userService.updateUser(userId, 'standard');
 
-      expect(result).toBe(false);
-      expect(cacheService.delete).not.toHaveBeenCalled();
-      expect(cacheService.invalidateTag).not.toHaveBeenCalled();
-    });
-
-    it('should update nested object properties correctly', async () => {
-      const mockUser = {
-        userId: 'test-user-id',
-        lengthOfDocs: { standard: { max: 3, min: 0, current: 3 } },
-      };
-
-      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
-      });
-
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
-      (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
-
-      await userService.updateUser('test-user-id', 'lengthOfDocs', false, {
-        standard: { max: 3, min: 0, current: 3 },
-      });
-
-      expect(User.findOneAndUpdate).toHaveBeenCalledWith(
-        { userId: 'test-user-id', status: 'active' },
-        {
-          $set: {
-            lengthOfDocs: { standard: { max: 3, min: 0, current: 3 } },
-            updatedAt: expect.any(Date),
-          },
-        },
-        { new: true, projection: { __v: 0 } },
+      expect(User.updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'lengthOfDocs.standard.current': { $gt: 0 },
+        }),
+        expect.objectContaining({
+          $inc: { 'lengthOfDocs.standard.current': -1 },
+        }),
       );
     });
 
-    it('should throw DatabaseError on update failure', async () => {
-      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockRejectedValue(new Error('Connection timeout')),
+    it('should throw DatabaseError if the database operation fails', async () => {
+      (User.updateOne as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockRejectedValue(new Error('Network error')),
       });
 
+      // Verify the specific error wrapping logic in your implementation
       await expect(
-        userService.updateUser('test-user-id', 'plan', false, 'premium'),
-      ).rejects.toThrow('Failed to update plan');
+        userService.updateUser(userId, 'premium' as any),
+      ).rejects.toThrow('Failed to update user details');
     });
 
-    it('should still return true if cache invalidation fails', async () => {
-      const mockUser = {
-        userId: 'test-user-id',
-        plan: 'premium',
-      };
-
-      (User.findOneAndUpdate as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockUser),
+    it('should complete successfully even if Redis is down (handled by RedisCacheService)', async () => {
+      // 1. DB Update succeeds
+      (User.updateOne as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ matchedCount: 1 }),
       });
 
+      // 2. Mock Redis failure the way your service actually handles it:
+      // Your RedisCacheService catches errors and returns false, it DOES NOT throw.
       (cacheService.delete as jest.Mock).mockResolvedValue(false);
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(false);
 
-      const result = await userService.updateUser(
-        'test-user-id',
-        'plan',
-        false,
-        'premium',
-      );
+      // 3. The UserService should resolve successfully because the DB part worked
+      // and the cache failure didn't throw an exception.
+      await expect(
+        userService.updateUser(userId, 'free'),
+      ).resolves.not.toThrow();
 
-      expect(result).toBe(true);
+      // Verify that even though it returned false, the logic proceeded
+      expect(User.updateOne).toHaveBeenCalled();
     });
   });
 

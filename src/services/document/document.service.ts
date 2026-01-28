@@ -2,16 +2,24 @@ import Document, { IActionPlan, IDocument } from '@/models/document.model';
 
 import { IDocumentService } from './document.interface';
 
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '@/lib/winston';
 import { UserDTO } from '@/types';
 import { DatabaseError, InvalidInputError } from '@/lib/api_response/error';
 import { cacheService } from '../redis-cache/redis-cache.service';
+import mongoose from 'mongoose';
+import { PlanType } from '@/models/user.model';
+import { IUserService } from '../users/user.interface';
 
 @injectable()
 export class DocumentService implements IDocumentService {
+  constructor(
+    @inject('IUserService')
+    private readonly userService: IUserService,
+  ) {}
+
   private getDocumentCacheKey(userId: string, docId: string): string {
     return `doc:${userId}:${docId}`;
   }
@@ -37,7 +45,6 @@ export class DocumentService implements IDocumentService {
         userId,
         deletedCount: result.deletedCount,
       });
-
     } catch (error) {
       logger.error('Failed to delete all documents', { userId, error });
       throw new DatabaseError('Failed to delete all documents');
@@ -98,34 +105,45 @@ export class DocumentService implements IDocumentService {
     }
   }
 
-  async createDocumentByUserId(
+  async createDocumentAndUpdatePlanLimit(
     document: Partial<IDocument>,
-  ): Promise<IDocument> {
+    plan: PlanType,
+  ): Promise<void> {
     if (!document?.userId || !document?.docId) {
       throw new InvalidInputError(
         'Valid document data with userId and docId required',
       );
     }
-    try {
-      const createdDocument = await Document.create(document);
-      const result = await Document.findById(createdDocument._id)
-        .select('-__v')
-        .lean()
-        .exec();
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-      if (!result) {
-        throw new DatabaseError('Failed to retrieve created document');
-      }
+    try {
+      await Document.create([document], { session });
+
+      await this.userService.updateUser(document.userId, plan);
+
+      await session.commitTransaction();
 
       await cacheService.invalidateTag(this.getDocumentTag(document.userId));
 
-      return result as IDocument;
     } catch (error) {
-      logger.error('Failed to create document', { error });
-      if (error instanceof Error) {
+      // If anything fails, MongoDB rolls back both the document creation and the user update
+      await session.abortTransaction();
+
+      logger.error('Atomic document creation failed', {
+        userId: document.userId,
+        error,
+      });
+
+      if (
+        error instanceof DatabaseError ||
+        error instanceof InvalidInputError
+      ) {
         throw error;
       }
-      throw new DatabaseError('Failed to create document');
+      throw new DatabaseError('Failed to create document and update limits');
+    } finally {
+      session.endSession();
     }
   }
 

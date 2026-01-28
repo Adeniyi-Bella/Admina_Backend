@@ -140,36 +140,31 @@ export class UserService implements IUserService {
     }
   }
 
-  async updateUser(
-    userId: string,
-    property: string,
-    decrement: boolean,
-    value: string | undefined | number | {},
-  ): Promise<boolean> {
+  async updateUser(userId: string, plan: PlanType): Promise<void> {
     try {
-      const query = { userId, status: 'active' };
+      const planLimitPath = `lengthOfDocs.${plan}.current`;
 
-      const update = decrement
-        ? { $inc: { [property]: -1 }, $set: { updatedAt: new Date() } }
-        : { $set: { [property]: value, updatedAt: new Date() } };
-
-      const updatedUser = await User.findOneAndUpdate(query, update, {
-        new: true,
-        projection: { __v: 0 },
-      }).exec();
-
-      if (!updatedUser) {
-        logger.warn(`User not found or ${property} not updated`, { userId });
-        return false;
-      }
+      await User.updateOne(
+        {
+          userId,
+          status: 'active',
+          [planLimitPath]: { $gt: 0 },
+        },
+        {
+          $inc: { [planLimitPath]: -1 },
+          $set: { updatedAt: new Date() },
+        },
+      ).exec();
 
       await cacheService.delete(`user:${userId}`);
       await cacheService.invalidateTag(`tag:user:${userId}`);
-
-      return true;
     } catch (error) {
-      logger.error(`Error updating ${property}`, { userId, property, error });
-      throw new DatabaseError(`Failed to update ${property}`);
+      logger.error("Failed to decrease user docs limit after document processing", {
+        userId,
+        plan,
+        error,
+      });
+      throw new DatabaseError(`Failed to update user details`);
     }
   }
 

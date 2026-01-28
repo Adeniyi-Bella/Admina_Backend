@@ -7,7 +7,6 @@ import redis from '@/lib/redis';
 import { logger, logtail } from '@/lib/winston';
 import { IGeminiAIService } from '@/services/ai-models/gemini-ai/geminiai.interface';
 import { IDocumentService } from '@/services/document/document.interface';
-import { IUserService } from '@/services/users/user.interface';
 import { IActionPlan, IDocument } from '@/models/document.model';
 import { v4 as uuidv4 } from 'uuid';
 import { FileMulter, JobData } from './types';
@@ -15,10 +14,9 @@ import { connectToDatabase, disconnectFromDatabase } from '@/lib/mongoose'; // I
 import {
   DatabaseError,
   ErrorSerializer,
-  InternalServerError,
-  InvalidInputError,
 } from './lib/api_response/error';
 import fs from 'fs/promises';
+import { PlanType } from '@/models/user.model';
 
 class TranslationWorker {
   private readonly queueName = 'translation-queue';
@@ -80,7 +78,6 @@ class TranslationWorker {
         container.resolve<IGeminiAIService>('IGeminiAIService');
       const documentService =
         container.resolve<IDocumentService>('IDocumentService');
-      const userService = container.resolve<IUserService>('IUserService');
 
       const fileBuffer = await fs.readFile(file.filePath);
 
@@ -113,6 +110,7 @@ class TranslationWorker {
         translatedDocument.translatedText!,
         targetLanguage,
       );
+      await redis.hset(jobKey, 'status', 'saving');
 
       const documentData: IDocument = {
         title: summarizedTextDocument.title || '',
@@ -137,15 +135,15 @@ class TranslationWorker {
         pdfBlobStorage: false,
       };
 
-      logger.info(`[Job Progress] Doc: ${docId} -> Saving to DB`, { jobId });
+      logger.info(
+        `[Job Progress] Doc: ${docId} -> Creating Document and Saving to DB`,
+        { jobId },
+      );
 
-      await documentService.createDocumentByUserId(documentData);
-
-      const planKey =
-        user.plan === 'free'
-          ? 'lengthOfDocs.free.current'
-          : 'lengthOfDocs.standard.current';
-      await userService.updateUser(user.userId, planKey, true, undefined);
+      await documentService.createDocumentAndUpdatePlanLimit(
+        documentData,
+        user.plan as PlanType,
+      );
 
       const duration = (Date.now() - startTime) / 1000;
       logger.info(
@@ -156,7 +154,6 @@ class TranslationWorker {
       await fs
         .unlink(file.filePath)
         .catch((err) => logger.error('Failed to delete temp file', err));
-
     } catch (error: any) {
       const isFinalAttempt = attemptsMade + 1 >= (job.opts.attempts || 1);
 
@@ -173,8 +170,10 @@ class TranslationWorker {
         error: error.message,
       });
       if (job.attemptsMade + 1 >= (job.opts.attempts || 1)) {
-        await fs.unlink(file.filePath).catch(() => {});
-    }
+        await fs
+          .unlink(file.filePath)
+          .catch((err) => logger.error('Failed to delete temp file', err));
+      }
 
       throw error;
     }

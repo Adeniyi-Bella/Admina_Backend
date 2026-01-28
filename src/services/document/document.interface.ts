@@ -7,7 +7,8 @@
  * Types
  */
 import { IActionPlan, IDocument } from '@/models/document.model';
-import {  UserDTO } from '@/types';
+import { PlanType } from '@/models/user.model';
+import { UserDTO } from '@/types';
 
 export interface IDocumentService {
   getAllDocumentsByUserId(
@@ -19,12 +20,12 @@ export interface IDocumentService {
     documents: IDocument[];
   }>;
 
-  createDocumentByUserId(document: Partial<IDocument>): Promise<IDocument>;
+  createDocumentAndUpdatePlanLimit(
+    document: Partial<IDocument>,
+    plan: PlanType,
+  ): Promise<void>;
 
-  getDocument(
-    user: UserDTO,
-    docId: string,
-  ): Promise<IDocument | null >;
+  getDocument(user: UserDTO, docId: string): Promise<IDocument | null>;
 
   deleteDocument(userId: string, docId: string): Promise<boolean>;
 
