@@ -16,6 +16,7 @@ module.exports = {
           status: 'active',
           deletedAt: null,
           permanentDeleteAt: null,
+          cleanUpCompleted: false,
         },
       },
     );

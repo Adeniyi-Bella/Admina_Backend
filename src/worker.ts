@@ -10,7 +10,7 @@ import { IDocumentService } from '@/services/document/document.interface';
 import { IActionPlan, IDocument } from '@/models/document.model';
 import { v4 as uuidv4 } from 'uuid';
 import { FileMulter, JobData } from './types';
-import { connectToDatabase, disconnectFromDatabase } from '@/lib/mongoose'; // Import shared logic
+import { connectToDatabase, disconnectFromDatabase } from '@/lib/mongoose';
 import {
   DatabaseError,
   ErrorSerializer,

@@ -2,21 +2,19 @@ import { container } from 'tsyringe';
 import { Request, Response, NextFunction } from 'express';
 import { asyncHandler } from '@/middlewares/errorHandler';
 import { IUserService } from '@/services/users/user.interface';
-import { IDocumentService } from '@/services/document/document.interface';
 import { PlanChangeError, UserNotFoundError } from '@/lib/api_response/error';
 import { IPlans } from '@/types';
 import { logger } from '@/lib/winston';
 import { ApiResponse } from '@/lib/api_response';
-import { IChatBotService } from '@/services/chatbot/chatbot.interface';
 import { PlanType } from '@/models/user.model';
 
 import { planHierarchy } from '@/utils/user.utils';
 
 export const createUser = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  async (req: Request, _, next: NextFunction): Promise<void> => {
     const userService = container.resolve<IUserService>('IUserService');
 
-    let user = await userService.checkIfUserExist(req);
+    const user = await userService.checkIfUserExist(req);
 
     if (!user) {
       await userService.createUserFromToken(req);
@@ -36,19 +34,11 @@ export const createUser = asyncHandler(
 export const deleteUser = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const userService = container.resolve<IUserService>('IUserService');
-    const docService = container.resolve<IDocumentService>('IDocumentService');
-    const chatBotService =
-      container.resolve<IChatBotService>('IChatBotService');
 
     const user = await userService.checkIfUserExist(req);
     if (!user) {
       throw new UserNotFoundError();
     }
-
-    await Promise.allSettled([
-      chatBotService.deleteChatHistoryByUserId(req.userId),
-      docService.deleteAllDocuments(req.userId),
-    ]);
 
     await userService.deleteUser(req.userId);
 
@@ -56,9 +46,12 @@ export const deleteUser = asyncHandler(
       req.userId,
     );
     if (!deletedFromEntraId) {
-      logger.warn('User not found in Entra ID for deletion', {
-        userId: req.userId,
-      });
+      logger.warn(
+        'Something unexpected and unknown happened during user deletion from Entra ID',
+        {
+          userId: req.userId,
+        },
+      );
     }
 
     ApiResponse.noContent(res);

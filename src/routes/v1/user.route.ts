@@ -52,23 +52,6 @@ router.patch(
   resetPropertiesIfNewMonth,
   changeUserPlan,
 );
-// router.patch(
-//   '/plan/downgrade/:plan',
-//   param('plan')
-//     .isString()
-//     .withMessage('Invalid plan. Plan must be a string.')
-//     .notEmpty()
-//     .withMessage('Invalid plan. Plan must not be empty.')
-//     .isLength({ min: 4, max: 8 })
-//     .withMessage('Invalid plan. Plan must be between 4 and 8 characters long.')
-//     .isIn(['free', 'standard'])
-//     .withMessage(
-//       'Invalid plan. Plan must be one of the following: free, standard.',
-//     ),
-//   validationError,
-//   resetPropertiesIfNewMonth,
-//   downgradeUserPlan,
-// );
 
 router.get('/plan', validationError, resetPropertiesIfNewMonth, getUserDetails);
 

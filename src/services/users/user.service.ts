@@ -33,8 +33,6 @@ import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import {
   InvalidInputError,
-  AzureAuthError,
-  GraphAPIError,
   DatabaseError,
   ReregistrationBlockedError,
   ErrorSerializer,
@@ -70,11 +68,10 @@ export class UserService implements IUserService {
   }
 
   async deleteUserFromEntraId(userId: string): Promise<boolean> {
-    if (!userId) {
-      throw new InvalidInputError('Valid userId is required');
-    }
-
     try {
+      if (!userId) {
+        throw new InvalidInputError('Valid userId is required');
+      }
       const cca = new ConfidentialClientApplication(this.config);
 
       const result = await cca.acquireTokenByClientCredential({
@@ -82,10 +79,10 @@ export class UserService implements IUserService {
       });
 
       if (!result?.accessToken) {
-        logger.error('Failed to acquire Graph token for Entra ID deletion', {
+        logger.warn('Failed to acquire Graph token for Entra ID deletion', {
           userId,
         });
-        throw new AzureAuthError('Failed to acquire Graph token');
+        return false;
       }
 
       const client = Client.init({
@@ -95,16 +92,42 @@ export class UserService implements IUserService {
       await client.api(`/users/${userId}`).delete();
       return true;
     } catch (error: any) {
-      if (error.statusCode === 404) {
-        logger.warn('User not found in Entra ID for deletion', { userId });
-        return false;
-      }
+      const status =
+        error?.statusCode ?? error?.response?.status ?? error?.status ?? 500;
 
-      if (error instanceof AzureAuthError) {
-        throw error;
+      switch (status) {
+        case 404:
+          logger.warn('User not found in Entra ID (already deleted)', {
+            userId,
+            status,
+            error,
+          });
+          return true;
+        case 400:
+          logger.warn('Valid userId is required or a microsoft problem)', {
+            userId,
+            status,
+            error,
+          });
+          return true;
+
+        case 401:
+        case 403:
+          logger.warn('Unauthorized to delete user from Entra ID', {
+            userId,
+            status,
+            error,
+          });
+          return true;
+
+        default:
+          logger.warn('Failed to delete user from Entra ID', {
+            userId,
+            status,
+            error,
+          });
+          return false;
       }
-      logger.error('Failed to delete user from Entra ID', { userId, error });
-      throw new GraphAPIError('Failed to delete user from Entra ID');
     }
   }
 
@@ -159,11 +182,14 @@ export class UserService implements IUserService {
       await cacheService.delete(`user:${userId}`);
       await cacheService.invalidateTag(`tag:user:${userId}`);
     } catch (error) {
-      logger.error("Failed to decrease user docs limit after document processing", {
-        userId,
-        plan,
-        error,
-      });
+      logger.error(
+        'Failed to decrease user docs limit after document processing',
+        {
+          userId,
+          plan,
+          error,
+        },
+      );
       throw new DatabaseError(`Failed to update user details`);
     }
   }

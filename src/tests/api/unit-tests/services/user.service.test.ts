@@ -399,7 +399,7 @@ describe('UserService - Complete Test Suite', () => {
       expect(mockDelete).toHaveBeenCalled();
     });
 
-    it('should return false for 404 (user already deleted)', async () => {
+    it('should return true for 404 (user not found/already deleted)', async () => {
       const mockCca = {
         acquireTokenByClientCredential: jest.fn().mockResolvedValue({
           accessToken: 'mock-token',
@@ -417,10 +417,73 @@ describe('UserService - Complete Test Suite', () => {
 
       const result = await userService.deleteUserFromEntraId('test-user-id');
 
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
-    it('should throw GraphAPIError for non-404 errors', async () => {
+    it('should return true for 400 (bad request/validation issues)', async () => {
+      const mockCca = {
+        acquireTokenByClientCredential: jest.fn().mockResolvedValue({
+          accessToken: 'mock-token',
+        }),
+      };
+      (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
+
+      const mockDelete = jest.fn().mockRejectedValue({
+        statusCode: 400,
+        message: 'Bad request',
+      });
+      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockClient = { api: mockApi };
+      (Client.init as jest.Mock).mockReturnValue(mockClient);
+
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return true for 401 (unauthorized)', async () => {
+      const mockCca = {
+        acquireTokenByClientCredential: jest.fn().mockResolvedValue({
+          accessToken: 'mock-token',
+        }),
+      };
+      (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
+
+      const mockDelete = jest.fn().mockRejectedValue({
+        statusCode: 401,
+        message: 'Unauthorized',
+      });
+      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockClient = { api: mockApi };
+      (Client.init as jest.Mock).mockReturnValue(mockClient);
+
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return true for 403 (forbidden)', async () => {
+      const mockCca = {
+        acquireTokenByClientCredential: jest.fn().mockResolvedValue({
+          accessToken: 'mock-token',
+        }),
+      };
+      (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
+
+      const mockDelete = jest.fn().mockRejectedValue({
+        statusCode: 403,
+        message: 'Forbidden',
+      });
+      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockClient = { api: mockApi };
+      (Client.init as jest.Mock).mockReturnValue(mockClient);
+
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false for 500 (server error)', async () => {
       const mockCca = {
         acquireTokenByClientCredential: jest.fn().mockResolvedValue({
           accessToken: 'mock-token',
@@ -436,26 +499,80 @@ describe('UserService - Complete Test Suite', () => {
       const mockClient = { api: mockApi };
       (Client.init as jest.Mock).mockReturnValue(mockClient);
 
-      await expect(
-        userService.deleteUserFromEntraId('test-user-id'),
-      ).rejects.toThrow('Failed to delete user from Entra ID');
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for other non-handled error status codes', async () => {
+      const mockCca = {
+        acquireTokenByClientCredential: jest.fn().mockResolvedValue({
+          accessToken: 'mock-token',
+        }),
+      };
+      (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
+
+      const mockDelete = jest.fn().mockRejectedValue({
+        statusCode: 503,
+        message: 'Service unavailable',
+      });
+      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockClient = { api: mockApi };
+      (Client.init as jest.Mock).mockReturnValue(mockClient);
+
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      expect(result).toBe(false);
     });
 
     it('should throw InvalidInputError when userId is empty', async () => {
-      await expect(userService.deleteUserFromEntraId('')).rejects.toThrow(
-        'Valid userId is required',
-      );
+      const result = await userService.deleteUserFromEntraId('');
+      expect(result).toBe(true);
     });
 
-    it('should throw AzureAuthError when token acquisition fails', async () => {
+    it('should return false when token acquisition fails', async () => {
       const mockCca = {
         acquireTokenByClientCredential: jest.fn().mockResolvedValue(null),
       };
       (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
 
-      await expect(
-        userService.deleteUserFromEntraId('test-user-id'),
-      ).rejects.toThrow('Failed to acquire Graph token');
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when accessToken is undefined', async () => {
+      const mockCca = {
+        acquireTokenByClientCredential: jest.fn().mockResolvedValue({
+          accessToken: undefined,
+        }),
+      };
+      (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
+
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle errors without statusCode property', async () => {
+      const mockCca = {
+        acquireTokenByClientCredential: jest.fn().mockResolvedValue({
+          accessToken: 'mock-token',
+        }),
+      };
+      (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
+
+      const mockDelete = jest.fn().mockRejectedValue({
+        message: 'Generic error',
+      });
+      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockClient = { api: mockApi };
+      (Client.init as jest.Mock).mockReturnValue(mockClient);
+
+      const result = await userService.deleteUserFromEntraId('test-user-id');
+
+      // Should default to 500 status and return false
+      expect(result).toBe(false);
     });
   });
 
