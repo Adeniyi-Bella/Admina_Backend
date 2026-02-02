@@ -6,13 +6,13 @@
 /**
  * Models
  */
-import User, { PlanType } from '@/models/user.model';
+import User, { PlanLimits, PlanType } from '@/models/user.model';
 
 /**
  * Interfaces
  */
 import { IUserService } from './user.interface';
-import { UserDTO } from '@/types';
+import { QuotaResetUser, UserDTO } from '@/types';
 
 /**
  * Node modules
@@ -41,7 +41,7 @@ import {
 import { cacheService } from '../redis-cache/redis-cache.service';
 import mongoose from 'mongoose';
 import { getPlanMetadata } from '@/utils/user.utils';
-import Document from '@/models/document.model';
+import Document, { ChatbotPlanLimits } from '@/models/document.model';
 
 @injectable()
 export class UserService implements IUserService {
@@ -58,16 +58,11 @@ export class UserService implements IUserService {
     return new Date(now.getFullYear(), now.getMonth() + 1, 1);
   }
 
-  private mapUserToDTO(user: Required<UserDTO>): Required<UserDTO> {
-    return {
-      userId: String(user.userId),
-      plan: user.plan,
-      lengthOfDocs: user.lengthOfDocs,
-      email: user.email,
-    };
+  private getUserTag(userId: string): string {
+    return `tag:user:${userId}`;
   }
 
-  async deleteUserFromEntraId(userId: string): Promise<boolean> {
+  public async deleteUserFromEntraId(userId: string): Promise<boolean> {
     try {
       if (!userId) {
         throw new InvalidInputError('Valid userId is required');
@@ -131,7 +126,7 @@ export class UserService implements IUserService {
     }
   }
 
-  async deleteUser(userId: string): Promise<void> {
+  public async deleteUser(userId: string): Promise<void> {
     const nextMonthDate = this.getStartOfNextMonth();
 
     try {
@@ -155,15 +150,14 @@ export class UserService implements IUserService {
         });
       }
 
-      await cacheService.delete(`user:${userId}`);
-      await cacheService.invalidateTag(`tag:user:${userId}`);
+      await cacheService.invalidateTag(this.getUserTag(userId));
     } catch (error) {
       logger.error('Error deleting user', { userId, error });
       throw new DatabaseError('Failed to delete user');
     }
   }
 
-  async updateUser(userId: string, plan: PlanType): Promise<void> {
+  public async updateUser(userId: string, plan: PlanType): Promise<void> {
     try {
       const planLimitPath = `lengthOfDocs.${plan}.current`;
 
@@ -179,8 +173,7 @@ export class UserService implements IUserService {
         },
       ).exec();
 
-      await cacheService.delete(`user:${userId}`);
-      await cacheService.invalidateTag(`tag:user:${userId}`);
+      await cacheService.invalidateTag(this.getUserTag(userId));
     } catch (error) {
       logger.error(
         'Failed to decrease user docs limit after document processing',
@@ -194,23 +187,23 @@ export class UserService implements IUserService {
     }
   }
 
-  async checkIfUserExist(req: Request): Promise<UserDTO | null> {
+  public async checkIfUserExist(req: Request): Promise<UserDTO | null> {
     const userId = req.userId;
     const userEmail = req.email;
     const cacheKey = `user:${userId}`;
 
-    return cacheService.getOrFetch<UserDTO | null>(
+    const user = await cacheService.getOrFetch<QuotaResetUser | null>(
       cacheKey,
       async () => {
         logger.info('Cache miss: fetching user from DB', { userEmail });
 
-        const user = await User.findOne({ email: userEmail })
+        const dbUser = await User.findOne({ email: userEmail })
           .select('-__v')
           .lean()
           .exec();
 
-        if (!user) return null;
-        if (user.status === 'deleted') {
+        if (!dbUser) return null;
+        if (dbUser.status === 'deleted') {
           logger.warn(
             'Blocked user attempted access in the same month of deletion',
             { userId },
@@ -218,9 +211,97 @@ export class UserService implements IUserService {
           throw new ReregistrationBlockedError();
         }
 
-        return this.mapUserToDTO(user);
+        await cacheService.addToTag(this.getUserTag(userId), cacheKey);
+
+        return {
+          userId: String(dbUser.userId),
+          plan: dbUser.plan,
+          lengthOfDocs: dbUser.lengthOfDocs,
+          email: dbUser.email,
+          monthlyQuotaResetAt: dbUser.monthlyQuotaResetAt,
+        };
       },
       3600,
+    );
+
+    if (!user) return null;
+
+    logger.info(
+      'Checking and performing monthly quota reset if required:',
+      user,
+    );
+
+    // 2. Eventual Consistency Reset Logic
+    if (this.isResetRequired(user.monthlyQuotaResetAt)) {
+      const now = new Date();
+      const startOfCurrentMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+      );
+
+      // ATOMIC UPDATE: Only one request per month will have modifiedCount > 0
+      const userUpdate = await User.updateOne(
+        {
+          userId,
+          $or: [
+            { monthlyQuotaResetAt: { $lt: startOfCurrentMonth } },
+            { monthlyQuotaResetAt: { $exists: false } },
+          ],
+        },
+        {
+          $set: {
+            lengthOfDocs: PlanLimits,
+            monthlyQuotaResetAt: startOfCurrentMonth,
+          },
+        },
+      ).exec();
+
+      if (userUpdate.modifiedCount > 0) {
+        logger.info('New Month Detected - Resetting Quotas', { userId });
+        try {
+          await Document.updateMany(
+            { userId },
+            { $set: { chatBotPrompt: ChatbotPlanLimits } },
+          ).exec();
+
+          // Clear cache so the NEXT request gets the fresh values
+          await cacheService.invalidateTag(this.getUserTag(userId));
+        } catch (error) {
+          logger.error('Document reset failed, rolling back user timestamp', {
+            userId,
+            error: ErrorSerializer.serialize(error),
+          });
+          try {
+            await User.updateOne(
+              { userId },
+              {
+                $set: {
+                  monthlyQuotaResetAt: new Date(
+                    startOfCurrentMonth.getTime() - 1,
+                  ),
+                },
+              },
+            ).exec();
+          } catch (rollbackError) {
+            logger.error('Critical: Rollback failed', {
+              userId,
+              rollbackError,
+            });
+          }
+        }
+      }
+    } else {
+      logger.info('Monthly quota reset not required', { userId });
+    }
+
+    return user;
+  }
+
+  private isResetRequired(lastResetDate: Date): boolean {
+    const now = new Date();
+    const lastReset = new Date(lastResetDate);
+    return (
+      lastReset.getUTCFullYear() !== now.getUTCFullYear() ||
+      lastReset.getUTCMonth() !== now.getUTCMonth()
     );
   }
 
@@ -230,11 +311,23 @@ export class UserService implements IUserService {
     const username = req.username;
 
     try {
-      await User.create({
-        userId,
-        email: email,
-        username: username,
-      });
+      const newUser = await User.create({ userId, email, username });
+
+      const dto: UserDTO = {
+        userId: String(newUser.userId),
+        plan: newUser.plan,
+        lengthOfDocs: newUser.lengthOfDocs,
+        email: newUser.email,
+      };
+
+      // ✅ WARM THE CACHE: Immediately store the user in Redis
+      const cacheKey = `user:${userId}`;
+      await cacheService.set(
+        cacheKey,
+        { ...dto, monthlyQuotaResetAt: newUser.monthlyQuotaResetAt },
+        3600,
+      );
+      await cacheService.addToTag(this.getUserTag(userId), cacheKey);
     } catch (error: any) {
       if (error.code === 11000) {
         logger.warn('User creation failed: Email exists (Duplicate Key)', {
@@ -279,8 +372,7 @@ export class UserService implements IUserService {
       );
 
       await session.commitTransaction();
-      await cacheService.delete(`user:${userId}`);
-      await cacheService.invalidateTag(`tag:user:${userId}`);
+      await cacheService.invalidateTag(this.getUserTag(userId));
       logger.info(`Plan changed to ${targetPlan} for user ${userId}`);
     } catch (error) {
       await session.abortTransaction();

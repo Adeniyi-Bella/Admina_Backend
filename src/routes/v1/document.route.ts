@@ -16,7 +16,6 @@ import { body, param, query } from 'express-validator';
 import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
 import verifyUploadedFile from '@/middlewares/verifyUploadedFile';
-import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 import { createDocument, deleteDocument, getAllDocuments, getDocument, getDocumentChatbotLimit, updateActionPlan } from '@/controllers/document/document.controller';
 
 /**
@@ -49,7 +48,6 @@ const upload = multer({
 });
 
 router.use(authenticate);
-router.use(resetPropertiesIfNewMonth);
 
 // Route to get all documents with optional pagination
 router.get(

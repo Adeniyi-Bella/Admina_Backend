@@ -15,6 +15,16 @@ export class RedisCacheService {
   private readonly BASE_TTL = 3600; // 1 hour
   private readonly MAX_JITTER = 300; // 5 minutes
 
+  private readonly INVALIDATE_TAG_SCRIPT = `
+    local tag = KEYS[1]
+    local members = redis.call('SMEMBERS', tag)
+    if #members > 0 then
+      redis.call('DEL', unpack(members))
+    end
+    redis.call('DEL', tag)
+    return #members
+  `;
+
   /**
    * Get with Request Coalescing
    * Prevents thundering herd by ensuring only one DB fetch per key
@@ -78,7 +88,8 @@ export class RedisCacheService {
     if (this.circuitBreakerOpen) return false;
 
     try {
-      const serialized = typeof value === 'object' ? JSON.stringify(value) : value;
+      const serialized =
+        typeof value === 'object' ? JSON.stringify(value) : value;
       await redis.hset(key, field, serialized);
       return true;
     } catch (error) {
@@ -91,7 +102,11 @@ export class RedisCacheService {
   /**
    * Set entire Hash with TTL
    */
-  async hmset(key: string, data: Record<string, any>, ttl?: number): Promise<boolean> {
+  async hmset(
+    key: string,
+    data: Record<string, any>,
+    ttl?: number,
+  ): Promise<boolean> {
     if (this.circuitBreakerOpen) return false;
 
     try {
@@ -101,10 +116,10 @@ export class RedisCacheService {
       }
 
       await redis.hset(key, serialized);
-      
+
       const ttlWithJitter = this.getTTLWithJitter(ttl);
       await redis.expire(key, ttlWithJitter);
-      
+
       return true;
     } catch (error) {
       logger.error('Redis hmset error', { key, error });
@@ -163,16 +178,21 @@ export class RedisCacheService {
 
   /**
    * Invalidate all keys under a tag
+   * - Lua script executes atomically
+   * - All operations happen in single Redis command
+   * - No race condition possible
    */
   async invalidateTag(tag: string): Promise<boolean> {
     if (this.circuitBreakerOpen) return false;
 
     try {
-      const keys = await redis.smembers(tag);
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
-      await redis.del(tag); // Remove the tag set itself
+      const deletedCount = await redis.eval(
+        this.INVALIDATE_TAG_SCRIPT,
+        1, // number of keys
+        tag, // KEYS[1]
+      );
+
+      logger.debug('Tag invalidated', { tag, deletedCount });
       return true;
     } catch (error) {
       logger.error('Redis invalidateTag error', { tag, error });
@@ -189,17 +209,23 @@ export class RedisCacheService {
     fetchFn: () => Promise<T>,
     ttl?: number
   ): Promise<T | null> {
-    // Check cache first
     const cached = await this.get<T>(key);
     if (cached !== null) return cached;
 
-    // Check if there's already a pending request for this key
     if (this.pendingRequests.has(key)) {
       logger.info('Request coalescing: waiting for pending fetch', { key });
-      return this.pendingRequests.get(key);
+      
+      // ✅ FIX: Don't directly return the promise
+      // Instead, wait for it and handle errors independently
+      try {
+        return await this.pendingRequests.get(key);
+      } catch (error) {
+        // Original request failed, but THIS request should retry
+        logger.warn('Coalesced request failed, retrying independently', { key, error });
+        // Fall through to create new fetch
+      }
     }
 
-    // Create new fetch promise
     const fetchPromise = (async () => {
       try {
         const data = await fetchFn();
@@ -207,7 +233,12 @@ export class RedisCacheService {
           await this.set(key, data, ttl);
         }
         return data;
+      } catch (error) {
+        // Remove from pending so other requests can retry
+        this.pendingRequests.delete(key);
+        throw error;
       } finally {
+        // Cleanup after successful fetch
         this.pendingRequests.delete(key);
       }
     })();

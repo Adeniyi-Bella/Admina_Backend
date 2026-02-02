@@ -19,9 +19,9 @@ export interface IUser {
   updatedAt: Date;
   privacyPolicyAccepted: boolean;
   status: 'active' | 'deleted';
-  deletedAt?: Date;
-  permanentDeleteAt?: Date;
-
+  deletedAt: Date;
+  permanentDeleteAt: Date;
+  monthlyQuotaResetAt: Date;
 }
 
 export const PlanLimits = {
@@ -54,7 +54,7 @@ const plansSchema = new Schema<IPlans>(
     },
     standard: {
       type: valuesSchema,
-      default:PlanLimits.standard, // default standard plan
+      default: PlanLimits.standard, // default standard plan
     },
 
     free: {
@@ -102,8 +102,8 @@ const userSchema = new Schema<IUser>(
       unique: true,
     },
 
-    /** 
-     * Status Management for Soft Delete 
+    /**
+     * Status Management for Soft Delete
      */
     status: {
       type: String,
@@ -118,6 +118,10 @@ const userSchema = new Schema<IUser>(
     permanentDeleteAt: {
       type: Date,
       default: null,
+    },
+    monthlyQuotaResetAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {

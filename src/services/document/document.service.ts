@@ -7,7 +7,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '@/lib/winston';
 import { UserDTO } from '@/types';
-import { DatabaseError, InvalidInputError } from '@/lib/api_response/error';
+import {
+  DatabaseError,
+  ErrorSerializer,
+  InvalidInputError,
+} from '@/lib/api_response/error';
 import { cacheService } from '../redis-cache/redis-cache.service';
 import mongoose from 'mongoose';
 import { PlanType } from '@/models/user.model';
@@ -28,18 +32,18 @@ export class DocumentService implements IDocumentService {
     return `docs:list:${userId}`;
   }
 
-  private getDocumentTag(userId: string): string {
-    return `tag:docs:${userId}`;
+  private getUserTag(userId: string): string {
+    return `tag:user:${userId}`;
   }
+
   async deleteAllDocuments(userId: string): Promise<void> {
     if (!userId) {
       throw new InvalidInputError('Valid userId is required');
     }
     try {
-      const result = await Document.deleteMany({ userId }).exec();
+      await cacheService.invalidateTag(this.getUserTag(userId));
 
-      await cacheService.invalidateTag(this.getDocumentTag(userId));
-      await cacheService.delete(this.getDocumentListCacheKey(userId));
+      const result = await Document.deleteMany({ userId }).exec();
 
       logger.info('Document history cleanup completed', {
         userId,
@@ -91,7 +95,7 @@ export class DocumentService implements IDocumentService {
           ]);
 
           // Add this key to the user's document tag for invalidation
-          await cacheService.addToTag(this.getDocumentTag(userId), cacheKey);
+          await cacheService.addToTag(this.getUserTag(userId), cacheKey);
 
           return { total, documents };
         },
@@ -118,21 +122,25 @@ export class DocumentService implements IDocumentService {
     session.startTransaction();
 
     try {
+      await cacheService.invalidateTag(this.getUserTag(document.userId));
+
       await Document.create([document], { session });
 
       await this.userService.updateUser(document.userId, plan);
 
       await session.commitTransaction();
 
-      await cacheService.invalidateTag(this.getDocumentTag(document.userId));
-
+      logger.info('Document created and quota updated', {
+        userId: document.userId,
+        docId: document.docId,
+      });
     } catch (error) {
       // If anything fails, MongoDB rolls back both the document creation and the user update
       await session.abortTransaction();
 
       logger.error('Atomic document creation failed', {
         userId: document.userId,
-        error,
+        error: ErrorSerializer.serialize(error),
       });
 
       if (
@@ -155,7 +163,6 @@ export class DocumentService implements IDocumentService {
     try {
       const cacheKey = this.getDocumentCacheKey(user.userId, docId);
 
-      // SENIOR PATTERN: Use getOrFetch with Request Coalescing
       return cacheService.getOrFetch(
         cacheKey,
         async () => {
@@ -172,11 +179,7 @@ export class DocumentService implements IDocumentService {
             .exec();
 
           if (document) {
-            // Add to tag for grouped invalidation
-            await cacheService.addToTag(
-              this.getDocumentTag(user.userId),
-              cacheKey,
-            );
+            await cacheService.addToTag(this.getUserTag(user.userId), cacheKey);
           }
 
           return document;
@@ -187,7 +190,7 @@ export class DocumentService implements IDocumentService {
       logger.error('Failed to fetch document', {
         userId: user.userId,
         docId,
-        error,
+        error: ErrorSerializer.serialize(error),
       });
       throw new DatabaseError('Failed to retrieve document');
     }
@@ -198,11 +201,8 @@ export class DocumentService implements IDocumentService {
       throw new InvalidInputError('Valid userId and docId are required');
     }
     try {
+      await cacheService.invalidateTag(this.getUserTag(userId));
       const result = await Document.deleteOne({ userId, docId }).exec();
-      if (result.deletedCount > 0) {
-        await cacheService.delete(this.getDocumentCacheKey(userId, docId));
-        await cacheService.invalidateTag(this.getDocumentTag(userId));
-      }
 
       return result.deletedCount > 0;
     } catch (error) {
@@ -224,6 +224,8 @@ export class DocumentService implements IDocumentService {
       throw new InvalidInputError('Valid update data is required');
     }
     try {
+      await cacheService.invalidateTag(this.getUserTag(userId));
+
       const updateQuery =
         '$inc' in updates
           ? { ...updates, $set: { updatedAt: new Date() } }
@@ -236,11 +238,6 @@ export class DocumentService implements IDocumentService {
       )
         .lean()
         .exec();
-
-      if (updatedDocument) {
-        await cacheService.delete(this.getDocumentCacheKey(userId, docId));
-        await cacheService.invalidateTag(this.getDocumentTag(userId));
-      }
 
       return updatedDocument as IDocument;
     } catch (error) {
@@ -261,6 +258,8 @@ export class DocumentService implements IDocumentService {
     }
 
     try {
+      await cacheService.invalidateTag(this.getUserTag(userId));
+
       const update = this.buildActionPlanUpdate(
         action,
         actionPlanData,
@@ -278,11 +277,6 @@ export class DocumentService implements IDocumentService {
       )
         .lean()
         .exec();
-
-      if (updatedDocument) {
-        await cacheService.delete(this.getDocumentCacheKey(userId, docId));
-        await cacheService.invalidateTag(this.getDocumentTag(userId));
-      }
 
       return updatedDocument as IDocument;
     } catch (error) {

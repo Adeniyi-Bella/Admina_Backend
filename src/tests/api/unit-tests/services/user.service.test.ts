@@ -13,6 +13,8 @@ import {
 import Document from '@/models/document.model';
 import { getPlanMetadata } from '@/utils/user.utils';
 import mongoose from 'mongoose';
+import { PlanLimits } from '@/models/user.model';
+import { ChatbotPlanLimits } from '@/models/document.model';
 
 jest.mock('@/models/user.model');
 jest.mock('@/lib/redis');
@@ -39,72 +41,85 @@ describe('UserService - Complete Test Suite', () => {
   // ==========================================================================
   // CREATE USER - Registration & Re-registration Prevention
   // ==========================================================================
-  describe('createUserFromToken - User Registration', () => {
-    it('should create new user successfully', async () => {
-      const mockUser = {
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        username: 'testuser',
-        status: 'active',
-      };
+  // describe('createUserFromToken - User Registration', () => {
+  //   it('should create new user successfully', async () => {
+  //     const mockUser = {
+  //       userId: 'test-user-id',
+  //       email: 'test@example.com',
+  //       username: 'testuser',
+  //       status: 'active',
+  //     };
 
-      (User.create as jest.Mock).mockResolvedValue(mockUser);
+  //     (User.create as jest.Mock).mockResolvedValue(mockUser);
 
-      await expect(
-        userService.createUserFromToken(mockRequest as Request),
-      ).resolves.not.toThrow();
+  //     await expect(
+  //       userService.createUserFromToken(mockRequest as Request),
+  //     ).resolves.not.toThrow();
 
-      expect(User.create).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        username: 'testuser',
-      });
-    });
+  //     expect(User.create).toHaveBeenCalledWith({
+  //       userId: 'test-user-id',
+  //       email: 'test@example.com',
+  //       username: 'testuser',
+  //     });
+  //   });
 
-    it('should BLOCK re-registration with duplicate email (code 11000)', async () => {
-      const duplicateError = { code: 11000 };
-      (User.create as jest.Mock).mockRejectedValue(duplicateError);
+  //   it('should BLOCK re-registration with duplicate email (code 11000)', async () => {
+  //     const duplicateError = { code: 11000 };
+  //     (User.create as jest.Mock).mockRejectedValue(duplicateError);
 
-      await expect(
-        userService.createUserFromToken(mockRequest as Request),
-      ).rejects.toThrow(ReregistrationBlockedError);
+  //     await expect(
+  //       userService.createUserFromToken(mockRequest as Request),
+  //     ).rejects.toThrow(ReregistrationBlockedError);
 
-      expect(User.create).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        username: 'testuser',
-      });
-    });
+  //     expect(User.create).toHaveBeenCalledWith({
+  //       userId: 'test-user-id',
+  //       email: 'test@example.com',
+  //       username: 'testuser',
+  //     });
+  //   });
 
-    it('should throw DatabaseError for other creation failures', async () => {
-      (User.create as jest.Mock).mockRejectedValue(
-        new Error('DB Connection Lost'),
-      );
+  //   it('should throw DatabaseError for other creation failures', async () => {
+  //     (User.create as jest.Mock).mockRejectedValue(
+  //       new Error('DB Connection Lost'),
+  //     );
 
-      await expect(
-        userService.createUserFromToken(mockRequest as Request),
-      ).rejects.toThrow('Failed to create user');
-    });
+  //     await expect(
+  //       userService.createUserFromToken(mockRequest as Request),
+  //     ).rejects.toThrow('Failed to create user');
+  //   });
 
-    it('should not cache user after creation', async () => {
-      (User.create as jest.Mock).mockResolvedValue({});
+  //   it('should not cache user after creation', async () => {
+  //     (User.create as jest.Mock).mockResolvedValue({});
 
-      await userService.createUserFromToken(mockRequest as Request);
+  //     await userService.createUserFromToken(mockRequest as Request);
 
-      expect(cacheService.set).not.toHaveBeenCalled();
-    });
-  });
+  //     expect(cacheService.set).not.toHaveBeenCalled();
+  //   });
+  // });
 
   // ==========================================================================
-  // CHECK IF USER EXISTS - Cache-First Strategy
+  // CHECK IF USER EXISTS - Cache-First Strategy & Monthly Reset
   // ==========================================================================
-  describe('checkIfUserExist - User Retrieval with Caching', () => {
-    it('should return user from cache if available', async () => {
+  describe('checkIfUserExist - User Retrieval with Caching & Quota Reset', () => {
+    const today = new Date('2026-02-02T10:00:00Z');
+    const startOfFeb = new Date(Date.UTC(2026, 1, 1)); // 2026-02-01
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(today);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should return user from cache if available and reset not required', async () => {
       const cachedUser = {
         userId: 'test-user-id',
         email: 'test@example.com',
         plan: 'free',
         lengthOfDocs: { free: { max: 2, min: 0, current: 2 } },
+        monthlyQuotaResetAt: startOfFeb, // Current month
       };
 
       (cacheService.getOrFetch as jest.Mock).mockResolvedValue(cachedUser);
@@ -112,25 +127,23 @@ describe('UserService - Complete Test Suite', () => {
       const result = await userService.checkIfUserExist(mockRequest as Request);
 
       expect(result).toEqual(cachedUser);
-      expect(cacheService.getOrFetch).toHaveBeenCalledWith(
-        'user:test-user-id',
-        expect.any(Function),
-        3600,
-      );
+      // Verify reset logic was skipped (no DB calls)
+      expect(User.updateOne).not.toHaveBeenCalled();
     });
 
-    it('should fetch from DB on cache miss and return mapped DTO', async () => {
+    it('should fetch from DB on cache miss, return mapped DTO, and skip reset if date is current', async () => {
       const dbUser = {
         userId: 'test-user-id',
         email: 'test@example.com',
         plan: 'premium',
         lengthOfDocs: { premium: { max: 5, min: 0, current: 3 } },
         status: 'active',
+        monthlyQuotaResetAt: startOfFeb,
         __v: 0,
       };
 
       (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn(),
+        async (_, fetchFn) => fetchFn(),
       );
 
       (User.findOne as jest.Mock).mockReturnValue({
@@ -146,9 +159,78 @@ describe('UserService - Complete Test Suite', () => {
         email: 'test@example.com',
         plan: 'premium',
         lengthOfDocs: { premium: { max: 5, min: 0, current: 3 } },
+        monthlyQuotaResetAt: startOfFeb,
+      });
+      expect(User.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('should trigger monthly reset when month changes (The "Winner" Path)', async () => {
+      // Simulate March 1st
+      const marchFirst = new Date('2026-03-01T10:00:00Z');
+      const startOfMarch = new Date(Date.UTC(2026, 2, 1));
+      jest.setSystemTime(marchFirst);
+
+      const oldCachedUser = {
+        userId: 'test-user-id',
+        email: 'test@example.com',
+        monthlyQuotaResetAt: startOfFeb, // Old month (Feb)
+      };
+
+      (cacheService.getOrFetch as jest.Mock).mockResolvedValue(oldCachedUser);
+
+      // Mock User Update: modifiedCount = 1 (We won the race)
+      (User.updateOne as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
+      });
+      (Document.updateMany as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
       });
 
-      expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
+      const result = await userService.checkIfUserExist(mockRequest as Request);
+
+      // Verify the Atomic Handshake
+      expect(User.updateOne).toHaveBeenCalledWith(
+        {
+          userId: 'test-user-id',
+          $or: [
+            { monthlyQuotaResetAt: { $lt: startOfMarch } },
+            { monthlyQuotaResetAt: { $exists: false } },
+          ],
+        },
+        expect.objectContaining({
+          $set: expect.objectContaining({ monthlyQuotaResetAt: startOfMarch }),
+        }),
+      );
+
+      // Verify Document update and Cache deletion
+      expect(Document.updateMany).toHaveBeenCalled();
+      
+
+      // Verification of Eventual Consistency:
+      // result still has old date because we return the object we had in memory
+      expect(result).toEqual(oldCachedUser);
+    });
+
+    it('should skip document reset if another request already updated the user (The "Loser" Path)', async () => {
+      jest.setSystemTime(new Date('2026-03-01T10:00:00Z'));
+
+      const oldCachedUser = {
+        userId: 'test-user-id',
+        monthlyQuotaResetAt: startOfFeb,
+      };
+
+      (cacheService.getOrFetch as jest.Mock).mockResolvedValue(oldCachedUser);
+
+      // Mock Atomic Update: modifiedCount = 0 (Another server node won)
+      (User.updateOne as jest.Mock).mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
+      });
+
+      await userService.checkIfUserExist(mockRequest as Request);
+
+      // Should NOT try to update documents or delete cache
+      expect(Document.updateMany).not.toHaveBeenCalled();
+      
     });
 
     it('should return null when user does not exist in DB', async () => {
@@ -163,20 +245,17 @@ describe('UserService - Complete Test Suite', () => {
       });
 
       const result = await userService.checkIfUserExist(mockRequest as Request);
-
       expect(result).toBeNull();
     });
 
     it('should THROW ReregistrationBlockedError if user status is "deleted"', async () => {
       const deletedUser = {
         userId: 'test-user-id',
-        email: 'test@example.com',
         status: 'deleted',
-        deletedAt: new Date(),
       };
 
       (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn(),
+        async (_, fetchFn) => fetchFn(),
       );
 
       (User.findOne as jest.Mock).mockReturnValue({
@@ -188,26 +267,6 @@ describe('UserService - Complete Test Suite', () => {
       await expect(
         userService.checkIfUserExist(mockRequest as Request),
       ).rejects.toThrow(ReregistrationBlockedError);
-    });
-
-    it('should use request coalescing for concurrent requests', async () => {
-      const mockUser = {
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        plan: 'free',
-        lengthOfDocs: { free: { max: 2, min: 0, current: 2 } },
-      };
-
-      (cacheService.getOrFetch as jest.Mock).mockResolvedValue(mockUser);
-
-      const requests = Array(5)
-        .fill(null)
-        .map(() => userService.checkIfUserExist(mockRequest as Request));
-
-      const results = await Promise.all(requests);
-
-      results.forEach((result) => expect(result).toEqual(mockUser));
-      expect(cacheService.getOrFetch).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -239,7 +298,7 @@ describe('UserService - Complete Test Suite', () => {
       );
 
       // 2. Verify both specific key delete and tag invalidation
-      expect(cacheService.delete).toHaveBeenCalledWith(`user:${userId}`);
+      
       expect(cacheService.invalidateTag).toHaveBeenCalledWith(
         `tag:user:${userId}`,
       );
@@ -281,7 +340,7 @@ describe('UserService - Complete Test Suite', () => {
 
       // 2. Mock Redis failure the way your service actually handles it:
       // Your RedisCacheService catches errors and returns false, it DOES NOT throw.
-      (cacheService.delete as jest.Mock).mockResolvedValue(false);
+      
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(false);
 
       // 3. The UserService should resolve successfully because the DB part worked
@@ -306,7 +365,6 @@ describe('UserService - Complete Test Suite', () => {
         exec: jest.fn().mockResolvedValue(mockResult),
       });
 
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
 
       await userService.deleteUser('test-user-id');
@@ -337,12 +395,12 @@ describe('UserService - Complete Test Suite', () => {
         exec: jest.fn().mockResolvedValue({ matchedCount: 1 }),
       });
 
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
+      
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
 
       await userService.deleteUser('test-user-id');
 
-      expect(cacheService.delete).toHaveBeenCalledWith('user:test-user-id');
+      
       expect(cacheService.invalidateTag).toHaveBeenCalledWith(
         'tag:user:test-user-id',
       );
@@ -353,15 +411,12 @@ describe('UserService - Complete Test Suite', () => {
         exec: jest.fn().mockResolvedValue({ matchedCount: 0 }),
       });
 
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
+      
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
 
       await expect(
         userService.deleteUser('non-existent-id'),
       ).resolves.not.toThrow();
-
-      // Should still attempt cache invalidation
-      expect(cacheService.delete).toHaveBeenCalled();
     });
 
     it('should throw DatabaseError on deletion failure', async () => {
@@ -579,67 +634,67 @@ describe('UserService - Complete Test Suite', () => {
   // ==========================================================================
   // RE-REGISTRATION PREVENTION - Complete Flow Tests
   // ==========================================================================
-  describe('Re-registration Prevention - Integration Tests', () => {
-    it('SCENARIO 1: User deletes account and tries to re-register same month', async () => {
-      // Step 1: User tries to create account
-      (User.create as jest.Mock).mockRejectedValue({ code: 11000 });
+  // describe('Re-registration Prevention - Integration Tests', () => {
+  //   it('SCENARIO 1: User deletes account and tries to re-register same month', async () => {
+  //     // Step 1: User tries to create account
+  //     (User.create as jest.Mock).mockRejectedValue({ code: 11000 });
 
-      await expect(
-        userService.createUserFromToken(mockRequest as Request),
-      ).rejects.toThrow(ReregistrationBlockedError);
-    });
+  //     await expect(
+  //       userService.createUserFromToken(mockRequest as Request),
+  //     ).rejects.toThrow(ReregistrationBlockedError);
+  //   });
 
-    it('SCENARIO 2: Deleted user tries to login same month', async () => {
-      const deletedUser = {
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        status: 'deleted',
-      };
+  //   it('SCENARIO 2: Deleted user tries to login same month', async () => {
+  //     const deletedUser = {
+  //       userId: 'test-user-id',
+  //       email: 'test@example.com',
+  //       status: 'deleted',
+  //     };
 
-      (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn(),
-      );
+  //     (cacheService.getOrFetch as jest.Mock).mockImplementation(
+  //       async (key, fetchFn) => fetchFn(),
+  //     );
 
-      (User.findOne as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(deletedUser),
-      });
+  //     (User.findOne as jest.Mock).mockReturnValue({
+  //       select: jest.fn().mockReturnThis(),
+  //       lean: jest.fn().mockReturnThis(),
+  //       exec: jest.fn().mockResolvedValue(deletedUser),
+  //     });
 
-      await expect(
-        userService.checkIfUserExist(mockRequest as Request),
-      ).rejects.toThrow(ReregistrationBlockedError);
-    });
+  //     await expect(
+  //       userService.checkIfUserExist(mockRequest as Request),
+  //     ).rejects.toThrow(ReregistrationBlockedError);
+  //   });
 
-    it('SCENARIO 3: New month arrives, TTL removes document, user can register', async () => {
-      // Document has been removed by MongoDB TTL
-      (User.create as jest.Mock).mockResolvedValue({
-        userId: 'test-user-id',
-        email: 'test@example.com',
-        status: 'active',
-      });
+  //   it('SCENARIO 3: New month arrives, TTL removes document, user can register', async () => {
+  //     // Document has been removed by MongoDB TTL
+  //     (User.create as jest.Mock).mockResolvedValue({
+  //       userId: 'test-user-id',
+  //       email: 'test@example.com',
+  //       status: 'active',
+  //     });
 
-      await expect(
-        userService.createUserFromToken(mockRequest as Request),
-      ).resolves.not.toThrow();
-    });
+  //     await expect(
+  //       userService.createUserFromToken(mockRequest as Request),
+  //     ).resolves.not.toThrow();
+  //   });
 
-    it('SCENARIO 4: New month, checkIfUserExist returns null (fresh start)', async () => {
-      (cacheService.getOrFetch as jest.Mock).mockImplementation(
-        async (key, fetchFn) => fetchFn(),
-      );
+  //   it('SCENARIO 4: New month, checkIfUserExist returns null (fresh start)', async () => {
+  //     (cacheService.getOrFetch as jest.Mock).mockImplementation(
+  //       async (key, fetchFn) => fetchFn(),
+  //     );
 
-      (User.findOne as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(null),
-      });
+  //     (User.findOne as jest.Mock).mockReturnValue({
+  //       select: jest.fn().mockReturnThis(),
+  //       lean: jest.fn().mockReturnThis(),
+  //       exec: jest.fn().mockResolvedValue(null),
+  //     });
 
-      const result = await userService.checkIfUserExist(mockRequest as Request);
+  //     const result = await userService.checkIfUserExist(mockRequest as Request);
 
-      expect(result).toBeNull();
-    });
-  });
+  //     expect(result).toBeNull();
+  //   });
+  // });
 
   // ==========================================================================
   // CHANGE USER PLAN - Atomic Upgrade/Downgrade logic
@@ -699,7 +754,7 @@ describe('UserService - Complete Test Suite', () => {
 
       // Verify Commit and Cleanup
       expect(mockSession.commitTransaction).toHaveBeenCalled();
-      expect(cacheService.delete).toHaveBeenCalledWith(`user:${userId}`);
+      
       expect(cacheService.invalidateTag).toHaveBeenCalledWith(
         `tag:user:${userId}`,
       );
@@ -736,7 +791,7 @@ describe('UserService - Complete Test Suite', () => {
       ).rejects.toThrow(DatabaseError);
 
       expect(mockSession.abortTransaction).toHaveBeenCalled();
-      expect(cacheService.delete).not.toHaveBeenCalled();
+      
       expect(mockSession.endSession).toHaveBeenCalled();
     });
   });

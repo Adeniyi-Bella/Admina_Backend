@@ -32,6 +32,10 @@ export type UserDTO = Pick<IUser, 'userId' | 'plan' | 'lengthOfDocs'> & {
   email?: string;
 };
 
+export interface QuotaResetUser extends UserDTO {
+  monthlyQuotaResetAt: Date;
+}
+
 export type VerifiedUser = Pick<IUser, 'userId' | 'email' | 'username'>;
 
 export interface JobData {

@@ -16,13 +16,11 @@ import authenticate from '@/middlewares/authenticate';
 /**
  * Controllers
  */
-import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 import { getJobStatusController } from '@/controllers/jobs/translate.jobs.controller';
 
 const router = Router();
 
 router.use(authenticate);
-router.use(resetPropertiesIfNewMonth);
 
 router.get('/:jobId/status', getJobStatusController);
 

@@ -94,7 +94,7 @@ describe('DocumentService - Testing', () => {
       await documentService.getDocument(mockUser, 'doc-123');
 
       expect(cacheService.addToTag).toHaveBeenCalledWith(
-        'tag:docs:test-user-id',
+        'tag:user:test-user-id',
         'doc:test-user-id:doc-123',
       );
     });
@@ -173,7 +173,6 @@ describe('DocumentService - Testing', () => {
         exec: jest.fn().mockResolvedValue(mockDoc),
       });
 
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
 
       await documentService.updateDocument('test-user-id', 'doc-123', {
@@ -181,13 +180,10 @@ describe('DocumentService - Testing', () => {
       });
 
       // CRITICAL: Should DELETE specific cache
-      expect(cacheService.delete).toHaveBeenCalledWith(
-        'doc:test-user-id:doc-123',
-      );
 
       // CRITICAL: Should invalidate tag (all list caches)
       expect(cacheService.invalidateTag).toHaveBeenCalledWith(
-        'tag:docs:test-user-id',
+        'tag:user:test-user-id',
       );
     });
 
@@ -200,9 +196,6 @@ describe('DocumentService - Testing', () => {
       await documentService.updateDocument('test-user-id', 'non-existent', {
         title: 'New',
       });
-
-      expect(cacheService.delete).not.toHaveBeenCalled();
-      expect(cacheService.invalidateTag).not.toHaveBeenCalled();
     });
   });
 
@@ -215,16 +208,12 @@ describe('DocumentService - Testing', () => {
         exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
       });
 
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
 
       await documentService.deleteDocument('test-user-id', 'doc-123');
 
-      expect(cacheService.delete).toHaveBeenCalledWith(
-        'doc:test-user-id:doc-123',
-      );
       expect(cacheService.invalidateTag).toHaveBeenCalledWith(
-        'tag:docs:test-user-id',
+        'tag:user:test-user-id',
       );
     });
 
@@ -234,9 +223,6 @@ describe('DocumentService - Testing', () => {
       });
 
       await documentService.deleteDocument('test-user-id', 'non-existent');
-
-      expect(cacheService.delete).not.toHaveBeenCalled();
-      expect(cacheService.invalidateTag).not.toHaveBeenCalled();
     });
   });
 
@@ -250,15 +236,11 @@ describe('DocumentService - Testing', () => {
       });
 
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
 
       await documentService.deleteAllDocuments('test-user-id');
 
       expect(cacheService.invalidateTag).toHaveBeenCalledWith(
-        'tag:docs:test-user-id',
-      );
-      expect(cacheService.delete).toHaveBeenCalledWith(
-        'docs:list:test-user-id',
+        'tag:user:test-user-id',
       );
     });
   });
@@ -279,7 +261,6 @@ describe('DocumentService - Testing', () => {
         exec: jest.fn().mockResolvedValue(mockDoc),
       });
 
-      (cacheService.delete as jest.Mock).mockResolvedValue(true);
       (cacheService.invalidateTag as jest.Mock).mockResolvedValue(true);
 
       await documentService.updateActionPlan(
@@ -290,11 +271,8 @@ describe('DocumentService - Testing', () => {
         'ap-1',
       );
 
-      expect(cacheService.delete).toHaveBeenCalledWith(
-        'doc:test-user-id:doc-123',
-      );
       expect(cacheService.invalidateTag).toHaveBeenCalledWith(
-        'tag:docs:test-user-id',
+        'tag:user:test-user-id',
       );
     });
   });

@@ -51,12 +51,6 @@ jest.mock('@/middlewares/validationError', () => {
   };
 });
 
-jest.mock('@/middlewares/resetPropertiesIfNewMonth', () => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    next();
-  };
-});
-
 const app = express();
 app.use(express.json());
 app.use('/documents', router);

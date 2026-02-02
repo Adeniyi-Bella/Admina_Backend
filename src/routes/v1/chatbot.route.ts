@@ -14,7 +14,6 @@ import { body, param } from 'express-validator';
  */
 import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
-import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 import adminaChatBot from '@/controllers/chatbot/chatbot.controller';
 import multer from 'multer';
 
@@ -31,7 +30,6 @@ const upload = multer({
 });
 
 router.use(authenticate);
-router.use(resetPropertiesIfNewMonth);
 
 
 router.patch(

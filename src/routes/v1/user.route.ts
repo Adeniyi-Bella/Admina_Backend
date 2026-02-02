@@ -16,7 +16,6 @@ import validationError from '@/middlewares/validationError';
 /**
  * Controllers
  */
-import resetPropertiesIfNewMonth from '@/middlewares/resetPropertiesIfNewMonth';
 import { param } from 'express-validator';
 import {
   changeUserPlan,
@@ -49,13 +48,11 @@ router.patch(
       'Invalid plan. Plan must be one of the following: free, premium, standard.',
     ),
   validationError,
-  resetPropertiesIfNewMonth,
   changeUserPlan,
 );
 
-router.get('/plan', validationError, resetPropertiesIfNewMonth, getUserDetails);
+router.get('/plan', validationError, getUserDetails);
 
-router.delete('/', resetPropertiesIfNewMonth, deleteUser);
-// router.patch('/logout', validationError, logout);
+router.delete('/', deleteUser);
 
 export default router;
