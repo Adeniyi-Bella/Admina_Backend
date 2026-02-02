@@ -11,10 +11,7 @@ import { IActionPlan, IDocument } from '@/models/document.model';
 import { v4 as uuidv4 } from 'uuid';
 import { FileMulter, JobData } from './types';
 import { connectToDatabase, disconnectFromDatabase } from '@/lib/mongoose';
-import {
-  DatabaseError,
-  ErrorSerializer,
-} from './lib/api_response/error';
+import { DatabaseError, ErrorSerializer } from './lib/api_response/error';
 import fs from 'fs/promises';
 import { PlanType } from '@/models/user.model';
 
@@ -79,8 +76,8 @@ class TranslationWorker {
       const documentService =
         container.resolve<IDocumentService>('IDocumentService');
 
+      // 1. Read the file
       const fileBuffer = await fs.readFile(file.filePath);
-
       const reconstructedFile: FileMulter = {
         fieldname: 'file',
         originalname: file.originalname,
@@ -91,6 +88,7 @@ class TranslationWorker {
 
       logger.info(`[Job Progress] Doc: ${docId} -> Translating`, { jobId });
 
+      // 2. Track Progress in Redis
       try {
         await redis.hset(jobKey, 'status', 'translate');
         await redis.expire(jobKey, 1800);
@@ -98,6 +96,7 @@ class TranslationWorker {
         throw new DatabaseError('Failed to initialize job status in Redis');
       }
 
+      // 3. AI Translation & Summarization
       const translatedDocument = await geminiService.translateDocument(
         reconstructedFile,
         targetLanguage,
@@ -140,20 +139,23 @@ class TranslationWorker {
         { jobId },
       );
 
+      // 4. Save to DB
       await documentService.createDocumentAndUpdatePlanLimit(
         documentData,
         user.plan as PlanType,
       );
 
-      const duration = (Date.now() - startTime) / 1000;
-      logger.info(
-        `[Job Success] ID: ${jobId} | Doc: ${docId} | Duration: ${duration}s`,
-      );
-
+            // 5. Cleanup on Success
       await redis.hset(jobKey, 'status', 'completed');
       await fs
         .unlink(file.filePath)
         .catch((err) => logger.error('Failed to delete temp file', err));
+
+         const duration = (Date.now() - startTime) / 1000;
+      logger.info(
+        `[Job Success] ID: ${jobId} | Doc: ${docId} | Duration: ${duration}s`,
+      );
+
     } catch (error: any) {
       const isFinalAttempt = attemptsMade + 1 >= (job.opts.attempts || 1);
 
@@ -183,7 +185,9 @@ class TranslationWorker {
     if (!this.worker) return;
 
     this.worker.on('completed', async (job) => {
-      await redis.del(`lock:user:${job.data.user.email}`);
+      const email = job.data.user.email;
+      await redis.del(`lock:user:${email}`);
+      logger.info(`Lock released for user: ${email} in worker`);
     });
 
     this.worker.on('failed', async (job, err) => {

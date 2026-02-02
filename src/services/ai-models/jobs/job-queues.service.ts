@@ -28,12 +28,27 @@ export class TranslateQueueService {
   }
 
   /**
+   * ATOMIC DISTRIBUTED LOCK
+   * Uses Redis SET with NX flag to ensure only one process wins.
+   */
+  private async acquireUserLock(email: string): Promise<boolean> {
+    const lockKey = `lock:user:${email}`;
+    // SET if Not eXists, Expire in 600 seconds
+    const result = await redis.set(lockKey, 'true', 'EX', 600, 'NX');
+    return result === 'OK';
+  }
+
+  public async releaseUserLock(email: string) {
+    await redis.del(`lock:user:${email}`);
+  }
+
+  /**
    * Check if user has an active lock in your existing Redis instance
    */
-  public async isUserProcessing(email: string): Promise<boolean> {
-    const lock = await redis.get(`lock:user:${email}`);
-    return !!lock;
-  }
+  // public async isUserProcessing(email: string): Promise<boolean> {
+  //   const lock = await redis.get(`lock:user:${email}`);
+  //   return !!lock;
+  // }
 
   /**
    * Add translation job to BullMQ
@@ -42,48 +57,51 @@ export class TranslateQueueService {
     const workers = await this.queue.getWorkers();
 
     if (workers.length === 0) {
-      if (email) await this.releaseUserLock(email);
-      throw new ServiceUnavailableError('Our Document processor service is down. Please try again later');
-    }
-    // 1. Check Max Queue Length (Logic for Error 429)
-    const counts = await this.queue.getJobCounts('waiting', 'active');
-    const currentLoad = counts.waiting + counts.active;
-
-    if (currentLoad >= this.maxQueueLength) {
-      if (email) await this.releaseUserLock(email);
-      throw new TooManyRequestsError(
-        'Server is busy. Max queue length exceeded. Please try again later.',
+      throw new ServiceUnavailableError(
+        'Our Document processor service is down. Please try again later',
       );
     }
 
-    // 2. Set User Lock (using your existing redis instance)
-    // Expires in 10 mins (600s) to prevent permanent deadlocks
-    await redis.set(`lock:user:${email}`, 'true', 'EX', 600);
+    // 2. ATOMIC LOCKING
+    // This prevents the race condition where 2 requests check if processing at once
+    const lockAcquired = await this.acquireUserLock(email);
+    if (!lockAcquired) {
+      throw new TooManyRequestsError(
+        'You already have a document being processed.',
+      );
+    }
 
-    // 3. Set Initial Job Status
-    const jobKey = `job:${docId}`;
-    await redis.hset(jobKey, { docId, status: 'queued' });
-    await redis.expire(jobKey, 60 * 60); // 1 hour TTL
+    try {
+      // 3. Queue Capacity Check
+      const counts = await this.queue.getJobCounts('waiting', 'active');
+      if (counts.waiting + counts.active >= this.maxQueueLength) {
+        throw new TooManyRequestsError(
+          'Server busy. Please try again in a few minutes.',
+        );
+      }
 
-    // 4. Add to BullMQ with Retry & Backoff
-    await this.queue.add('translate-document', data, {
-      jobId: docId,
-      attempts: 1, // Retry 3 times
-      backoff: {
-        type: 'exponential',
-        delay: 1000, // 1s, 2s, 4s...
-      },
-      removeOnComplete: true,
-      removeOnFail: 500,
-    });
+      // 4. Set Initial Status Metadata
+      const jobKey = `job:${docId}`;
+      await redis.hset(jobKey, { docId, status: 'queued' });
+      await redis.expire(jobKey, 3600);
 
-    logger.info(`Job added to queue`, { docId, user: email });
-  }
+      // 5. Add to BullMQ with Idempotency
+      // jobId: docId ensures that even if the lock fails, BullMQ won't double-process the same doc
+      await this.queue.add('translate-document', data, {
+        jobId: docId,
+        attempts: 1,
+        backoff: { type: 'exponential', delay: 1000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      });
 
-  /**
-   * Force release lock (used in catch blocks in controller)
-   */
-  public async releaseUserLock(email: string) {
-    await redis.del(`lock:user:${email}`);
+      logger.info(`Job successfully queued`, { docId, user: email });
+    } catch (error) {
+      //  If queuing fails for any reason, release the user lock
+      // so they aren't stuck for 10 minutes.
+      await this.releaseUserLock(email);
+      logger.error('Failed to add job to queue', { docId, error });
+      throw error;
+    }
   }
 }

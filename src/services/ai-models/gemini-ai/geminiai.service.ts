@@ -241,6 +241,7 @@ export class GeminiAIService implements IGeminiAIService {
       technicalMessage: errorMessage,
       stack: error.stack,
       status: error.status,
+      error: ErrorSerializer.serialize(error),
     });
 
     // 1. Timeouts
@@ -260,7 +261,7 @@ export class GeminiAIService implements IGeminiAIService {
       errorMessage.includes('network')
     ) {
       throw new BadGatewayError(
-        'The AI processing service is temporarily unreachable. Please try again later.',
+        'The AI processing service is temporarily unreachable. Please try again later if possible with a smaller document.',
       );
     }
 

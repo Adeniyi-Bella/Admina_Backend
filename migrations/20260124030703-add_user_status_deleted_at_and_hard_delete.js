@@ -17,6 +17,7 @@ module.exports = {
           deletedAt: null,
           permanentDeleteAt: null,
           cleanUpCompleted: false,
+          monthlyQuotaResetAt: Date.now,
         },
       },
     );

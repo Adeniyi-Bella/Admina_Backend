@@ -65,16 +65,6 @@ export const createDocument = asyncHandler(
 
     await validateDocument(file, user.plan!, user.userId.toString());
 
-    // Check if user already has a document being processed
-    const isProcessing = await translateQueueService.isUserProcessing(
-      user.email!,
-    );
-    if (isProcessing) {
-      throw new TooManyRequestsError(
-        'You already have a document being processed',
-      );
-    }
-
     const docId = uuidv4();
 
     // SAVE TO DISK INSTEAD OF BASE64 CONVERSION
@@ -83,27 +73,50 @@ export const createDocument = asyncHandler(
       __dirname,
       `../../temp/${docId}-${file.originalname}`,
     );
-    await fs.mkdir(path.dirname(tempPath), { recursive: true });
-    await fs.writeFile(tempPath, file.buffer);
 
-    const jobPayload = {
-      file: {
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        filePath: tempPath,
-      },
-      targetLanguage,
-      user,
-      docId,
-    };
+    let fileWritten = false;
 
-    await translateQueueService.addTranslationJob(
-      docId,
-      jobPayload,
-      user.email!,
-    );
+    try {
+      await fs.mkdir(path.dirname(tempPath), { recursive: true });
+      await fs.writeFile(tempPath, file.buffer);
+      fileWritten = true;
 
-    ApiResponse.ok(res, 'Document queued for translation', { docId });
+      const jobPayload = {
+        file: {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          filePath: tempPath,
+        },
+        targetLanguage,
+        user,
+        docId,
+      };
+
+      // 2. Attempt to add to queue
+      await translateQueueService.addTranslationJob(
+        docId,
+        jobPayload,
+        user.email!,
+      );
+
+      ApiResponse.ok(res, 'Document queued for translation', { docId });
+    } catch (error) {
+      if (fileWritten) {
+        try {
+          // We only attempt to delete if we know the write succeeded
+          await fs.unlink(tempPath);
+          logger.info(`Cleanup: Deleted orphaned file after error`, { docId });
+        } catch (unlinkError) {
+          logger.error(`Cleanup Failed: Could not delete file`, {
+            tempPath,
+            unlinkError,
+          });
+        }
+      }
+
+      // Re-throw so the global Error Handler sends the correct response (429, 500, etc.)
+      throw error;
+    }
   },
 );
 
