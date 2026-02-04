@@ -13,7 +13,7 @@ import {
   InvalidInputError,
 } from '@/lib/api_response/error';
 import { cacheService } from '../redis-cache/redis-cache.service';
-import mongoose from 'mongoose';
+import mongoose, { UpdateQuery } from 'mongoose';
 import { PlanType } from '@/models/user.model';
 import { IUserService } from '../users/user.interface';
 
@@ -41,9 +41,9 @@ export class DocumentService implements IDocumentService {
       throw new InvalidInputError('Valid userId is required');
     }
     try {
-      await cacheService.invalidateTag(this.getUserTag(userId));
-
       const result = await Document.deleteMany({ userId }).exec();
+
+      await cacheService.invalidateTag(this.getUserTag(userId));
 
       logger.info('Document history cleanup completed', {
         userId,
@@ -122,13 +122,12 @@ export class DocumentService implements IDocumentService {
     session.startTransaction();
 
     try {
-      await cacheService.invalidateTag(this.getUserTag(document.userId));
-
       await Document.create([document], { session });
-
-      await this.userService.updateUser(document.userId, plan);
+      await this.userService.updateUser(document.userId!, plan);
 
       await session.commitTransaction();
+
+      await cacheService.invalidateTag(this.getUserTag(document.userId!));
 
       logger.info('Document created and quota updated', {
         userId: document.userId,
@@ -201,10 +200,16 @@ export class DocumentService implements IDocumentService {
       throw new InvalidInputError('Valid userId and docId are required');
     }
     try {
-      await cacheService.invalidateTag(this.getUserTag(userId));
+      // 1. Update/Delete from DB first
       const result = await Document.deleteOne({ userId, docId }).exec();
+      const deleted = result.deletedCount > 0;
 
-      return result.deletedCount > 0;
+      // 2. ONLY invalidate if the operation was successful
+      if (deleted) {
+        await cacheService.invalidateTag(this.getUserTag(userId));
+      }
+
+      return deleted;
     } catch (error) {
       logger.error('Failed to delete document', { userId, docId, error });
       throw new DatabaseError('Failed to delete document');
@@ -224,8 +229,6 @@ export class DocumentService implements IDocumentService {
       throw new InvalidInputError('Valid update data is required');
     }
     try {
-      await cacheService.invalidateTag(this.getUserTag(userId));
-
       const updateQuery =
         '$inc' in updates
           ? { ...updates, $set: { updatedAt: new Date() } }
@@ -238,6 +241,10 @@ export class DocumentService implements IDocumentService {
       )
         .lean()
         .exec();
+
+      if (updatedDocument) {
+        await cacheService.invalidateTag(this.getUserTag(userId));
+      }
 
       return updatedDocument as IDocument;
     } catch (error) {
@@ -258,8 +265,6 @@ export class DocumentService implements IDocumentService {
     }
 
     try {
-      await cacheService.invalidateTag(this.getUserTag(userId));
-
       const update = this.buildActionPlanUpdate(
         action,
         actionPlanData,
@@ -278,6 +283,10 @@ export class DocumentService implements IDocumentService {
         .lean()
         .exec();
 
+      if (updatedDocument) {
+        await cacheService.invalidateTag(this.getUserTag(userId));
+      }
+
       return updatedDocument as IDocument;
     } catch (error) {
       logger.error('Failed to update action plan', {
@@ -294,7 +303,7 @@ export class DocumentService implements IDocumentService {
     action: 'create' | 'delete' | 'update',
     actionPlanData?: Partial<IActionPlan>,
     actionPlanId?: string,
-  ): any {
+  ): UpdateQuery<IDocument> {
     switch (action) {
       case 'create':
         if (!actionPlanData?.title) {
@@ -324,7 +333,7 @@ export class DocumentService implements IDocumentService {
           );
         }
         return {
-          $pull: { actionPlans: { id: actionPlanId } },
+          $pull: { actionPlans: { id: actionPlanId } as any },
           $set: { updatedAt: new Date() },
         };
 
@@ -338,7 +347,9 @@ export class DocumentService implements IDocumentService {
           );
         }
 
-        const updateFields: any = { updatedAt: new Date() };
+        const updateFields: Record<string, string | Date | boolean> = {
+          updatedAt: new Date(),
+        };
         if (actionPlanData.title)
           updateFields['actionPlans.$[elem].title'] = actionPlanData.title;
         if (actionPlanData.dueDate)

@@ -279,7 +279,7 @@ describe('UserService - Complete Test Suite', () => {
     it('should dynamically target the "free" plan path and invalidate cache', async () => {
       // Mock updateOne to return a dummy result
       (User.updateOne as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ matchedCount: 1 }),
+        exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
       });
 
       await userService.updateUser(userId, 'free');

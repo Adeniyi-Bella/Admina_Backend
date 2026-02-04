@@ -39,7 +39,7 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userPrompt } = req.body;
     const userId = req.userId;
-    const docId = req.params.docId;
+    const docId = req.params.docId as string;
     const file = req.file;
 
     // Retrieve user plan

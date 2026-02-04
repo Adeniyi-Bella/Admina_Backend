@@ -15,7 +15,6 @@ import {
   UserNotFoundError,
   DocumentNotFoundError,
   BadRequestError,
-  TooManyRequestsError,
   InvalidInputError,
 } from '@/lib/api_response/error';
 import { logger } from '@/lib/winston';
@@ -183,7 +182,7 @@ export const getDocument = asyncHandler(
       container.resolve<IChatBotService>('IChatBotService');
     const userService = container.resolve<IUserService>('IUserService');
 
-    const { docId } = req.params;
+    const docId = req.params.docId as string;
 
     const user = await userService.checkIfUserExist(req);
     if (!user) {
@@ -221,7 +220,7 @@ export const deleteDocument = asyncHandler(
     const chatBotService =
       container.resolve<IChatBotService>('IChatBotService');
 
-    const { docId } = req.params;
+    const docId = req.params.docId as string;
 
     const [documentDeleted, _] = await Promise.all([
       documentService.deleteDocument(req.userId, docId),
@@ -245,7 +244,7 @@ export const getDocumentChatbotLimit = asyncHandler(
       container.resolve<IDocumentService>('IDocumentService');
     const userService = container.resolve<IUserService>('IUserService');
 
-    const { docId } = req.params;
+    const docId = req.params.docId as string;
 
     const user = await userService.checkIfUserExist(req);
     if (!user) {
@@ -274,7 +273,9 @@ export const updateActionPlan = asyncHandler(
     const documentService =
       container.resolve<IDocumentService>('IDocumentService');
 
-    const { docId, id: actionPlanId } = req.params;
+    const docId = req.params.docId as string;
+    const actionPlanId = req.params.id as string;
+
     const requestType = req.query.type as 'create' | 'delete' | 'update';
 
     if (!req.userId || !docId) {

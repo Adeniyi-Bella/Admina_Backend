@@ -144,13 +144,12 @@ export class UserService implements IUserService {
       if (result.matchedCount === 0) {
         logger.warn('Attempted to delete non-existent user', { userId });
       } else {
+        await cacheService.invalidateTag(this.getUserTag(userId));
         logger.info('User status successfully changed to delete', {
           userId,
           permanentDeleteAt: nextMonthDate,
         });
       }
-
-      await cacheService.invalidateTag(this.getUserTag(userId));
     } catch (error) {
       logger.error('Error deleting user', { userId, error });
       throw new DatabaseError('Failed to delete user');
@@ -161,7 +160,7 @@ export class UserService implements IUserService {
     try {
       const planLimitPath = `lengthOfDocs.${plan}.current`;
 
-      await User.updateOne(
+      const result = await User.updateOne(
         {
           userId,
           status: 'active',
@@ -173,7 +172,9 @@ export class UserService implements IUserService {
         },
       ).exec();
 
-      await cacheService.invalidateTag(this.getUserTag(userId));
+      if (result.modifiedCount > 0) {
+        await cacheService.invalidateTag(this.getUserTag(userId));
+      }
     } catch (error) {
       logger.error(
         'Failed to decrease user docs limit after document processing',
@@ -256,7 +257,6 @@ export class UserService implements IUserService {
       ).exec();
 
       if (userUpdate.modifiedCount > 0) {
-        logger.info('New Month Detected - Resetting Quotas', { userId });
         try {
           await Document.updateMany(
             { userId },
@@ -265,6 +265,7 @@ export class UserService implements IUserService {
 
           // Clear cache so the NEXT request gets the fresh values
           await cacheService.invalidateTag(this.getUserTag(userId));
+          logger.info('New Month Detected - Resetting Quotas', { userId });
         } catch (error) {
           logger.error('Document reset failed, rolling back user timestamp', {
             userId,

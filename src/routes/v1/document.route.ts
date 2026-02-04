@@ -16,12 +16,18 @@ import { body, param, query } from 'express-validator';
 import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
 import verifyUploadedFile from '@/middlewares/verifyUploadedFile';
-import { createDocument, deleteDocument, getAllDocuments, getDocument, getDocumentChatbotLimit, updateActionPlan } from '@/controllers/document/document.controller';
+import {
+  createDocument,
+  deleteDocument,
+  getAllDocuments,
+  getDocument,
+  getDocumentChatbotLimit,
+  updateActionPlan,
+} from '@/controllers/document/document.controller';
 
 /**
  * Controllers
  */
-
 
 const router = Router();
 
@@ -116,7 +122,12 @@ router.delete(
 
 router.patch(
   '/actionPlan/:docId',
-  param('docId').notEmpty().isUUID().withMessage('Invalid docId'),
+  param('docId')
+    .notEmpty()
+    .isUUID()
+    .withMessage('Invalid docId')
+    .isString()
+    .withMessage('Source language must be a string'),
   query('type')
     .notEmpty()
     .withMessage('type query parameter is required')
@@ -128,8 +139,18 @@ router.patch(
 
 router.patch(
   '/actionPlan/:docId/:id',
-  param('docId').notEmpty().isUUID().withMessage('Invalid docId'),
-  param('id').notEmpty().isUUID().withMessage('Invalid actionPlan id'),
+  param('docId')
+    .notEmpty()
+    .isUUID()
+    .withMessage('Invalid docId')
+    .isString()
+    .withMessage('Source language must be a string'),
+  param('id')
+    .notEmpty()
+    .isUUID()
+    .withMessage('Invalid actionPlan id')
+    .isString()
+    .withMessage('Source language must be a string'),
   query('type')
     .notEmpty()
     .withMessage('type query parameter is required')
