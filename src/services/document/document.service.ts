@@ -359,6 +359,9 @@ export class DocumentService implements IDocumentService {
         if (actionPlanData.completed !== undefined)
           updateFields['actionPlans.$[elem].completed'] =
             actionPlanData.completed;
+        if (actionPlanData.emailNotification !== undefined)
+          updateFields['actionPlans.$[elem].emailNotification'] =
+            actionPlanData.emailNotification;
         if (actionPlanData.location)
           updateFields['actionPlans.$[elem].location'] =
             actionPlanData.location;

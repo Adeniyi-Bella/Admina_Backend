@@ -16,6 +16,7 @@ export interface IActionPlan {
   dueDate?: Date;
   completed: boolean;
   location?: string;
+  emailNotification?: boolean;
 }
 
 export const ChatbotPlanLimits = {
@@ -145,6 +146,10 @@ const documentSchema = new Schema<IDocument>(
           location: {
             type: String,
             default: '',
+          },
+          emailNotification: {
+            type: Boolean,
+            default: false,
           },
         },
       ],

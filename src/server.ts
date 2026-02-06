@@ -86,6 +86,7 @@ app.use(
 );
 
 app.use(helmet());
+app.set('trust proxy', 1); 
 app.use(limiter);
 app.use(botGuard);
 

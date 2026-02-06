@@ -325,10 +325,14 @@ export const updateActionPlan = asyncHandler(
         }
 
         let updateData;
-        if (typeof req.body.completed === 'boolean') {
-          updateData = { ...req.body, completed: req.body.completed };
-        } else if (typeof req.body.completed === 'object') {
-          updateData = req.body.completed;
+
+        const payload = req.body.completed;
+
+        if (typeof payload === 'boolean') {
+          updateData = { completed: payload };
+
+        } else if (typeof payload === 'object') {
+          updateData = payload;
         } else {
           throw new BadRequestError('Invalid data for updating action plan');
         }
@@ -337,6 +341,7 @@ export const updateActionPlan = asyncHandler(
           !updateData.title &&
           !updateData.dueDate &&
           updateData.completed === undefined &&
+          updateData.emailNotification === undefined &&
           !updateData.location
         ) {
           throw new BadRequestError(
