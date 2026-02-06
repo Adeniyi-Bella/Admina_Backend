@@ -10,35 +10,12 @@ import { PlanType } from '@/models/user.model';
 
 import { planHierarchy } from '@/utils/user.utils';
 
-export const createUser = asyncHandler(
-  async (req: Request, _, next: NextFunction): Promise<void> => {
-    const userService = container.resolve<IUserService>('IUserService');
-
-    const user = await userService.checkIfUserExist(req);
-
-    if (!user) {
-      await userService.createUserFromToken(req);
-    }
-
-    logger.info('user validation successful', {
-      userId: user?.userId,
-      userEmail: user?.email,
-    });
-
-    return next();
-  },
-);
 /**
  * DELETE USER
  */
 export const deleteUser = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const userService = container.resolve<IUserService>('IUserService');
-
-    const user = await userService.checkIfUserExist(req);
-    if (!user) {
-      throw new UserNotFoundError();
-    }
 
     await userService.deleteUser(req.userId);
 
@@ -60,21 +37,14 @@ export const deleteUser = asyncHandler(
 
 export const getUserDetails = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const userService = container.resolve<IUserService>('IUserService');
-
-    const user = await userService.checkIfUserExist(req);
-    if (!user) {
-      throw new UserNotFoundError();
-    }
-
-    const plan = user.plan as keyof IPlans;
+    const plan = req.user.plan as keyof IPlans;
 
     console.log(plan);
-    const documentLimits = user.lengthOfDocs[plan];
+    const documentLimits = req.user.lengthOfDocs[plan];
 
     ApiResponse.ok(res, 'User details fetched successfully', {
-      planName: user.plan,
-      email: user.email,
+      planName: req.user.plan,
+      email: req.user.email,
       documentLimits,
     });
   },
@@ -88,10 +58,7 @@ export const changeUserPlan = asyncHandler(
     const userService = container.resolve<IUserService>('IUserService');
     const targetPlan = req.params.plan as PlanType;
 
-    const user = await userService.checkIfUserExist(req);
-    if (!user) throw new UserNotFoundError();
-
-    const currentRank = planHierarchy[user.plan as PlanType];
+    const currentRank = planHierarchy[req.user.plan as PlanType];
     const targetRank = planHierarchy[targetPlan];
 
     if (currentRank === targetRank) {

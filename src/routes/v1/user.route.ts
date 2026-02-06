@@ -19,7 +19,6 @@ import validationError from '@/middlewares/validationError';
 import { param } from 'express-validator';
 import {
   changeUserPlan,
-  createUser,
   deleteUser,
   getUserDetails,
 } from '@/controllers/user/user.controller';
@@ -31,7 +30,7 @@ const router = Router();
 router.use(authenticate);
 
 // Create a new user and or getAll documents for existing user
-router.get('/', validationError, createUser, getAllDocuments);
+router.get('/', validationError, getAllDocuments);
 
 // upgrade userplan
 router.patch(
@@ -43,7 +42,7 @@ router.patch(
     .withMessage('Invalid plan. Plan must not be empty.')
     .isLength({ min: 4, max: 8 })
     .withMessage('Invalid plan. Plan must be between 4 and 8 characters long.')
-    .isIn(['free','premium', 'standard'])
+    .isIn(['free', 'premium', 'standard'])
     .withMessage(
       'Invalid plan. Plan must be one of the following: free, premium, standard.',
     ),

@@ -306,7 +306,7 @@ export class UserService implements IUserService {
     );
   }
 
-  async createUserFromToken(req: Request): Promise<void> {
+  async createUserFromToken(req: Request): Promise<UserDTO> {
     const userId = req.userId;
     const email = req.email;
     const username = req.username;
@@ -314,7 +314,7 @@ export class UserService implements IUserService {
     try {
       const newUser = await User.create({ userId, email, username });
 
-      const dto: UserDTO = {
+      const userDto: UserDTO = {
         userId: String(newUser.userId),
         plan: newUser.plan,
         lengthOfDocs: newUser.lengthOfDocs,
@@ -325,10 +325,14 @@ export class UserService implements IUserService {
       const cacheKey = `user:${userId}`;
       await cacheService.set(
         cacheKey,
-        { ...dto, monthlyQuotaResetAt: newUser.monthlyQuotaResetAt },
+        { ...userDto, monthlyQuotaResetAt: newUser.monthlyQuotaResetAt },
         3600,
       );
       await cacheService.addToTag(this.getUserTag(userId), cacheKey);
+
+      logger.info('New user created successfully', { userId, email });
+
+      return userDto;
     } catch (error: any) {
       if (error.code === 11000) {
         logger.warn('User creation failed: Email exists (Duplicate Key)', {

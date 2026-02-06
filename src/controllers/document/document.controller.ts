@@ -30,7 +30,6 @@ const translateQueueService = new TranslateQueueService();
  */
 export const createDocument = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const userService = container.resolve<IUserService>('IUserService');
 
     const { targetLanguage } = req.body;
     const file = req.file as Express.Multer.File;
@@ -39,30 +38,27 @@ export const createDocument = asyncHandler(
         'No file uploaded. Please include a PDF, PNG, or JPEG file.',
       );
 
-    const user = await userService.checkIfUserExist(req);
-    if (!user) throw new UserNotFoundError();
-
-    const userPlan = user.plan as keyof IPlans;
+    const userPlan = req.user.plan as keyof IPlans;
 
     if (userPlan !== 'free' && userPlan !== 'standard') {
       logger.warn('Invalid user plan for document processing', {
-        userId: user.userId,
-        plan: user.plan,
+        userId: req.user.userId,
+        plan: req.user.plan,
       });
       throw new BadRequestError('Invalid User Plan.');
     }
 
-    if (user.lengthOfDocs[userPlan]?.current! < 1) {
+    if (req.user.lengthOfDocs[userPlan]?.current! < 1) {
       logger.warn('User has reached document processing limit', {
-        userId: user.userId,
-        remainingDocsForTheMonth: user.lengthOfDocs[userPlan]?.current,
+        userId: req.user.userId,
+        remainingDocsForTheMonth: req.user.lengthOfDocs[userPlan]?.current,
       });
       throw new BadRequestError(
         'Document processing limit reached for this month.',
       );
     }
 
-    await validateDocument(file, user.plan!, user.userId.toString());
+    await validateDocument(file, req.user.plan!, req.user.userId.toString());
 
     const docId = uuidv4();
 
@@ -87,7 +83,7 @@ export const createDocument = asyncHandler(
           filePath: tempPath,
         },
         targetLanguage,
-        user,
+        user: req.user,
         docId,
       };
 
@@ -95,7 +91,7 @@ export const createDocument = asyncHandler(
       await translateQueueService.addTranslationJob(
         docId,
         jobPayload,
-        user.email!,
+        req.user.email!,
       );
 
       ApiResponse.ok(res, 'Document queued for translation', { docId });
@@ -126,25 +122,19 @@ export const getAllDocuments = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const documentService =
       container.resolve<IDocumentService>('IDocumentService');
-    const userService = container.resolve<IUserService>('IUserService');
-
-    const user = await userService.checkIfUserExist(req);
-    if (!user) {
-      throw new UserNotFoundError();
-    }
 
     const limit = parseInt(req.query.limit as string) || config.defaultResLimit;
     const offset =
       parseInt(req.query.offset as string) || config.defaultResOffset;
 
     const { total, documents } = await documentService.getAllDocumentsByUserId(
-      user,
+      req.user,
       limit,
       offset,
     );
 
-    const plan = user.plan as keyof IPlans;
-    const documentLimits = user.lengthOfDocs[plan];
+    const plan = req.user.plan as keyof IPlans;
+    const documentLimits = req.user.lengthOfDocs[plan];
 
     const responseDocuments: IDocumentPreview[] = documents.map((doc) => ({
       docId: doc.docId!,
@@ -163,9 +153,9 @@ export const getAllDocuments = asyncHandler(
       limit,
       offset,
       total,
-      userPlan: user.plan,
+      userPlan: req.user.plan,
       documents: responseDocuments,
-      email: user.email,
+      email: req.user.email,
       documentLimits,
     });
   },
@@ -180,16 +170,11 @@ export const getDocument = asyncHandler(
       container.resolve<IDocumentService>('IDocumentService');
     const chatBotService =
       container.resolve<IChatBotService>('IChatBotService');
-    const userService = container.resolve<IUserService>('IUserService');
 
     const docId = req.params.docId as string;
 
-    const user = await userService.checkIfUserExist(req);
-    if (!user) {
-      throw new UserNotFoundError();
-    }
 
-    const document = await documentService.getDocument(user, docId);
+    const document = await documentService.getDocument(req.user, docId);
     if (!document) {
       throw new DocumentNotFoundError();
     }
@@ -205,7 +190,7 @@ export const getDocument = asyncHandler(
     ApiResponse.ok(res, 'Document fetched successfully', {
       document,
       chats,
-      userPlan: user.plan,
+      userPlan: req.user.plan,
     });
   },
 );
@@ -242,21 +227,15 @@ export const getDocumentChatbotLimit = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const documentService =
       container.resolve<IDocumentService>('IDocumentService');
-    const userService = container.resolve<IUserService>('IUserService');
 
     const docId = req.params.docId as string;
 
-    const user = await userService.checkIfUserExist(req);
-    if (!user) {
-      throw new UserNotFoundError();
-    }
-
-    const document = await documentService.getDocument(user, docId);
+    const document = await documentService.getDocument(req.user, docId);
     if (!document) {
       throw new DocumentNotFoundError();
     }
 
-    const plan = user.plan as keyof IPlans;
+    const plan = req.user.plan as keyof IPlans;
     const docLimit = document.chatBotPrompt![plan];
 
     ApiResponse.ok(res, 'Document chatbot limit fetched successfully', {
@@ -330,7 +309,6 @@ export const updateActionPlan = asyncHandler(
 
         if (typeof payload === 'boolean') {
           updateData = { completed: payload };
-
         } else if (typeof payload === 'object') {
           updateData = payload;
         } else {

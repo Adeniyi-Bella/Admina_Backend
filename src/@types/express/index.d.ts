@@ -19,7 +19,7 @@ declare global {
       userId: string;
       email: string;
       username: string;
-
+      user: UserDTO;
     }
   }
 }

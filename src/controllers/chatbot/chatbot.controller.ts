@@ -42,13 +42,7 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
     const docId = req.params.docId as string;
     const file = req.file;
 
-    // Retrieve user plan
-    const user = await userService.checkIfUserExist(req);
-    if (!user) {
-      throw new UserNotFoundError();
-    }
-
-    const document = await documentService.getDocument(user, docId);
+    const document = await documentService.getDocument(req.user, docId);
 
     if (!document) {
       throw new DocumentNotFoundError();
@@ -99,7 +93,7 @@ const adminaChatBot = async (req: Request, res: Response): Promise<void> => {
 
     if (completeResponse) {
       await documentService.updateDocument(userId, docId, {
-        $inc: { [`chatBotPrompt.${user.plan}.current`]: -1 },
+        $inc: { [`chatBotPrompt.${req.user.plan}.current`]: -1 },
       });
 
       const newChat: IChatMessage = {
