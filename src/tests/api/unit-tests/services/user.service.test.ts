@@ -373,20 +373,10 @@ describe('UserService - Complete Test Suite', () => {
         { userId: 'test-user-id' },
         {
           $set: {
-            status: 'deleted',
+            status: 'disabled',
             deletedAt: expect.any(Date),
-            permanentDeleteAt: expect.any(Date),
           },
         },
-      );
-
-      const updateCall = (User.updateOne as jest.Mock).mock.calls[0][1];
-      const permanentDeleteAt = updateCall.$set.permanentDeleteAt;
-
-      // Verify permanentDeleteAt is first day of next month
-      expect(permanentDeleteAt.getDate()).toBe(1);
-      expect(permanentDeleteAt.getMonth()).toBeGreaterThanOrEqual(
-        new Date().getMonth(),
       );
     });
 
@@ -442,8 +432,8 @@ describe('UserService - Complete Test Suite', () => {
       };
       (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
 
-      const mockDelete = jest.fn().mockResolvedValue(undefined);
-      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockPatch = jest.fn().mockResolvedValue(undefined);
+      const mockApi = jest.fn().mockReturnValue({ patch: mockPatch });
       const mockClient = { api: mockApi };
       (Client.init as jest.Mock).mockReturnValue(mockClient);
 
@@ -451,7 +441,7 @@ describe('UserService - Complete Test Suite', () => {
 
       expect(result).toBe(true);
       expect(mockApi).toHaveBeenCalledWith('/users/test-user-id');
-      expect(mockDelete).toHaveBeenCalled();
+      expect(mockPatch).toHaveBeenCalled();
     });
 
     it('should return true for 404 (user not found/already deleted)', async () => {
@@ -462,11 +452,11 @@ describe('UserService - Complete Test Suite', () => {
       };
       (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
 
-      const mockDelete = jest.fn().mockRejectedValue({
+      const mockPatch = jest.fn().mockRejectedValue({
         statusCode: 404,
         message: 'User not found',
       });
-      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockApi = jest.fn().mockReturnValue({ patch: mockPatch });
       const mockClient = { api: mockApi };
       (Client.init as jest.Mock).mockReturnValue(mockClient);
 
@@ -483,11 +473,11 @@ describe('UserService - Complete Test Suite', () => {
       };
       (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
 
-      const mockDelete = jest.fn().mockRejectedValue({
+      const mockPatch = jest.fn().mockRejectedValue({
         statusCode: 400,
         message: 'Bad request',
       });
-      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockApi = jest.fn().mockReturnValue({ patch: mockPatch });
       const mockClient = { api: mockApi };
       (Client.init as jest.Mock).mockReturnValue(mockClient);
 
@@ -504,11 +494,11 @@ describe('UserService - Complete Test Suite', () => {
       };
       (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
 
-      const mockDelete = jest.fn().mockRejectedValue({
+      const mockPatch = jest.fn().mockRejectedValue({
         statusCode: 401,
         message: 'Unauthorized',
       });
-      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockApi = jest.fn().mockReturnValue({ patch: mockPatch });
       const mockClient = { api: mockApi };
       (Client.init as jest.Mock).mockReturnValue(mockClient);
 
@@ -525,11 +515,11 @@ describe('UserService - Complete Test Suite', () => {
       };
       (ConfidentialClientApplication as jest.Mock).mockReturnValue(mockCca);
 
-      const mockDelete = jest.fn().mockRejectedValue({
+      const mockPatch = jest.fn().mockRejectedValue({
         statusCode: 403,
         message: 'Forbidden',
       });
-      const mockApi = jest.fn().mockReturnValue({ delete: mockDelete });
+      const mockApi = jest.fn().mockReturnValue({ patch: mockPatch });
       const mockClient = { api: mockApi };
       (Client.init as jest.Mock).mockReturnValue(mockClient);
 

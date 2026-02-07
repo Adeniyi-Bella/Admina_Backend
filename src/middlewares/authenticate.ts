@@ -19,6 +19,10 @@ const authenticate = asyncHandler(
 
     const { userId, email, username } = await verifyAccessToken(token);
 
+    req.userId = userId;
+    req.email = email;
+    req.username = username;
+
     let user;
 
     user = await userService.checkIfUserExist(req);
@@ -28,9 +32,6 @@ const authenticate = asyncHandler(
     }
 
     req.user = user;
-    req.userId = userId;
-    req.email = email;
-    req.username = username;
 
     next();
   },

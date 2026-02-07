@@ -84,7 +84,16 @@ export class UserService implements IUserService {
         authProvider: (done) => done(null, result.accessToken),
       });
 
-      await client.api(`/users/${userId}`).delete();
+      const permanentDeleteDate = new Date();
+      permanentDeleteDate.setDate(permanentDeleteDate.getDate() + 30);
+
+      const deletePayload = {
+        accountEnabled: false, // Blocks login and reservations
+        onPremisesExtensionAttributes: {
+          extensionAttribute1: permanentDeleteDate.toISOString(),
+        },
+      };
+      await client.api(`/users/${userId}`).patch(deletePayload);
       return true;
     } catch (error: any) {
       const status =
@@ -127,16 +136,16 @@ export class UserService implements IUserService {
   }
 
   public async deleteUser(userId: string): Promise<void> {
-    const nextMonthDate = this.getStartOfNextMonth();
+    // const nextMonthDate = this.getStartOfNextMonth();
 
     try {
       const result = await User.updateOne(
         { userId: userId },
         {
           $set: {
-            status: 'deleted',
+            status: 'disabled',
             deletedAt: new Date(),
-            permanentDeleteAt: nextMonthDate,
+            // permanentDeleteAt: nextMonthDate,
           },
         },
       ).exec();
@@ -145,9 +154,9 @@ export class UserService implements IUserService {
         logger.warn('Attempted to delete non-existent user', { userId });
       } else {
         await cacheService.invalidateTag(this.getUserTag(userId));
-        logger.info('User status successfully changed to delete', {
+        logger.info('User status successfully changed to disabled', {
           userId,
-          permanentDeleteAt: nextMonthDate,
+          // permanentDeleteAt: nextMonthDate,
         });
       }
     } catch (error) {
@@ -204,7 +213,7 @@ export class UserService implements IUserService {
           .exec();
 
         if (!dbUser) return null;
-        if (dbUser.status === 'deleted') {
+        if (dbUser.status === 'deleted' || dbUser.status === 'disabled') {
           logger.warn(
             'Blocked user attempted access in the same month of deletion',
             { userId },

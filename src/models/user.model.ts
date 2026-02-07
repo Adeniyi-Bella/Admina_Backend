@@ -18,9 +18,9 @@ export interface IUser {
   createdAt: Date;
   updatedAt: Date;
   privacyPolicyAccepted: boolean;
-  status: 'active' | 'deleted';
+  status: 'active' | 'deleted' | 'disabled';
   deletedAt: Date;
-  permanentDeleteAt: Date;
+  // permanentDeleteAt: Date;
   monthlyQuotaResetAt: Date;
 }
 
@@ -107,7 +107,7 @@ const userSchema = new Schema<IUser>(
      */
     status: {
       type: String,
-      enum: ['active', 'deleted'],
+      enum: ['active', 'deleted', 'disabled'],
       default: 'active',
     },
     deletedAt: {
@@ -115,10 +115,10 @@ const userSchema = new Schema<IUser>(
       default: null,
     },
     // This field controls when MongoDB actually removes the document
-    permanentDeleteAt: {
-      type: Date,
-      default: null,
-    },
+    // permanentDeleteAt: {
+    //   type: Date,
+    //   default: null,
+    // },
     monthlyQuotaResetAt: {
       type: Date,
       default: Date.now,
@@ -135,6 +135,6 @@ const userSchema = new Schema<IUser>(
  * MongoDB will auto-delete the document when the server time >= permanentDeleteAt
  * expireAfterSeconds: 0 means "Delete immediately at the specified date"
  */
-userSchema.index({ permanentDeleteAt: 1 }, { expireAfterSeconds: 0 });
+// userSchema.index({ permanentDeleteAt: 1 }, { expireAfterSeconds: 0 });
 
 export default model<IUser>('User', userSchema);
