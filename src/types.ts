@@ -1,3 +1,4 @@
+import { IActionPlan, IDocument } from './models/document.model';
 import { IUser } from './models/user.model';
 
 export interface IValues {
@@ -58,3 +59,30 @@ export interface PollRequestReponse {
   status: string;
   error?: string;
 }
+
+export enum JobStatus {
+  TRANSLATE = 'translate',
+  SUMMARIZE = 'summarize',
+  SAVING = 'saving',
+  COMPLETED = 'completed',
+  ERROR = 'error',
+}
+
+export type WelcomeEmailJobData = Pick<IUser, 'userId' | 'email'>;
+
+export interface NotificationStats {
+  total: number;
+  success: number;
+  failed: number;
+}
+
+export type ReminderDocument = Pick<IDocument, 'docId' | 'title' | 'userId'> & {
+  user: {
+    userId: string;
+    email: string;
+    username: string;
+    status: string;
+  };
+  planIndex: number;
+  actionPlans: IActionPlan;
+};

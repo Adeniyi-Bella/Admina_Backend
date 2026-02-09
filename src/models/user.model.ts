@@ -19,9 +19,12 @@ export interface IUser {
   updatedAt: Date;
   privacyPolicyAccepted: boolean;
   status: 'active' | 'deleted' | 'disabled';
-  deletedAt: Date;
-  // permanentDeleteAt: Date;
+  cleanupCompletedAt: Date;
+  disabledAt: Date;
   monthlyQuotaResetAt: Date;
+  welcomeEmailStatus?: 'idle' | 'sent' | 'failed';
+  welcomeEmailSentAt?: Date;
+  welcomeEmailTries?: number;
 }
 
 export const PlanLimits = {
@@ -110,18 +113,29 @@ const userSchema = new Schema<IUser>(
       enum: ['active', 'deleted', 'disabled'],
       default: 'active',
     },
-    deletedAt: {
+    cleanupCompletedAt: {
       type: Date,
       default: null,
     },
-    // This field controls when MongoDB actually removes the document
-    // permanentDeleteAt: {
-    //   type: Date,
-    //   default: null,
-    // },
+    disabledAt: {
+      type: Date,
+      default: null,
+    },
     monthlyQuotaResetAt: {
       type: Date,
       default: Date.now,
+    },
+    welcomeEmailStatus: {
+      type: String,
+      enum: ['idle', 'sent', 'failed'],
+    },
+    welcomeEmailSentAt: {
+      type: Date,
+      default: null,
+    },
+    welcomeEmailTries: {
+      type: Number,
+      default: 0,
     },
   },
   {

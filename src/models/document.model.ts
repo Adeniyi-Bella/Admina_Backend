@@ -17,12 +17,14 @@ export interface IActionPlan {
   completed: boolean;
   location?: string;
   emailNotification?: boolean;
+  emailStatus?: 'idle' | 'sent' | 'failed';
+  emailTries?: number;
 }
 
 export const ChatbotPlanLimits = {
-  free: { max: 20, min: 0, current: 20 },
+  premium: { max: 20, min: 0, current: 20 },
   standard: { max: 10, min: 0, current: 10 },
-  premium: { max: 5, min: 0, current: 5 },
+  free: { max: 5, min: 0, current: 5 },
 };
 
 export type ChatBotPlanType = keyof typeof ChatbotPlanLimits;
@@ -150,6 +152,15 @@ const documentSchema = new Schema<IDocument>(
           emailNotification: {
             type: Boolean,
             default: false,
+          },
+          emailStatus: {
+            type: String,
+            enum: ['idle', 'sent', 'failed'],
+            default: 'idle',
+          },
+          emailTries: {
+            type: Number,
+            default: 0,
           },
         },
       ],

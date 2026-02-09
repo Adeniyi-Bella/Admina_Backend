@@ -12,7 +12,7 @@ import {
   ErrorSerializer,
   InvalidInputError,
 } from '@/lib/api_response/error';
-import { cacheService } from '../redis-cache/redis-cache.service';
+import { cacheService } from '../../lib/redis/redis-cache.service';
 import mongoose, { UpdateQuery } from 'mongoose';
 import { PlanType } from '@/models/user.model';
 import { IUserService } from '../users/user.interface';
@@ -119,7 +119,7 @@ export class DocumentService implements IDocumentService {
       );
     }
     const session = await mongoose.startSession();
-    session.startTransaction();
+    session.startTransaction();    
 
     try {
       await Document.create([document], { session });

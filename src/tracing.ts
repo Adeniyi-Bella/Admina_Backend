@@ -5,6 +5,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import config from './config';
+import { logger } from './lib/winston';
 
 // 1. Setup the Honeycomb Exporter
 const exporter = new OTLPTraceExporter({
@@ -30,9 +31,9 @@ const sdk = new NodeSDK({
 // 3. Start the SDK
 try {
   sdk.start();
-  console.log('Tracing initialized successfully');
+  logger.info('Tracing initialized successfully');
 } catch (error) {
-  console.log('Error initializing tracing', error);
+  logger.error('Error initializing tracing', error);
 }
 
 // 4. Graceful shutdown

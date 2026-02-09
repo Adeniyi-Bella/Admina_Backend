@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.mock('@/lib/redis', () => ({
+jest.mock('@/lib/redis/redis', () => ({
   __esModule: true,
   default: {
     get: jest.fn(),

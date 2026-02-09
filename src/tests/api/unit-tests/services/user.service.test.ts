@@ -4,7 +4,7 @@ import User from '@/models/user.model';
 import { Request } from 'express';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
-import { cacheService } from '@/services/redis-cache/redis-cache.service';
+import { cacheService } from '@/lib/redis/redis-cache.service';
 import {
   DatabaseError,
   ReregistrationBlockedError,
@@ -13,14 +13,12 @@ import {
 import Document from '@/models/document.model';
 import { getPlanMetadata } from '@/utils/user.utils';
 import mongoose from 'mongoose';
-import { PlanLimits } from '@/models/user.model';
-import { ChatbotPlanLimits } from '@/models/document.model';
 
 jest.mock('@/models/user.model');
-jest.mock('@/lib/redis');
+jest.mock('@/lib/redis/redis');
 jest.mock('@azure/msal-node');
 jest.mock('@microsoft/microsoft-graph-client');
-jest.mock('@/services/redis-cache/redis-cache.service');
+jest.mock('@/lib/redis/redis-cache.service');
 jest.mock('@/models/document.model');
 jest.mock('@/utils/user.utils');
 
@@ -374,7 +372,7 @@ describe('UserService - Complete Test Suite', () => {
         {
           $set: {
             status: 'disabled',
-            deletedAt: expect.any(Date),
+            disabledAt: expect.any(Date),
           },
         },
       );

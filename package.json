@@ -11,7 +11,8 @@
     "server": "nodemon --config nodemon.server.json",
     "worker": "nodemon --config nodemon.worker.json",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "scheduler": "ts-node -r tsconfig-paths/register src/scheduler/main.ts"
   },
   "keywords": [],
   "author": "",
@@ -38,6 +39,7 @@
     "mongodb-memory-server": "^10.1.4",
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
+    "resend": "^6.9.1",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.0",
     "ts-morph": "^26.0.0",
@@ -56,7 +58,6 @@
     "@opentelemetry/resources": "^2.5.0",
     "@opentelemetry/sdk-node": "^0.211.0",
     "@opentelemetry/semantic-conventions": "^1.39.0",
-    "axios": "^1.11.0",
     "bullmq": "^5.66.4",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",

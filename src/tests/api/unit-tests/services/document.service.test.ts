@@ -2,12 +2,12 @@ import 'reflect-metadata';
 import { DocumentService } from '@/services/document/document.service';
 import Document from '@/models/document.model';
 import { UserDTO } from '@/types';
-import { cacheService } from '@/services/redis-cache/redis-cache.service';
+import { cacheService } from '@/lib/redis/redis-cache.service';
 import { IUserService } from '@/services/users/user.interface';
 import { UserService } from '@/services/users/user.service';
 
 jest.mock('@/models/document.model');
-jest.mock('@/services/redis-cache/redis-cache.service');
+jest.mock('@/lib/redis/redis-cache.service');
 
 describe('DocumentService - Testing', () => {
   let documentService: DocumentService;

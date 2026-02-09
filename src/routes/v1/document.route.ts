@@ -3,31 +3,14 @@
  * @license Apache-2.0
  */
 
-/**
- * Node modules
- */
 import { Router } from 'express';
+import { container } from 'tsyringe';
 import multer from 'multer';
 import { body, param, query } from 'express-validator';
-
-/**
- * Middlewares
- */
 import authenticate from '@/middlewares/authenticate';
 import validationError from '@/middlewares/validationError';
 import verifyUploadedFile from '@/middlewares/verifyUploadedFile';
-import {
-  createDocument,
-  deleteDocument,
-  getAllDocuments,
-  getDocument,
-  getDocumentChatbotLimit,
-  updateActionPlan,
-} from '@/controllers/document/document.controller';
-
-/**
- * Controllers
- */
+import { DocumentController } from '@/controllers/document/document.controller';
 
 const router = Router();
 
@@ -53,9 +36,11 @@ const upload = multer({
   },
 });
 
+// Resolve controller from DI container
+const documentController = container.resolve(DocumentController);
+
 router.use(authenticate);
 
-// Route to get all documents with optional pagination
 router.get(
   '/',
   query('limit')
@@ -67,26 +52,23 @@ router.get(
     .isInt({ min: 0 })
     .withMessage('Offset must be a positive integer'),
   validationError,
-  getAllDocuments,
+  documentController.getAllDocuments,
 );
 
-// Route to get a specific document by ID
 router.get(
   '/:docId',
   param('docId').notEmpty().isUUID().withMessage('Invalid doId ID'),
   validationError,
-  getDocument,
+  documentController.getDocument,
 );
 
-// Route to get chatbot linit
 router.get(
   '/:docId/limit',
   param('docId').notEmpty().isUUID().withMessage('Invalid doId ID'),
   validationError,
-  getDocumentChatbotLimit,
+  documentController.getDocumentChatbotLimit,
 );
 
-// Route to translate document
 router.post(
   '/',
   upload.single('file'),
@@ -110,14 +92,14 @@ router.post(
     .matches(/^[a-zA-Z]{2,5}$/)
     .withMessage('Must be a valid language code'),
   validationError,
-  createDocument,
+  documentController.createDocument,
 );
 
 router.delete(
   '/:docId',
   param('docId').notEmpty().isUUID().withMessage('Invalid docId ID'),
   validationError,
-  deleteDocument,
+  documentController.deleteDocument,
 );
 
 router.patch(
@@ -134,7 +116,7 @@ router.patch(
     .isIn(['create'])
     .withMessage('type must be create'),
   validationError,
-  updateActionPlan,
+  documentController.updateActionPlan,
 );
 
 router.patch(
@@ -157,7 +139,7 @@ router.patch(
     .isIn(['update', 'delete'])
     .withMessage('type must be one of update, or delete'),
   validationError,
-  updateActionPlan,
+  documentController.updateActionPlan,
 );
 
 export default router;

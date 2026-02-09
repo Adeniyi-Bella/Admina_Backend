@@ -38,7 +38,7 @@ import {
   ErrorSerializer,
   UserNotFoundError,
 } from '@/lib/api_response/error';
-import { cacheService } from '../redis-cache/redis-cache.service';
+import { cacheService } from '../../lib/redis/redis-cache.service';
 import mongoose from 'mongoose';
 import { getPlanMetadata } from '@/utils/user.utils';
 import Document, { ChatbotPlanLimits } from '@/models/document.model';
@@ -52,11 +52,6 @@ export class UserService implements IUserService {
       authority: config.AZURE_CLIENT_AUTHORITY,
     },
   };
-
-  private getStartOfNextMonth(): Date {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  }
 
   private getUserTag(userId: string): string {
     return `tag:user:${userId}`;
@@ -84,14 +79,8 @@ export class UserService implements IUserService {
         authProvider: (done) => done(null, result.accessToken),
       });
 
-      const permanentDeleteDate = new Date();
-      permanentDeleteDate.setDate(permanentDeleteDate.getDate() + 30);
-
       const deletePayload = {
         accountEnabled: false, // Blocks login and reservations
-        onPremisesExtensionAttributes: {
-          extensionAttribute1: permanentDeleteDate.toISOString(),
-        },
       };
       await client.api(`/users/${userId}`).patch(deletePayload);
       return true;
@@ -144,8 +133,7 @@ export class UserService implements IUserService {
         {
           $set: {
             status: 'disabled',
-            deletedAt: new Date(),
-            // permanentDeleteAt: nextMonthDate,
+            disabledAt: new Date(),
           },
         },
       ).exec();
@@ -236,11 +224,6 @@ export class UserService implements IUserService {
 
     if (!user) return null;
 
-    logger.info(
-      'Checking and performing monthly quota reset if required:',
-      user,
-    );
-
     // 2. Eventual Consistency Reset Logic
     if (this.isResetRequired(user.monthlyQuotaResetAt)) {
       const now = new Date();
@@ -299,8 +282,6 @@ export class UserService implements IUserService {
           }
         }
       }
-    } else {
-      logger.info('Monthly quota reset not required', { userId });
     }
 
     return user;

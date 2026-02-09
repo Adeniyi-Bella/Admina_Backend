@@ -1,7 +1,7 @@
 import { ApiResponse } from '@/lib/api_response';
 import type { Request, Response } from 'express';
 import { logger } from '@/lib/winston';
-import redis from '@/lib/redis';
+import redis from '@/lib/redis/redis';
 import { PollRequestReponse } from '@/types';
 import {
   AppError,

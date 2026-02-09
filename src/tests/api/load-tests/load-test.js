@@ -27,11 +27,19 @@ export function setup() {
 }
 
 export default function () {
-  const url = 'https://admina-app-api.azurewebsites.net/api/v1';
+  const url = 'http://localhost:8080/api/v1/users';
   let res;
 
+  const params = {
+    headers: {
+      "Authorization": 'Bearer ..--..GQN9I2v_KRsQTFpt_--JO2-',
+      'Content-Type': 'application/json',
+    },
+  };
+
+
   try {
-    res = http.get(url);
+    res = http.get(url, params);
 
     const statusCheck = check(res, {
       'status is 200': (r) => r.status === 200,

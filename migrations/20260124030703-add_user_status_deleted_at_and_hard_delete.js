@@ -6,15 +6,14 @@ module.exports = {
    */
   async up(db, client) {
     const result = await db.collection('users').updateMany(
-      {
-        status: { $type: 'object' },
-      },
+      {},
       [
         {
           $set: {
             status: 'active',
-            deletedAt: null,
+            cleanupCompletedAt: null,
             monthlyQuotaResetAt: new Date(),
+            disabledAt: null,
           },
         },
       ],
@@ -31,6 +30,9 @@ module.exports = {
       {
         $set: {
           'actionPlans.$[].emailNotification': false,
+          'actionPlans.$[].emailStatus': 'idle',
+          'actionPlans.$[].emailTries': 0,
+
         },
       },
     );

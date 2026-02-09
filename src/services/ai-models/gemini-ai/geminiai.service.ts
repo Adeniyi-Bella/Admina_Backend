@@ -261,14 +261,14 @@ export class GeminiAIService implements IGeminiAIService {
       errorMessage.includes('network')
     ) {
       throw new BadGatewayError(
-        'The AI processing service is temporarily unreachable. Please try again later if possible with a smaller document.',
+        'The AI processing service is temporarily unreachable. Please try again later, if possible with a smaller document.',
       );
     }
 
     // 3. Rate Limiting
     if (error.status === 429) {
       throw new BadGatewayError(
-        'AI processing limit reached. Please try again in a moment.',
+        'Daily limit reached for free users. Please try again in 24 hrs or upgrade your plan.',
         'AI_RATE_LIMIT_EXCEEDED',
       );
     }

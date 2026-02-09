@@ -4,6 +4,7 @@ import { asyncHandler } from './errorHandler';
 import { UnauthorizedError } from '@/lib/api_response/error';
 import { verifyAccessToken } from '@/lib/jwt';
 import { IUserService } from '@/services/users/user.interface';
+import { NotificationService } from '@/services/notifications/notification.service';
 
 const authenticate = asyncHandler(
   async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -29,6 +30,8 @@ const authenticate = asyncHandler(
 
     if (!user) {
       user = await userService.createUserFromToken(req);
+      const notify = new NotificationService();
+      await notify.queueWelcomeEmail(user.userId, user.email!);
     }
 
     req.user = user;
